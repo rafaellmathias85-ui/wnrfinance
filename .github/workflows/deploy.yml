@@ -47,7 +47,16 @@ jobs:
           npm run build
           echo "✅ Build concluído"
 
-      # ─── 5. Prisma DB Push ────────────────────────────────────────────
+      # ─── 5. Copiar assets estáticos para o standalone ────────────────
+      - name: Copiar assets estáticos
+        working-directory: /var/www/wnrfinance
+        run: |
+          echo "📁 Copiando .next/static e public para standalone..."
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          echo "✅ Assets copiados"
+
+      # ─── 6. Prisma DB Push ────────────────────────────────────────────
       - name: Prisma DB Push
         working-directory: /var/www/wnrfinance
         run: |
@@ -55,7 +64,7 @@ jobs:
           npx prisma db push --accept-data-loss
           echo "✅ Schema aplicado"
 
-      # ─── 6. Reiniciar PM2 ────────────────────────────────────────────
+      # ─── 7. Reiniciar PM2 ────────────────────────────────────────────
       - name: Reiniciar PM2 (wnrfinance)
         working-directory: /var/www/wnrfinance
         run: |
@@ -64,13 +73,13 @@ jobs:
           pm2 save
           echo "✅ PM2 reiniciado"
 
-      # ─── 7. Health check ──────────────────────────────────────────────
+      # ─── 8. Health check ──────────────────────────────────────────────
       - name: Health check
         run: |
           echo "🔍 Aguardando aplicação iniciar..."
           sleep 8
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 15 http://localhost:3003/ 2>/dev/null || echo "000")
+            --max-time 15 http://localhost:3003/wnrfinance/app/login 2>/dev/null || echo "000")
           if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "307" ] || [ "$HTTP_STATUS" = "302" ] || [ "$HTTP_STATUS" = "401" ]; then
             echo "✅ Aplicação respondendo (HTTP $HTTP_STATUS)"
           else
@@ -78,7 +87,7 @@ jobs:
             pm2 logs wnrfinance --lines 20 --nostream
           fi
 
-      # ─── 8. Resumo ────────────────────────────────────────────────────
+      # ─── 9. Resumo ────────────────────────────────────────────────────
       - name: Resumo do deploy
         if: always()
         run: |
