@@ -7,85 +7,88 @@ on:
 
 jobs:
   deploy:
-    name: Build & Deploy
+    name: Build & Deploy (PM2)
     runs-on: self-hosted
 
     steps:
-      # ─── 1. Preservar .env antes do checkout ──────────────────────────
-      - name: Preservar .env antes do checkout
-        run: |
-          ENV="$GITHUB_WORKSPACE/.env"
-          if [ -f "$ENV" ]; then
-            cp "$ENV" "$HOME/.wnrfinance-env.bak"
-            echo "✅ .env preservado"
-          else
-            echo "⚠️  .env não encontrado no workspace (primeiro deploy?)"
-          fi
-
-      # ─── 2. Checkout do código ────────────────────────────────────────
+      # ─── 1. Checkout ──────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ─── 3. Restaurar .env após checkout ─────────────────────────────
-      - name: Restaurar .env após checkout
+      # ─── 2. Sincronizar código para /var/www/wnrfinance ──────────────
+      - name: Sincronizar código
         run: |
-          BAK="$HOME/.wnrfinance-env.bak"
-          DEST="$GITHUB_WORKSPACE/.env"
-          if [ -f "$BAK" ]; then
-            cp "$BAK" "$DEST"
-            echo "✅ .env restaurado"
-          else
-            echo "⚠️  Backup do .env não encontrado — verifique a configuração manual"
-          fi
+          echo "📂 Copiando arquivos atualizados para /var/www/wnrfinance..."
+          rsync -av --delete \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='node_modules/' \
+            --exclude='.next/' \
+            --exclude='ecosystem.config.js' \
+            --exclude='.git/' \
+            "$GITHUB_WORKSPACE/" /var/www/wnrfinance/
+          echo "✅ Código sincronizado"
 
-      # ─── 4. Validar variáveis críticas ───────────────────────────────
-      - name: Validar variáveis de ambiente
+      # ─── 3. Instalar dependências ─────────────────────────────────────
+      - name: Instalar dependências
+        working-directory: /var/www/wnrfinance
         run: |
-          MISSING=""
-          for VAR in NEXTAUTH_SECRET DATABASE_URL ENCRYPTION_KEY; do
-            if ! grep -q "^${VAR}=.\+" "$GITHUB_WORKSPACE/.env" 2>/dev/null; then
-              MISSING="$MISSING $VAR"
-            fi
-          done
-          if [ -n "$MISSING" ]; then
-            echo "❌ Variáveis obrigatórias faltando no .env:$MISSING"
-            exit 1
-          fi
-          echo "✅ Variáveis de ambiente validadas"
+          echo "📦 Instalando dependências..."
+          npm ci --legacy-peer-deps
+          echo "✅ Dependências instaladas"
 
-      # ─── 5. Build e deploy via Docker Compose ────────────────────────
-      - name: Deploy (Docker Compose)
-        working-directory: ${{ github.workspace }}
-        run: bash deploy.sh
+      # ─── 4. Build Next.js standalone ─────────────────────────────────
+      - name: Build Next.js
+        working-directory: /var/www/wnrfinance
+        env:
+          NODE_ENV: production
+        run: |
+          echo "🏗️  Buildando Next.js..."
+          npm run build
+          echo "✅ Build concluído"
 
-      # ─── 6. Aplicar schema do Prisma ─────────────────────────────────
+      # ─── 5. Prisma DB Push ────────────────────────────────────────────
       - name: Prisma DB Push
-        working-directory: ${{ github.workspace }}
+        working-directory: /var/www/wnrfinance
         run: |
-          echo "🗄️  Aplicando schema do banco de dados..."
-          sleep 15
-          docker compose exec -T app npx prisma db push --accept-data-loss
-          echo "✅ Schema aplicado com sucesso"
+          echo "🗄️  Aplicando schema do banco..."
+          npx prisma db push --accept-data-loss
+          echo "✅ Schema aplicado"
+
+      # ─── 6. Reiniciar PM2 ────────────────────────────────────────────
+      - name: Reiniciar PM2 (wnrfinance)
+        working-directory: /var/www/wnrfinance
+        run: |
+          echo "🔄 Reiniciando PM2 wnrfinance..."
+          pm2 reload ecosystem.config.js --update-env
+          pm2 save
+          echo "✅ PM2 reiniciado"
 
       # ─── 7. Health check ──────────────────────────────────────────────
       - name: Health check
         run: |
-          echo "🔍 Verificando saúde da aplicação..."
-          sleep 5
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health || echo "000")
-          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "401" ]; then
+          echo "🔍 Aguardando aplicação iniciar..."
+          sleep 8
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 http://localhost:3003/ 2>/dev/null || echo "000")
+          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "307" ] || [ "$HTTP_STATUS" = "302" ] || [ "$HTTP_STATUS" = "401" ]; then
             echo "✅ Aplicação respondendo (HTTP $HTTP_STATUS)"
           else
-            echo "⚠️  Aplicação pode estar inicializando (HTTP $HTTP_STATUS) — verifique os logs"
-            docker compose logs --tail=30 app
+            echo "⚠️  HTTP $HTTP_STATUS — verificando logs PM2..."
+            pm2 logs wnrfinance --lines 20 --nostream
           fi
 
-      # ─── 8. Notificação de sucesso ────────────────────────────────────
+      # ─── 8. Resumo ────────────────────────────────────────────────────
       - name: Resumo do deploy
-        if: success()
+        if: always()
         run: |
-          echo "🚀 WNR Finance deployado com sucesso!"
-          echo "   Commit: ${{ github.sha }}"
-          echo "   Branch: ${{ github.ref_name }}"
-          echo "   Autor:  ${{ github.actor }}"
-          docker compose ps
+          echo ""
+          echo "════════════════════════════════════"
+          echo " WNR Finance — Resumo do Deploy"
+          echo "════════════════════════════════════"
+          echo " Commit : ${{ github.sha }}"
+          echo " Branch : ${{ github.ref_name }}"
+          echo " Autor  : ${{ github.actor }}"
+          echo " Data   : $(date '+%d/%m/%Y %H:%M:%S')"
+          echo "════════════════════════════════════"
+          pm2 list | grep wnrfinance
