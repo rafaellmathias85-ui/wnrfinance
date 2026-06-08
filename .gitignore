@@ -43,7 +43,10 @@ desktop.ini
 *.swp
 *.swo
 
-# ─── Arquivos temporários / debug ─────────────────────────────────
+# ─── Arquivos temporários / debug / scripts de fix ────────────────
+tmp_*.sh
+tmp_*.tgz
+tmp_*.tar.gz
 C:Tempts_errors.txt
 *Tempts_errors.txt
 *.tmp
