@@ -1,0 +1,91 @@
+name: Deploy WNR Finance — VPS
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: self-hosted
+
+    steps:
+      # ─── 1. Preservar .env antes do checkout ──────────────────────────
+      - name: Preservar .env antes do checkout
+        run: |
+          ENV="$GITHUB_WORKSPACE/.env"
+          if [ -f "$ENV" ]; then
+            cp "$ENV" "$HOME/.wnrfinance-env.bak"
+            echo "✅ .env preservado"
+          else
+            echo "⚠️  .env não encontrado no workspace (primeiro deploy?)"
+          fi
+
+      # ─── 2. Checkout do código ────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ─── 3. Restaurar .env após checkout ─────────────────────────────
+      - name: Restaurar .env após checkout
+        run: |
+          BAK="$HOME/.wnrfinance-env.bak"
+          DEST="$GITHUB_WORKSPACE/.env"
+          if [ -f "$BAK" ]; then
+            cp "$BAK" "$DEST"
+            echo "✅ .env restaurado"
+          else
+            echo "⚠️  Backup do .env não encontrado — verifique a configuração manual"
+          fi
+
+      # ─── 4. Validar variáveis críticas ───────────────────────────────
+      - name: Validar variáveis de ambiente
+        run: |
+          MISSING=""
+          for VAR in NEXTAUTH_SECRET DATABASE_URL ENCRYPTION_KEY; do
+            if ! grep -q "^${VAR}=.\+" "$GITHUB_WORKSPACE/.env" 2>/dev/null; then
+              MISSING="$MISSING $VAR"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "❌ Variáveis obrigatórias faltando no .env:$MISSING"
+            exit 1
+          fi
+          echo "✅ Variáveis de ambiente validadas"
+
+      # ─── 5. Build e deploy via Docker Compose ────────────────────────
+      - name: Deploy (Docker Compose)
+        working-directory: ${{ github.workspace }}
+        run: bash deploy.sh
+
+      # ─── 6. Aplicar schema do Prisma ─────────────────────────────────
+      - name: Prisma DB Push
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "🗄️  Aplicando schema do banco de dados..."
+          sleep 15
+          docker compose exec -T app npx prisma db push --accept-data-loss
+          echo "✅ Schema aplicado com sucesso"
+
+      # ─── 7. Health check ──────────────────────────────────────────────
+      - name: Health check
+        run: |
+          echo "🔍 Verificando saúde da aplicação..."
+          sleep 5
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health || echo "000")
+          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "401" ]; then
+            echo "✅ Aplicação respondendo (HTTP $HTTP_STATUS)"
+          else
+            echo "⚠️  Aplicação pode estar inicializando (HTTP $HTTP_STATUS) — verifique os logs"
+            docker compose logs --tail=30 app
+          fi
+
+      # ─── 8. Notificação de sucesso ────────────────────────────────────
+      - name: Resumo do deploy
+        if: success()
+        run: |
+          echo "🚀 WNR Finance deployado com sucesso!"
+          echo "   Commit: ${{ github.sha }}"
+          echo "   Branch: ${{ github.ref_name }}"
+          echo "   Autor:  ${{ github.actor }}"
+          docker compose ps

@@ -1,0 +1,1840 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String            @id @default(cuid())
+  name             String?
+  email            String            @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  accounts         Account[]
+  sessions         Session[]
+  expenses         Expense[]
+  incomes          Income[]
+  savingsBoxes     SavingsBox[]
+  creditCards      CreditCard[]
+  investments      Investment[]
+  alerts           Alert[]
+  transactions     Transaction[]
+  bankConnections  BankConnection[]
+  bankTransactions BankTransaction[]
+  role             String            @default("user")
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  totpSecret       String?
+  totpEnabled      Boolean           @default(false)
+  backupCodes      String?
+  hasPF            Boolean           @default(true)
+  hasPJ            Boolean           @default(false)
+  defaultEnv       String            @default("pf") // pf or pj
+  allowedEnvs      String            @default("pf") // "pf", "pj", "both"
+  hideAmounts      Boolean           @default(false)
+  aiStrategy       String            @default("failover") // failover, round-robin, weighted, least-latency
+  activeCompanyId  String?
+  activeCompany    Company?          @relation("ActiveCompany", fields: [activeCompanyId], references: [id], onDelete: SetNull)
+  companies        UserCompany[]
+  permissions      UserPermission[]
+  subscription     Subscription?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([resetToken])
+  @@index([role])
+  @@index([activeCompanyId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Expense {
+  id                 String          @id @default(cuid())
+  description        String
+  amount             Float
+  category           String
+  date               DateTime
+  status             String          @default("pendente")
+  dueDay             Int?
+  isRecurring        Boolean         @default(false)
+  recurrenceType     String?
+  isInstallment      Boolean         @default(false)
+  installmentNumber  Int?
+  totalInstallments  Int?
+  installmentGroupId String?
+  paymentMethod      String? // PIX, BOLETO, TRANSFERENCIA, CARTAO
+  pixKey             String?
+  boletoCode         String?
+  transferBank       String?
+  transferAgency     String?
+  transferAccount    String?
+  transferName       String?
+  transferDoc        String?
+  attachmentUrl      String?
+  notes              String?
+  userId             String
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId          String?
+  bankConnectionId   String?
+  bankConnection     BankConnection? @relation(fields: [bankConnectionId], references: [id], onDelete: SetNull)
+  tags               ExpenseTag[]
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([date])
+  @@index([bankConnectionId])
+  @@index([installmentGroupId])
+}
+
+model Income {
+  id                 String          @id @default(cuid())
+  description        String
+  amount             Float
+  date               DateTime
+  type               String          @default("outros")
+  status             String          @default("pendente")
+  isRecurring        Boolean         @default(false)
+  recurrenceType     String?
+  isInstallment      Boolean         @default(false)
+  installmentNumber  Int?
+  totalInstallments  Int?
+  installmentGroupId String?
+  notes              String?
+  userId             String
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId          String?
+  bankConnectionId   String?
+  bankConnection     BankConnection? @relation(fields: [bankConnectionId], references: [id], onDelete: SetNull)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([date])
+  @@index([bankConnectionId])
+  @@index([installmentGroupId])
+}
+
+model SavingsBox {
+  id            String                @id @default(cuid())
+  name          String
+  goal          Float
+  balance       Float                 @default(0)
+  emoji         String                @default("🎯")
+  targetDate    DateTime?
+  category      String                @default("outros")
+  isCompleted   Boolean               @default(false)
+  userId        String
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contributions SavingsContribution[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([userId])
+}
+
+model SavingsContribution {
+  id     String     @id @default(cuid())
+  boxId  String
+  box    SavingsBox @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  amount Float
+  type   String // deposit, withdrawal
+  notes  String?
+  date   DateTime   @default(now())
+}
+
+model CreditCard {
+  id               String                  @id @default(cuid())
+  userId           String
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId        String?
+  company          Company?                @relation("CompanyCreditCards", fields: [companyId], references: [id], onDelete: Cascade)
+  scope            String                  @default("PF")
+  name             String
+  bank             String
+  lastFour         String
+  cardLimit        Float
+  closingDay       Int
+  dueDay           Int
+  color            String                  @default("#16A34A")
+  isActive         Boolean                 @default(true)
+  transactions     CreditCardTransaction[]
+  bankConnectionId String?
+  bankConnection   BankConnection?         @relation(fields: [bankConnectionId], references: [id], onDelete: SetNull)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([bankConnectionId])
+}
+
+model CreditCardTransaction {
+  id                 String     @id @default(cuid())
+  cardId             String
+  card               CreditCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  description        String
+  amount             Float
+  category           String?
+  date               DateTime
+  installments       Int        @default(1)
+  currentInstallment Int        @default(1)
+  isRecurring        Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+}
+
+model Investment {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  type             String
+  broker           String?
+  amount           Float
+  currentValue     Float
+  purchaseDate     DateTime
+  maturityDate     DateTime?
+  notes            String?
+  bankConnectionId String?
+  bankConnection   BankConnection? @relation(fields: [bankConnectionId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([bankConnectionId])
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  severity  String   @default("info")
+  isRead    Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model BankConnection {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId        String?
+  company          Company?          @relation("CompanyBankConnections", fields: [companyId], references: [id], onDelete: Cascade)
+  scope            String            @default("PF") // PF or PJ
+  provider         String // pluggy, belvo, quanto
+  connectionId     String // external connection/item id from provider
+  bankName         String
+  bankLogo         String?
+  status           String            @default("active") // active, syncing, error, disconnected
+  lastSyncAt       DateTime?
+  accountType      String? // checking, savings, credit, investment
+  accountNumber    String?
+  agency           String?
+  openingBalance   Float?            @default(0)
+  currentBalance   Float?            @default(0)
+  allowsPayments   Boolean           @default(true)
+  allowsReceipts   Boolean           @default(true)
+  allowsTransfers  Boolean           @default(true)
+  syncError        String?
+  expenses         Expense[]
+  incomes          Income[]
+  creditCards      CreditCard[]
+  investments      Investment[]
+  bankTransactions BankTransaction[] @relation("BankTxConn")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([provider, connectionId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  externalId  String?  @unique
+  provider    String?
+  description String
+  amount      Float
+  type        String
+  category    String?
+  date        DateTime
+  isRecurring Boolean  @default(false)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([date])
+  @@index([externalId])
+}
+
+model BankTransaction {
+  id               String          @id @default(cuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankConnectionId String?
+  bankConnection   BankConnection? @relation("BankTxConn", fields: [bankConnectionId], references: [id], onDelete: SetNull)
+  externalId       String?
+  description      String
+  amount           Float
+  type             String // credit, debit
+  date             DateTime
+  category         String?
+  balanceAfter     Float?
+  rawData          Json?
+  status           String          @default("PENDING") // PENDING, RECONCILED, BANK_ONLY, IGNORED
+  importBatchId    String?
+  reconciliation   Reconciliation? @relation("ReconBankTx")
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([userId, externalId])
+  @@index([userId])
+  @@index([date])
+  @@index([bankConnectionId])
+  @@index([status])
+  @@index([importBatchId])
+}
+
+model Reconciliation {
+  id                String              @id @default(cuid())
+  userId            String
+  bankTransactionId String              @unique
+  bankTransaction   BankTransaction     @relation("ReconBankTx", fields: [bankTransactionId], references: [id], onDelete: Cascade)
+  internalType      String? // expense, income
+  internalId        String?
+  status            String              @default("PENDING") // PENDING, RECONCILED, DIVERGENT, NOT_FOUND, BANK_ONLY, IGNORED
+  matchScore        Float?
+  matchMethod       String? // auto, manual
+  divergenceReason  String?
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  notes             String?
+  logs              ReconciliationLog[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model ReconciliationLog {
+  id               String         @id @default(cuid())
+  reconciliationId String
+  reconciliation   Reconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  action           String // created, auto_matched, manual_matched, divergent, ignored, unmatched, updated
+  previousStatus   String?
+  newStatus        String
+  details          Json?
+  performedBy      String?
+  createdAt        DateTime       @default(now())
+
+  @@index([reconciliationId])
+}
+
+model Subscription {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan               String    @default("free")
+  status             String    @default("active")
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  canceledAt         DateTime?
+  externalId         String?
+  provider           String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([status])
+  @@index([plan])
+}
+
+// ====================== PJ MODELS ======================
+
+model Company {
+  id                 String                  @id @default(cuid())
+  name               String // razão social
+  tradeName          String? // nome fantasia
+  cnpj               String                  @unique
+  email              String?
+  phone              String?
+  address            String?
+  segment            String?
+  logoUrl            String?
+  isPjFull           Boolean                 @default(false)
+  pjFullPlan         String?
+  pjFullActivatedAt  DateTime?
+  features           Json?                   @default("{}")
+  activeUsers        User[]                  @relation("ActiveCompany")
+  users              UserCompany[]
+  categories         BusinessCategory[]
+  costCenters        CostCenter[]
+  payables           AccountsPayable[]
+  receivables        AccountsReceivable[]
+  accounts           BusinessAccount[]
+  investments        PJInvestment[]
+  bankConnections    BankConnection[]        @relation("CompanyBankConnections")
+  creditCards        CreditCard[]            @relation("CompanyCreditCards")
+  negotiations       ReceivableNegotiation[]
+  connections        CompanyConnection[]
+  certificates       CompanyCertificate[]
+  upgradeLogs        CompanyUpgradeLog[]
+  clients            Client[]
+  suppliers          Supplier[]
+  nfes               NFe[]                   @relation("CompanyNFes")
+  boletos            BoletoCharge[]          @relation("CompanyBoletos")
+  taxRecords         TaxRecord[]
+  serviceFiscalRules ServiceFiscalRule[]     @relation("CompanyServiceFiscalRules")
+  purchaseOrders     PurchaseOrder[]         @relation("CompanyPurchaseOrders")
+  contracts          Contract[]              @relation("CompanyContracts")
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+}
+
+model UserCompany {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      String   @default("VIEWER") // OWNER, ADMIN, FINANCE, ACCOUNTANT, VIEWER
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+model BusinessAccount {
+  id                 String   @id @default(cuid())
+  companyId          String
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bankName           String
+  accountType        String? // corrente, poupança
+  agency             String?
+  accountNumber      String?
+  balance            Float    @default(0)
+  externalProviderId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model BusinessCategory {
+  id          String               @id @default(cuid())
+  companyId   String
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  type        String // receita, despesa, ambos
+  color       String?
+  payables    AccountsPayable[]
+  receivables AccountsReceivable[]
+  contracts   Contract[]
+  createdAt   DateTime             @default(now())
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model CostCenter {
+  id          String               @id @default(cuid())
+  companyId   String
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  code        String?
+  payables    AccountsPayable[]
+  receivables AccountsReceivable[]
+  contracts   Contract[]
+  createdAt   DateTime             @default(now())
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model AccountsPayable {
+  id                  String              @id @default(cuid())
+  companyId           String
+  company             Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  description         String
+  supplierName        String?
+  categoryId          String?
+  category            BusinessCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  costCenterId        String?
+  costCenter          CostCenter?         @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  dueDate             DateTime
+  amount              Float
+  amountPaid          Float?
+  paidAt              DateTime?
+  status              String              @default("pendente")
+  paymentMethod       String? // PIX, BOLETO, TRANSFERENCIA
+  pixKey              String?
+  boletoCode          String?
+  transferBank        String?
+  transferAgency      String?
+  transferAccount     String?
+  transferName        String?
+  transferDoc         String?
+  transferAccountType String?
+  attachmentUrl       String?
+  isRecurring         Boolean             @default(false)
+  recurrenceType      String?
+  recurrenceId        String?
+  recurrence          Recurrence?         @relation("RecurrencePayables", fields: [recurrenceId], references: [id], onDelete: SetNull)
+  notes               String?
+  createdBy           String?
+  tags                AccountPayableTag[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([companyId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([recurrenceId])
+}
+
+model AccountsReceivable {
+  id             String                  @id @default(cuid())
+  companyId      String
+  company        Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  description    String
+  customerName   String?
+  customerDoc    String? // CPF/CNPJ do cliente para NF-e e Boleto
+  customerEmail  String?
+  categoryId     String?
+  category       BusinessCategory?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  costCenterId   String?
+  costCenter     CostCenter?             @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  dueDate        DateTime
+  amount         Float
+  amountReceived Float?
+  receivedAt     DateTime?
+  status         String                  @default("pendente")
+  isRecurring    Boolean                 @default(false)
+  recurrenceType String?
+  recurrenceId   String?
+  recurrence     Recurrence?             @relation("RecurrenceReceivables", fields: [recurrenceId], references: [id], onDelete: SetNull)
+  notes          String?
+  createdBy      String?
+  // Origem do lançamento
+  sourceType     String? // manual, sale, contract
+  sourceId       String? // SalesOrder.id ou Contract.id
+  billingPeriod  String? // YYYY-MM para faturamento recorrente
+  // Automações
+  autoNfe        Boolean                 @default(false)
+  autoBoleto     Boolean                 @default(false)
+  chargeType     String?                 @default("boleto_pix") // boleto, pix, boleto_pix, link
+  fiscalRuleId   String?
+  fiscalRule     ServiceFiscalRule?      @relation("ReceivableFiscalRule", fields: [fiscalRuleId], references: [id], onDelete: SetNull)
+  tags           AccountReceivableTag[]
+  negotiations   ReceivableNegotiation[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([companyId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([recurrenceId])
+  @@index([sourceId])
+  @@index([sourceId, billingPeriod])
+  @@index([fiscalRuleId])
+}
+
+model ReceivableNegotiation {
+  id             String              @id @default(cuid())
+  companyId      String
+  company        Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  receivableId   String?
+  receivable     AccountsReceivable? @relation(fields: [receivableId], references: [id], onDelete: SetNull)
+  customerName   String
+  customerDoc    String?
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+  originalAmount Float
+  newAmount      Float
+  newDueDate     DateTime
+  installments   Int                 @default(1)
+  interestRate   Float?              @default(0)
+  discount       Float?              @default(0)
+  status         String              @default("negociado") // negociado, pago, cancelado, perdido
+  notes          String?
+  nextContact    DateTime?
+  createdBy      String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([companyId])
+  @@index([receivableId])
+  @@index([status])
+}
+
+// ====================== TAGS ======================
+
+model Tag {
+  id             String                 @id @default(cuid())
+  name           String
+  color          String                 @default("#3b82f6")
+  description    String?
+  scope          String                 @default("AMBOS") // PF, PJ, AMBOS
+  isSystem       Boolean                @default(false)
+  userId         String? // null = global/system tag
+  companyId      String? // null = user-level tag
+  payableTags    AccountPayableTag[]
+  receivableTags AccountReceivableTag[]
+  expenseTags    ExpenseTag[]
+  createdAt      DateTime               @default(now())
+
+  @@unique([name, userId, companyId])
+}
+
+model AccountPayableTag {
+  id        String          @id @default(cuid())
+  payableId String
+  payable   AccountsPayable @relation(fields: [payableId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag             @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+
+  @@unique([payableId, tagId])
+}
+
+model AccountReceivableTag {
+  id           String             @id @default(cuid())
+  receivableId String
+  receivable   AccountsReceivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+  tagId        String
+  tag          Tag                @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt    DateTime           @default(now())
+
+  @@unique([receivableId, tagId])
+}
+
+model ExpenseTag {
+  id        String   @id @default(cuid())
+  expenseId String
+  expense   Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([expenseId, tagId])
+}
+
+// ====================== PJ INVESTMENTS ======================
+
+model PJInvestment {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  institutionName String
+  productName     String
+  investmentType  String // CDB, LCI, LCA, Tesouro, Ações, FII, Fundos, Debêntures, Poupança, Outros
+  amountInvested  Float
+  currentValue    Float
+  profitability   Float? // percentual
+  applicationDate DateTime
+  maturityDate    DateTime?
+  liquidity       String? // Diária, D+1, D+30, No vencimento
+  indexer         String? // CDI, IPCA, Selic, Pré-fixado
+  riskLevel       String? // Conservador, Moderado, Arrojado
+  accountId       String? // BusinessAccount reference
+  status          String    @default("ativo") // ativo, resgatado, vencido
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([maturityDate])
+}
+
+// ====================== RECURRENCE ======================
+
+model Recurrence {
+  id                 String               @id @default(cuid())
+  type               String // PAGAR, RECEBER
+  frequency          String // MENSAL, QUINZENAL, SEMANAL, ANUAL, PERSONALIZADO
+  customIntervalDays Int?
+  startDate          DateTime
+  endDate            DateTime?
+  renewalMonths      Int?                 @default(12)
+  autoRenew          Boolean              @default(false)
+  status             String               @default("ATIVA") // ATIVA, PAUSADA, ENCERRADA, RENOVADA
+  totalOccurrences   Int                  @default(0)
+  generatedCount     Int                  @default(0)
+  companyId          String?
+  userId             String?
+  payables           AccountsPayable[]    @relation("RecurrencePayables")
+  receivables        AccountsReceivable[] @relation("RecurrenceReceivables")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([status])
+}
+
+// ====================== PJ RECONCILIATION ======================
+
+model PJReconciliation {
+  id             String                @id @default(cuid())
+  companyId      String
+  type           String // PAYABLE, RECEIVABLE
+  accountId      String // AccountsPayable or AccountsReceivable ID
+  bankReference  String?
+  bankDate       DateTime?
+  bankAmount     Float?
+  status         String                @default("PENDING") // PENDING, RECONCILED, DIVERGENT, NOT_FOUND, BANK_ONLY, IGNORED, SCHEDULED
+  matchMethod    String? // auto, manual
+  divergenceNote String?
+  reconciledAt   DateTime?
+  reconciledBy   String?
+  notes          String?
+  logs           PJReconciliationLog[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([accountId])
+}
+
+model PJReconciliationLog {
+  id               String           @id @default(cuid())
+  reconciliationId String
+  reconciliation   PJReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  action           String
+  previousStatus   String?
+  newStatus        String
+  details          Json?
+  performedBy      String?
+  createdAt        DateTime         @default(now())
+
+  @@index([reconciliationId])
+}
+
+// ====================== AI PROVIDERS ======================
+
+model AIProvider {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String // e.g. "OpenAI", "DeepSeek", "AbacusAI"
+  model        String // e.g. "gpt-4.1-mini", "deepseek-chat"
+  endpoint     String   @default("") // API endpoint URL (empty = use default for provider)
+  apiKey       String   @default("") @db.Text // encrypted API key (empty = built-in)
+  priority     Int      @default(1) // P1 = highest, P4 = lowest
+  weight       Int      @default(100) // load balancing weight (1-100)
+  capabilities String[] @default(["general"]) // general, fast, complex, creative
+  isBuiltIn    Boolean  @default(false) // true = AbacusAI built-in, no key needed
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isActive])
+  @@index([priority])
+}
+
+// ====================== AI ASSISTANT ======================
+
+model AIConversation {
+  id        String      @id @default(cuid())
+  userId    String
+  companyId String?
+  env       String      @default("pf") // pf or pj
+  title     String      @default("Nova conversa")
+  messages  AIMessage[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([env])
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String // user, assistant, system
+  content        String         @db.Text
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+// ====================== CONNECTIONS MODULE ======================
+
+model CompanyConnection {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  providerKey  String // ex: nfe_io, tecnospeed, gerencianet, banco_x, open_finance
+  displayName  String
+  category     String    @default("outros") // nfe, boleto, banco, investimento, cartao, pagamento, whatsapp, outros
+  config       Json?     @default("{}")
+  status       String    @default("pendente") // ok, atencao, erro, pendente
+  lastHealthAt DateTime?
+  lastError    String?   @db.Text
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, category])
+  @@index([status])
+}
+
+model CompanyCertificate {
+  id         String    @id @default(cuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  fileName   String
+  thumbprint String?
+  expiresAt  DateTime?
+  cnpj       String?
+  metadata   Json?     @default("{}")
+  cloudPath  String? // path in cloud storage
+  isActive   Boolean   @default(true)
+  uploadedBy String?
+  createdAt  DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([expiresAt])
+}
+
+model CompanyUpgradeLog {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  previousState Json?
+  newState      Json?
+  changedBy     String?
+  reason        String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  @@index([companyId])
+  @@index([createdAt])
+}
+
+// ====================== CLIENTS & SUPPLIERS ======================
+
+model Client {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  document  String? // CPF or CNPJ
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([name])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String?
+  name      String
+  document  String? // CPF or CNPJ
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  notes     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([name])
+}
+
+// ====================== AI PROVIDER LOGS ======================
+
+model AIProviderLog {
+  id           String   @id @default(cuid())
+  userId       String
+  providerId   String // AIProvider id or 'default'
+  providerName String
+  model        String
+  success      Boolean
+  latencyMs    Int      @default(0)
+  statusCode   Int      @default(0)
+  isFailover   Boolean  @default(false) // true if this was NOT the first provider tried
+  errorMsg     String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([providerId])
+  @@index([createdAt])
+  @@index([userId, providerId])
+}
+
+// ============================================================
+// User Permissions (granular per-module/action permissions)
+// ============================================================
+model UserPermission {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module    String // e.g. "financeiro", "cartoes", "investimentos", "metas", "alertas", "ia", "admin", "config"
+  action    String // e.g. "view", "create", "edit", "delete", "export", "approve"
+  allowed   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, module, action])
+  @@index([userId])
+  @@index([module])
+}
+
+// ===== ESTOQUE =====
+model Product {
+  id           String          @id @default(cuid())
+  companyId    String
+  code         String?
+  name         String
+  description  String?
+  category     String?
+  unit         String          @default("UN")
+  costPrice    Float           @default(0)
+  salePrice    Float           @default(0)
+  minStock     Float           @default(0)
+  currentStock Float           @default(0)
+  status       String          @default("active")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  movements    StockMovement[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model Warehouse {
+  id          String          @id @default(cuid())
+  companyId   String
+  name        String
+  address     String?
+  responsible String?
+  status      String          @default("active")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  movements   StockMovement[]
+
+  @@index([companyId])
+}
+
+model StockMovement {
+  id          String     @id @default(cuid())
+  companyId   String
+  productId   String
+  product     Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+  type        String // "entrada", "saida", "ajuste", "transferencia"
+  quantity    Float
+  unitCost    Float?
+  totalCost   Float?
+  reference   String?
+  notes       String?
+  createdBy   String?
+  createdAt   DateTime   @default(now())
+
+  @@index([companyId])
+  @@index([productId])
+}
+
+// ===== VENDAS =====
+model SalesOrder {
+  id           String           @id @default(cuid())
+  companyId    String
+  number       String?
+  type         String           @default("orcamento") // "orcamento", "ordem_servico", "venda"
+  customerId   String?
+  customerName String?
+  sellerId     String?
+  sellerName   String?
+  status       String           @default("rascunho") // "rascunho","enviado","aprovado","rejeitado","concluido","cancelado"
+  subtotal     Float            @default(0)
+  discount     Float            @default(0)
+  total        Float            @default(0)
+  notes        String?
+  validUntil   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  items        SalesOrderItem[]
+
+  @@index([companyId])
+}
+
+model SalesOrderItem {
+  id          String     @id @default(cuid())
+  orderId     String
+  order       SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productName String
+  quantity    Float      @default(1)
+  unitPrice   Float      @default(0)
+  discount    Float      @default(0)
+  total       Float      @default(0)
+
+  @@index([orderId])
+}
+
+model Seller {
+  id         String   @id @default(cuid())
+  companyId  String
+  name       String
+  email      String?
+  phone      String?
+  commission Float    @default(0) // percentage
+  salesCount Int      @default(0)
+  totalSales Float    @default(0)
+  status     String   @default("active")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// ===== CRM =====
+model CRMFunnel {
+  id            String           @id @default(cuid())
+  companyId     String
+  name          String
+  position      Int              @default(0)
+  color         String?
+  createdAt     DateTime         @default(now())
+  opportunities CRMOpportunity[]
+
+  @@index([companyId])
+}
+
+model CRMLead {
+  id         String   @id @default(cuid())
+  companyId  String
+  name       String
+  company    String?
+  email      String?
+  phone      String?
+  source     String? // "site","indicacao","telefone","email","rede_social"
+  status     String   @default("novo") // "novo","contatado","qualificado","descartado"
+  notes      String?
+  assignedTo String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model CRMOpportunity {
+  id            String        @id @default(cuid())
+  companyId     String
+  title         String
+  company       String?
+  value         Float         @default(0)
+  funnelId      String?
+  funnel        CRMFunnel?    @relation(fields: [funnelId], references: [id])
+  status        String        @default("aberta") // "aberta","ganha","perdida"
+  probability   Int           @default(50)
+  assignedTo    String?
+  contactName   String?
+  contactEmail  String?
+  lostReason    String?
+  notes         String?
+  expectedClose DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  activities    CRMActivity[]
+
+  @@index([companyId])
+  @@index([funnelId])
+}
+
+model CRMActivity {
+  id            String          @id @default(cuid())
+  companyId     String
+  opportunityId String?
+  opportunity   CRMOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  type          String // "ligacao","email","reuniao","tarefa","nota","call","meeting","task","followup","visit"
+  title         String
+  description   String?
+  contactName   String?
+  contactType   String? // crm, servicedesk
+  dueDate       DateTime?
+  status        String          @default("pending") // pending, done, cancelled
+  completed     Boolean         @default(false)
+  assignedTo    String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([companyId])
+  @@index([opportunityId])
+  @@index([contactType])
+}
+
+// ===== SERVICEDESK =====
+model SDTicket {
+  id             String            @id @default(cuid())
+  companyId      String
+  number         Int               @default(autoincrement())
+  subject        String
+  description    String?           @db.Text
+  requester      String?
+  requesterEmail String?
+  agentId        String?
+  agentName      String?
+  groupId        String?
+  typeId         String?
+  priority       String            @default("media") // "baixa","media","alta","critica"
+  status         String            @default("aberto") // "aberto","em_atendimento","pendente","resolvido","fechado"
+  category       String?
+  tags           String?
+  resolution     String?           @db.Text
+  slaDeadline    DateTime?
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  comments       SDTicketComment[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([priority])
+  @@index([agentId])
+}
+
+model SDTicketComment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     SDTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorName String
+  authorId   String?
+  isInternal Boolean  @default(false)
+  body       String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([ticketId])
+}
+
+model SDGroup {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model SDAgent {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  email     String?
+  groupId   String?
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
+// ===== BPM =====
+model BPMProcess {
+  id          String        @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  department  String?
+  stepsJson   String? // JSON array of step definitions
+  status      String        @default("active")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  instances   BPMInstance[]
+
+  @@index([companyId])
+}
+
+model BPMInstance {
+  id          String     @id @default(cuid())
+  companyId   String
+  processId   String
+  process     BPMProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  requester   String?
+  currentStep String?
+  status      String     @default("em_andamento") // "em_andamento","finalizado","cancelado"
+  priority    String     @default("normal")
+  data        String? // JSON data for the instance
+  startedAt   DateTime   @default(now())
+  finishedAt  DateTime?
+
+  @@index([companyId])
+  @@index([processId])
+}
+
+model BPMDepartment {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  responsible String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+}
+
+// =================== Estoque Extras ===================
+model StockCategory {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  parentId    String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// =================== Vendas Extras ===================
+model PriceTable {
+  id          String    @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  discount    Float?    @default(0)
+  markup      Float?    @default(0)
+  validFrom   DateTime?
+  validUntil  DateTime?
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model Carrier {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  cnpj      String?
+  phone     String?
+  email     String?
+  address   String?
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model SalesTarget {
+  id           String   @id @default(cuid())
+  companyId    String
+  sellerId     String?
+  period       String
+  targetValue  Float
+  currentValue Float    @default(0)
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// =================== ServiceDesk Extras ===================
+model TicketType {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  sla         Int?
+  priority    String   @default("medium")
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model WorkflowTemplate {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  steps       String?
+  trigger     String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// ====================== AUDIT LOG ======================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String?
+  action    String // CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, IMPORT
+  entity    String // expense, income, payable, receivable, nfe, boleto, user, ...
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// ====================== USER SESSIONS ======================
+
+model UserSession {
+  id         String    @id @default(cuid())
+  userId     String
+  sessionId  String    @unique
+  ipAddress  String?
+  userAgent  String?
+  city       String?
+  country    String?
+  isActive   Boolean   @default(true)
+  lastSeenAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([isActive])
+}
+
+// ====================== ONBOARDING ======================
+
+model OnboardingProgress {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  env         String    @default("pf") // pf or pj
+  currentStep Int       @default(0)
+  completedAt DateTime?
+  stepsData   Json?     @default("{}")
+  dismissed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ====================== MULTI-CURRENCY ======================
+
+model Currency {
+  id        String         @id @default(cuid())
+  code      String         @unique // BRL, USD, EUR, etc.
+  name      String
+  symbol    String
+  isBase    Boolean        @default(false)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  rates     ExchangeRate[] @relation("CurrencyRates")
+}
+
+model ExchangeRate {
+  id           String   @id @default(cuid())
+  fromCurrency String // e.g. USD
+  toCurrency   String   @default("BRL")
+  rate         Float
+  source       String? // api provider name
+  date         DateTime @default(now())
+  currency     Currency @relation("CurrencyRates", fields: [fromCurrency], references: [code], onDelete: Cascade)
+
+  @@index([fromCurrency, toCurrency])
+  @@index([date])
+}
+
+// ====================== NF-e (NOTA FISCAL) ======================
+
+model NFe {
+  id               String             @id @default(cuid())
+  companyId        String
+  company          Company            @relation("CompanyNFes", fields: [companyId], references: [id], onDelete: Cascade)
+  receivableId     String? // link to AccountsReceivable
+  number           String?
+  series           String?            @default("1")
+  type             String             @default("nfe") // nfe, nfse, nfce
+  status           String             @default("rascunho") // rascunho, enviada, autorizada, cancelada, rejeitada
+  environment      String             @default("producao") // homologacao, producao
+  customerName     String?
+  customerDoc      String? // CPF or CNPJ
+  customerEmail    String?
+  customerAddress  String?
+  items            Json? // array of NF items
+  totals           Json? // totalProdutos, totalImpostos, totalNota
+  paymentMethod    String?
+  observations     String?
+  fiscalRuleId     String?
+  fiscalRule       ServiceFiscalRule? @relation("NFeFiscalRule", fields: [fiscalRuleId], references: [id], onDelete: SetNull)
+  taxSnapshot      Json?
+  validationStatus String             @default("pending") // pending, valid, blocked
+  validationErrors Json?
+  providerKey      String? // which NF provider (nfe_io, focusnfe, etc.)
+  providerNFeId    String? // external NF-e ID
+  accessKey        String? // chave de acesso (44 chars)
+  xmlUrl           String?
+  pdfUrl           String? // DANFE URL
+  errorMessage     String?            @db.Text
+  cancelReason     String?
+  issuedAt         DateTime?
+  canceledAt       DateTime?
+  createdBy        String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([receivableId])
+  @@index([fiscalRuleId])
+  @@index([accessKey])
+}
+
+// ====================== BOLETO / PIX COBRANÇA ======================
+
+model BoletoCharge {
+  id               String    @id @default(cuid())
+  companyId        String
+  company          Company   @relation("CompanyBoletos", fields: [companyId], references: [id], onDelete: Cascade)
+  receivableId     String?
+  type             String    @default("boleto") // boleto, pix
+  status           String    @default("pendente") // pendente, pago, vencido, cancelado
+  customerName     String
+  customerDoc      String?
+  customerEmail    String?
+  amount           Float
+  dueDate          DateTime
+  description      String?
+  instructions     String?
+  providerKey      String? // asaas, iugu, gerencianet
+  providerChargeId String? // external charge ID
+  boletoBarCode    String?
+  boletoUrl        String? // boleto PDF URL
+  pixCopiaECola    String?   @db.Text // PIX copia e cola string
+  pixQrCodeUrl     String? // PIX QR code image URL
+  pixExpiresAt     DateTime?
+  paidAt           DateTime?
+  paidAmount       Float?
+  createdBy        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([receivableId])
+  @@index([dueDate])
+}
+
+// ====================== MÓDULO FISCAL ======================
+
+model ServiceFiscalRule {
+  id                            String               @id @default(cuid())
+  companyId                     String
+  company                       Company              @relation("CompanyServiceFiscalRules", fields: [companyId], references: [id], onDelete: Cascade)
+  name                          String
+  serviceDescription            String?
+  serviceCodeLc116              String
+  cnae                          String?
+  providerMunicipalRegistration String?
+  providerCityCode              String
+  providerCityName              String?
+  customerCityCode              String?
+  customerCityName              String?
+  operationNature               String
+  taxRegime                     String
+  isSimplesNacional             Boolean              @default(true)
+  issRate                       Float
+  issWithheld                   Boolean              @default(false)
+  inssRate                      Float                @default(0)
+  irrfRate                      Float                @default(0)
+  csllRate                      Float                @default(0)
+  pisRate                       Float                @default(0)
+  cofinsRate                    Float                @default(0)
+  cbsRate                       Float                @default(0)
+  ibsRate                       Float                @default(0)
+  cbsCst                        String?
+  ibsCst                        String?
+  cbsClassificationCode         String?
+  ibsClassificationCode         String?
+  effectiveFrom                 DateTime?
+  effectiveTo                   DateTime?
+  isDefault                     Boolean              @default(false)
+  isActive                      Boolean              @default(true)
+  notes                         String?              @db.Text
+  createdBy                     String?
+  createdAt                     DateTime             @default(now())
+  updatedAt                     DateTime             @updatedAt
+  receivables                   AccountsReceivable[] @relation("ReceivableFiscalRule")
+  contracts                     Contract[]           @relation("ContractFiscalRule")
+  nfes                          NFe[]                @relation("NFeFiscalRule")
+
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+  @@index([companyId, isDefault])
+  @@map("regras_fiscais_servico")
+}
+
+model TaxRecord {
+  id         String    @id @default(cuid())
+  userId     String? // PF
+  companyId  String? // PJ
+  type       String // DAS, IRPF, CARNE_LEAO, ICMS, ISS, PIS, COFINS, FGTS
+  period     String // YYYY-MM
+  year       Int
+  month      Int?
+  baseValue  Float // base de cálculo
+  taxValue   Float // valor do imposto
+  rate       Float? // alíquota
+  status     String    @default("aberto") // aberto, pago, vencido, dispensado
+  dueDate    DateTime?
+  paidAt     DateTime?
+  paidAmount Float?
+  barCode    String?
+  receiptUrl String?
+  notes      String?
+  metadata   Json? // extra: anexos, DAS number, etc.
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  Company    Company?  @relation(fields: [companyId], references: [id])
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([type])
+  @@index([period])
+  @@index([status])
+}
+
+// ====================== CARNÊ-LEÃO PF ======================
+
+model CarneLeaoEntry {
+  id          String    @id @default(cuid())
+  userId      String
+  period      String // YYYY-MM
+  year        Int
+  month       Int
+  incomeType  String // autonomo, alugueis, exterior, outros
+  sourceName  String // nome do pagador
+  sourceDoc   String? // CPF/CNPJ do pagador
+  grossAmount Float // valor bruto recebido
+  deductions  Float     @default(0) // deduções permitidas
+  netAmount   Float // base de cálculo
+  taxAmount   Float // imposto calculado
+  rate        Float // alíquota aplicada
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([period])
+  @@index([year, month])
+}
+
+// ====================== COMPRAS (PEDIDOS DE COMPRA) ======================
+
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation("CompanyPurchaseOrders", fields: [companyId], references: [id], onDelete: Cascade)
+  supplierId   String?
+  supplierName String
+  number       String
+  status       String    @default("rascunho") // rascunho, aprovado, parcial, recebido, cancelado
+  orderDate    DateTime  @default(now())
+  expectedDate DateTime?
+  receivedDate DateTime?
+  subtotal     Float     @default(0)
+  discount     Float     @default(0)
+  taxes        Float     @default(0)
+  total        Float     @default(0)
+  notes        String?   @db.Text
+  items        Json?
+  payableId    String?
+  createdBy    String?
+  approvedBy   String?
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([supplierId])
+  @@index([orderDate])
+}
+
+// ====================== CONTRATOS ======================
+
+model Contract {
+  id                String             @id @default(cuid())
+  companyId         String
+  company           Company            @relation("CompanyContracts", fields: [companyId], references: [id], onDelete: Cascade)
+  clientId          String?
+  clientName        String
+  clientDoc         String? // CPF/CNPJ para NF-e
+  clientEmail       String?
+  title             String
+  type              String             @default("servico") // servico, locacao, manutencao, assinatura, fornecimento, outro
+  status            String             @default("ativo") // rascunho, ativo, suspenso, encerrado, renovado
+  value             Float
+  categoryId        String?
+  category          BusinessCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  costCenterId      String?
+  costCenter        CostCenter?        @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  billingCycle      String             @default("mensal") // mensal, trimestral, semestral, anual, unico, sob_demanda
+  startDate         DateTime
+  endDate           DateTime?
+  renewalDate       DateTime?
+  noticeDays        Int                @default(30)
+  autoRenew         Boolean            @default(false)
+  requiresNFe       Boolean            @default(false) // gera NF-e em cada faturamento
+  requiresBoleto    Boolean            @default(false) // gera boleto/PIX em cada faturamento
+  billingDay        Int?
+  chargeType        String             @default("boleto_pix") // boleto, pix, boleto_pix, link
+  fiscalRuleId      String?
+  fiscalRule        ServiceFiscalRule? @relation("ContractFiscalRule", fields: [fiscalRuleId], references: [id], onDelete: SetNull)
+  autoSendEmail     Boolean            @default(false)
+  autoSendWhatsapp  Boolean            @default(false)
+  nextBillingDate   DateTime?
+  lastBilledAt      DateTime?
+  description       String?            @db.Text
+  terms             String?            @db.Text
+  signedAt          DateTime?
+  terminatedAt      DateTime?
+  terminationReason String?
+  attachmentUrl     String?
+  createdBy         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([clientId])
+  @@index([renewalDate])
+  @@index([categoryId])
+  @@index([costCenterId])
+  @@index([nextBillingDate])
+  @@index([fiscalRuleId])
+}
+
+// ====================== WHATSAPP ======================
+
+model WhatsappSession {
+  id              String            @id @default(cuid())
+  userId          String?
+  companyId       String?
+  provider        String            @default("evolution") // evolution, meta
+  phoneNumber     String?
+  instanceName    String? // Evolution API instance name
+  apiUrl          String? // Evolution API base URL
+  apiKey          String? // encrypted
+  accessToken     String? // Meta Cloud API token (encrypted)
+  phoneNumberId   String? // Meta phone number ID
+  webhookToken    String? // token to verify incoming webhooks
+  isActive        Boolean           @default(false)
+  status          String            @default("disconnected") // connected, disconnected, qr_pending
+  qrCode          String?           @db.Text
+  lastConnectedAt DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  messages        WhatsappMessage[]
+
+  @@index([userId])
+  @@index([companyId])
+}
+
+model WhatsappMessage {
+  id             String          @id @default(cuid())
+  sessionId      String
+  session        WhatsappSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  direction      String // inbound, outbound
+  from           String
+  to             String
+  body           String?         @db.Text
+  mediaUrl       String?
+  mediaType      String? // image, document, audio
+  templateName   String? // Meta template used
+  templateParams Json? // template variable values
+  contextType    String? // bill_reminder, payment_confirm, nfse, boleto, pix, overdue
+  contextId      String? // AccountsPayable.id or AccountsReceivable.id or NFe.id
+  externalMsgId  String? // Meta message_id for webhook tracking
+  deliveryStatus String          @default("pending") // pending, sent, delivered, read, failed
+  errorMessage   String?
+  processed      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([sessionId])
+  @@index([contextId])
+  @@index([from])
+  @@index([deliveryStatus])
+  @@index([externalMsgId])
+}
+
+// ====================== TEMPLATES DE LANÇAMENTO ======================
+
+model LancamentoTemplate {
+  id           String   @id @default(cuid())
+  companyId    String?
+  userId       String?
+  type         String // receivable, payable
+  name         String
+  description  String
+  amount       Float?
+  categoryId   String?
+  costCenterId String?
+  dayOfMonth   Int? // dia do mês para vencimento
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+}
+
+// ====================== SMTP ======================
+
+model SmtpConfig {
+  id            String     @id @default(cuid())
+  companyId     String
+  name          String     // label e.g. "Gmail Principal"
+  preset        String     @default("custom") // gmail, outlook, zoho, locaweb, hostinger, custom
+  senderName    String
+  senderEmail   String
+  host          String
+  port          Int        @default(587)
+  encryption    String     @default("tls") // none, ssl, tls
+  encryptedPass String     // AES-256-GCM encrypted
+  isDefault     Boolean    @default(false)
+  isActive      Boolean    @default(true)
+  lastTestedAt  DateTime?
+  lastTestOk    Boolean?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  logs          EmailLog[]
+  queue         EmailQueue[]
+
+  @@index([companyId])
+  @@index([isDefault])
+}
+
+model EmailLog {
+  id           String      @id @default(cuid())
+  companyId    String
+  smtpConfigId String?
+  smtpConfig   SmtpConfig? @relation(fields: [smtpConfigId], references: [id], onDelete: SetNull)
+  to           String
+  subject      String
+  contextType  String? // nfse, boleto, pix, recibo, cobranca, test
+  contextId    String?
+  status       String      @default("sent") // sent, failed
+  errorMsg     String?     @db.Text
+  sentAt       DateTime    @default(now())
+  createdAt    DateTime    @default(now())
+
+  @@index([companyId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([smtpConfigId])
+}
+
+model EmailQueue {
+  id           String      @id @default(cuid())
+  companyId    String
+  smtpConfigId String?
+  smtpConfig   SmtpConfig? @relation(fields: [smtpConfigId], references: [id], onDelete: SetNull)
+  to           String
+  subject      String
+  htmlBody     String?     @db.Text
+  textBody     String?     @db.Text
+  attachments  Json? // [{filename: string, url: string}]
+  contextType  String? // nfse, boleto, pix, recibo, cobranca
+  contextId    String?
+  priority     Int         @default(5) // 1=high 5=normal 10=low
+  status       String      @default("pending") // pending, processing, sent, failed
+  retries      Int         @default(0)
+  maxRetries   Int         @default(3)
+  nextRetryAt  DateTime?
+  sentAt       DateTime?
+  errorMsg     String?     @db.Text
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@index([nextRetryAt])
+  @@index([smtpConfigId])
+}

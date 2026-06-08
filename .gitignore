@@ -1,0 +1,74 @@
+# ─── Dependências ───────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ─── Next.js build ──────────────────────────────────────────────
+.next/
+out/
+build/
+dist/
+
+# ─── Variáveis de ambiente (NUNCA commitar) ──────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# ─── Prisma ─────────────────────────────────────────────────────
+# prisma/migrations/ pode ser commitado (contém o histórico de schema)
+# NÃO ignorar prisma/schema.prisma
+
+# ─── Logs ────────────────────────────────────────────────────────
+*.log
+*.log.*
+dev.log
+dev.err
+dev-server.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── Sistema operacional ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.txt.tmp
+
+# ─── IDEs e editores ─────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ─── Arquivos temporários / debug ─────────────────────────────────
+C:Tempts_errors.txt
+*Tempts_errors.txt
+*.tmp
+*.bak
+*.orig
+
+# ─── Uploads e assets gerados ────────────────────────────────────
+public/uploads/
+public/temp/
+
+# ─── TypeScript cache ────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ─── Testes ──────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Docker ──────────────────────────────────────────────────────
+# Manter docker-compose.yml e Dockerfile
+
+# ─── Certificados (NUNCA em git) ─────────────────────────────────
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer

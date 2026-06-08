@@ -1,0 +1,382 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════
+   WNR Finance — Design System
+   Inspired by ContaAzul, Omie and modern SaaS ERPs
+═══════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    /* ── Brand Palette ── */
+    --primary: 221 83% 48%;           /* #1b5fd8 — deep corporate blue */
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 221 83% 95%;     /* hover backgrounds */
+
+    /* ── Neutrals ── */
+    --background: 210 20% 98%;        /* very light blue-gray */
+    --foreground: 215 25% 13%;        /* near-black with blue tint */
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 13%;
+
+    --secondary: 210 16% 95%;
+    --secondary-foreground: 215 20% 20%;
+
+    --muted: 210 16% 94%;
+    --muted-foreground: 215 12% 45%;
+
+    --accent: 38 95% 52%;             /* amber accent */
+    --accent-foreground: 215 25% 10%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 221 83% 48%;
+
+    /* ── Radius ── */
+    --radius: 0.625rem;               /* 10px — slightly softer than 8px */
+    --radius-sm: 0.375rem;
+    --radius-lg: 0.875rem;
+    --radius-xl: 1.25rem;
+
+    /* ── Shadows ── */
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .06), 0 1px 2px -1px rgb(0 0 0 / .04);
+    --shadow:    0 4px 6px -1px rgb(0 0 0 / .07), 0 2px 4px -2px rgb(0 0 0 / .05);
+    --shadow-md: 0 10px 15px -3px rgb(0 0 0 / .08), 0 4px 6px -4px rgb(0 0 0 / .05);
+    --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / .08), 0 8px 10px -6px rgb(0 0 0 / .04);
+    --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / .18);
+
+    /* ── Charts ── */
+    --chart-1: 221 83% 48%;
+    --chart-2: 38 95% 52%;
+    --chart-3: 158 64% 40%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 271 81% 56%;
+
+    /* ── Status colors ── */
+    --success: 158 64% 40%;
+    --warning: 38 95% 52%;
+    --danger: 0 72% 51%;
+    --info: 199 89% 48%;
+
+    /* ── Layout ── */
+    --nav-height: 60px;
+
+    /* ── Timing ── */
+    --duration-fast: 120ms;
+    --duration-normal: 200ms;
+    --duration-slow: 320ms;
+  }
+
+  .dark {
+    --background: 222 20% 8%;
+    --foreground: 213 10% 91%;
+
+    --card: 222 18% 11%;
+    --card-foreground: 213 10% 91%;
+
+    --popover: 222 18% 11%;
+    --popover-foreground: 213 10% 91%;
+
+    --primary: 221 90% 62%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 221 90% 15%;
+
+    --secondary: 222 16% 16%;
+    --secondary-foreground: 213 10% 91%;
+
+    --muted: 222 16% 15%;
+    --muted-foreground: 215 12% 55%;
+
+    --accent: 38 95% 55%;
+    --accent-foreground: 215 25% 8%;
+
+    --destructive: 0 62% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 16% 20%;
+    --input: 222 16% 20%;
+    --ring: 221 90% 62%;
+
+    --chart-1: 221 90% 62%;
+    --chart-2: 38 95% 60%;
+    --chart-3: 158 70% 50%;
+    --chart-4: 0 80% 65%;
+    --chart-5: 271 85% 65%;
+  }
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────── */
+@layer base {
+  * { @apply border-border box-border; }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+
+  h1 { @apply text-2xl font-bold tracking-tight leading-tight; }
+  h2 { @apply text-xl font-semibold tracking-tight; }
+  h3 { @apply text-lg font-semibold; }
+  h4 { @apply text-base font-semibold; }
+
+  /* Smoother focus rings */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-1 ring-offset-background;
+  }
+}
+
+/* ─── Scrollbars ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 100px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.35);
+}
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Animations ─────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0)  scale(1); }
+}
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position:  200% center; }
+}
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .7; }
+}
+
+.animate-fade-in   { animation: fadeIn   0.22s ease-out; }
+.animate-slide-down { animation: slideDown 0.18s ease-out; }
+.animate-scale-in  { animation: scaleIn  0.18s ease-out; }
+
+/* ─── Glass morphism ─────────────────────────────────────────────────── */
+.glass {
+  background: hsl(var(--background) / 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* ─── Card elevation system ──────────────────────────────────────────── */
+.card-elevated {
+  @apply bg-card rounded-xl border border-border/60;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card-elevated:hover {
+  box-shadow: var(--shadow-md);
+  @apply border-border/80;
+}
+
+.card-flat {
+  @apply bg-card rounded-xl border border-border/50;
+}
+
+/* ─── Status badges ──────────────────────────────────────────────────── */
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
+}
+.badge-success { @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400; }
+.badge-warning { @apply bg-amber-50  text-amber-700  dark:bg-amber-950/40  dark:text-amber-400; }
+.badge-danger  { @apply bg-red-50    text-red-700    dark:bg-red-950/40    dark:text-red-400; }
+.badge-info    { @apply bg-blue-50   text-blue-700   dark:bg-blue-950/40   dark:text-blue-400; }
+.badge-neutral { @apply bg-gray-100  text-gray-600   dark:bg-gray-800      dark:text-gray-400; }
+.badge-purple  { @apply bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400; }
+
+/* ─── Status inline pills (compact, no padding override) ─────────────── */
+.status-success { @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-full px-1.5 py-0.5 font-medium; }
+.status-warning { @apply bg-amber-50  text-amber-700  dark:bg-amber-950/40  dark:text-amber-400  rounded-full px-1.5 py-0.5 font-medium; }
+.status-danger  { @apply bg-red-50    text-red-700    dark:bg-red-950/40    dark:text-red-400    rounded-full px-1.5 py-0.5 font-medium; }
+.status-info    { @apply bg-blue-50   text-blue-700   dark:bg-blue-950/40   dark:text-blue-400   rounded-full px-1.5 py-0.5 font-medium; }
+.status-neutral { @apply bg-gray-100  text-gray-600   dark:bg-gray-800      dark:text-gray-400   rounded-full px-1.5 py-0.5 font-medium; }
+
+/* ─── Skeleton loader ────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.08) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+  @apply rounded-md;
+}
+
+/* ─── Enterprise table ───────────────────────────────────────────────── */
+.enterprise-table {
+  @apply w-full;
+}
+.enterprise-table thead {
+  @apply bg-muted/40 border-b border-border/50;
+}
+.enterprise-table th {
+  @apply text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider;
+}
+.enterprise-table td {
+  @apply text-sm px-4 py-3;
+}
+.enterprise-table tbody tr {
+  @apply border-b border-border/20 transition-colors;
+}
+.enterprise-table tbody tr:hover {
+  @apply bg-muted/30;
+}
+.enterprise-table tbody tr:last-child {
+  @apply border-b-0;
+}
+
+/* ─── KPI card ───────────────────────────────────────────────────────── */
+.kpi-card {
+  @apply bg-card rounded-xl border border-border/60 p-5;
+  box-shadow: var(--shadow-sm);
+}
+.kpi-card-value {
+  @apply text-2xl font-bold text-foreground tracking-tight;
+}
+.kpi-card-label {
+  @apply text-xs font-medium text-muted-foreground mt-1 uppercase tracking-wide;
+}
+
+/* ─── Section header ─────────────────────────────────────────────────── */
+.section-header {
+  @apply flex items-center justify-between mb-4;
+}
+.section-title {
+  @apply text-base font-semibold text-foreground;
+}
+
+/* ─── Nav active indicator ───────────────────────────────────────────── */
+.nav-active {
+  @apply text-primary font-semibold;
+  position: relative;
+}
+.nav-active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: hsl(var(--primary));
+  border-radius: 999px;
+}
+
+/* ─── Input improvements ─────────────────────────────────────────────── */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="date"],
+input[type="search"],
+textarea,
+select {
+  @apply transition-[border-color,box-shadow] duration-150;
+}
+input:focus,
+textarea:focus,
+select:focus {
+  @apply outline-none border-primary/50 ring-2 ring-primary/20;
+}
+
+/* ─── Button hover effects ───────────────────────────────────────────── */
+.btn-primary-glow:hover {
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.18);
+}
+
+/* ─── Empty state ────────────────────────────────────────────────────── */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-16 text-center;
+}
+.empty-state-icon {
+  @apply w-16 h-16 text-muted-foreground/20 mb-4;
+}
+.empty-state-title {
+  @apply text-base font-semibold text-muted-foreground mb-1;
+}
+.empty-state-desc {
+  @apply text-sm text-muted-foreground/70 max-w-sm;
+}
+
+/* ─── Gradient text ──────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(271 81% 56%) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Page transition ────────────────────────────────────────────────── */
+main > div > * {
+  animation: fadeIn 0.18s ease-out;
+}
+
+/* ─── Mega menu improvement ──────────────────────────────────────────── */
+.mega-menu-enter {
+  animation: slideDown 0.15s ease-out;
+}
+
+/* ─── PWA safe area ──────────────────────────────────────────────────── */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+
+/* ─── Misc utilities ─────────────────────────────────────────────────── */
+[data-hydration-error] { display: none !important; }
+
+.line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* Better form label style */
+label.form-label {
+  @apply block text-sm font-medium text-foreground mb-1.5;
+}
+
+/* Enterprise filter bar */
+.filter-bar {
+  @apply flex flex-wrap gap-2 p-3 bg-card rounded-xl border border-border/60;
+}
+
+/* Responsive table wrapper */
+.table-container {
+  @apply bg-card rounded-xl border border-border/60 overflow-hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Loading overlay */
+.loading-overlay {
+  @apply flex items-center justify-center py-20;
+}

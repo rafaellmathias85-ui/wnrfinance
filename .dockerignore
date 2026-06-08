@@ -1,0 +1,15 @@
+node_modules
+.next
+.build
+.git
+*.md
+!README.md
+.env
+.env.local
+npm-debug.log
+yarn-error.log
+.DS_Store
+.vscode
+.idea
+__pycache__
+*.pyc
