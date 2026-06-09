@@ -68,9 +68,9 @@ function NFeIcon({ nfe, pdfUrl }: { nfe: any; pdfUrl?: string }) {
     return <span title="NF-e Autorizada">{el}</span>;
   }
   if (nfe.status === 'rejeitada' || nfe.status === 'cancelada') {
-    return <FileX className="h-4 w-4 text-red-500" title={`NF-e ${nfe.status}`} />;
+    return <span title={`NF-e ${nfe.status}`}><FileX className="h-4 w-4 text-red-500" /></span>;
   }
-  return <FileText className="h-4 w-4 text-amber-500" title={`NF-e: ${NFE_STATUS_LABEL[nfe.status] || nfe.status}`} />;
+  return <span title={`NF-e: ${NFE_STATUS_LABEL[nfe.status] || nfe.status}`}><FileText className="h-4 w-4 text-amber-500" /></span>;
 }
 
 // ─── Timeline Entry ───────────────────────────────────────────────────────────
