@@ -404,8 +404,8 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
               }
             </button>
 
-            {/* Alerts bell */}
-            <Link href="/alertas" className="relative p-2 rounded-lg hover:bg-muted transition-colors">
+            {/* Alerts bell — context-aware */}
+            <Link href={activeEnv === 'pj' ? '/pj/alertas' : '/alertas'} className="relative p-2 rounded-lg hover:bg-muted transition-colors">
               <Bell className="w-4 h-4 text-muted-foreground" />
               {alertCount > 0 && (
                 <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-bold">

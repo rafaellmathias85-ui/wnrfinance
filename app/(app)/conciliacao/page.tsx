@@ -15,7 +15,7 @@ import {
   ArrowDownCircle, ArrowUpCircle, CheckCircle2, AlertTriangle, HelpCircle,
   Eye, EyeOff, Play, Upload, Search, RefreshCw, FileText, XCircle, Pencil,
   CheckSquare, Square, SquareCheck, ListChecks, Zap, PlusCircle, ArrowLeftRight,
-  Link2, ChevronDown, ChevronRight, Package, Calendar, Building2,
+  Link2, ChevronDown, ChevronRight, Package, Calendar, Building2, Trash2,
 } from 'lucide-react';
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
@@ -72,6 +72,8 @@ export default function ConciliacaoPage() {
   const [viewMode, setViewMode] = useState<'batches' | 'flat'>('batches');
   // File upload
   const [fileLoading, setFileLoading] = useState(false);
+  // Cleanup
+  const [cleaning, setCleaning] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -111,6 +113,17 @@ export default function ConciliacaoPage() {
     });
     await load();
     setRunning(false);
+  };
+
+  const cleanupPF = async () => {
+    if (!confirm('Isso apagará TODOS os lançamentos bancários PF (companyId = null) e suas conciliações. Confirma?')) return;
+    setCleaning(true);
+    try {
+      const res = await apiFetch('/api/reconciliation/cleanup', { method: 'DELETE' });
+      const json = await res.json();
+      alert(`Limpeza concluída: ${json.deleted ?? 0} transação(ões) removida(s).`);
+      await load();
+    } finally { setCleaning(false); }
   };
 
   const parseCSV = (text: string): any[] => {
@@ -567,6 +580,9 @@ export default function ConciliacaoPage() {
           </Button>
           <Button onClick={runEngine} disabled={running} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
             <Play className="w-4 h-4 mr-1" /> {running ? 'Processando...' : 'Conciliar'}
+          </Button>
+          <Button onClick={cleanupPF} disabled={cleaning} variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50">
+            <Trash2 className="w-4 h-4 mr-1" /> {cleaning ? 'Limpando...' : 'Limpar Base PF'}
           </Button>
         </div>
       </div>
