@@ -1,69 +1,166 @@
 'use client';
 import { apiFetch } from '@/lib/fetch';
-import { FileSpreadsheet, File as FileIcon } from 'lucide-react';
-import { usePJ } from '@/lib/pj-context';
+import { formatDate } from '@/lib/format';
 import { BankImportDialog } from '@/components/bank-import-dialog';
+import { usePJ } from '@/lib/pj-context';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronUp, Eye, FileCheck, FileText, Loader2, RefreshCw, Sparkles, TrendingDown, TrendingUp, Upload, X, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast';
-
-
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useFormatCurrency } from '@/hooks/use-format-currency';
+import {
+  AlertTriangle, Calendar, CheckCircle2, ChevronDown, ChevronRight, Eye, EyeOff,
+  FileText, Loader2, Package, RefreshCw, Sparkles, Square, SquareCheck, Upload,
+  X, XCircle, Zap, Check, ListChecks, Building2, TrendingDown, TrendingUp,
+} from 'lucide-react';
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
-  PENDING: { label: 'Pendente', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: RefreshCw },
-  RECONCILED: { label: 'Conciliado', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: Check },
-  DIVERGENT: { label: 'Divergente', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: AlertTriangle },
-  NOT_FOUND: { label: 'Nao Encontrado', color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', icon: XCircle },
-  BANK_ONLY: { label: 'So no Banco', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', icon: Eye },
-  IGNORED: { label: 'Ignorado', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500', icon: XCircle },
+  RECONCILED: { label: 'Conciliado', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: CheckCircle2 },
+  DIVERGENT: { label: 'Divergente', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400', icon: AlertTriangle },
+  BANK_ONLY: { label: 'Só no Banco', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: FileText },
+  PENDING: { label: 'Pendente', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300', icon: RefreshCw },
+  IGNORED: { label: 'Ignorado', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500', icon: EyeOff },
+  NOT_FOUND: { label: 'Não Encontrado', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
 };
-
-const FILE_FORMATS = [
-  { ext: 'CSV', icon: FileSpreadsheet, desc: 'Planilha separada por ; ou ,' },
-  { ext: 'OFX', icon: FileIcon, desc: 'Open Financial Exchange' },
-  { ext: 'TXT', icon: FileText, desc: 'Texto separado por ; ou tab' },
-  { ext: 'PDF', icon: FileText, desc: 'Extrato em PDF (leitura por IA)' },
-];
 
 type ParsedEntry = { date: string; reference: string; amount: number; type: string };
 
 export default function ConciliacaoPJ() {
   const { activeCompanyId } = usePJ();
-  const { toast } = useToast();
-  const [items, setItems] = useState<any[]>([]);
+  const formatCurrency = useFormatCurrency();
+
+  const [statusFilter, setStatusFilter] = useState('');
+  const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [bankText, setBankText] = useState('');
   const [showImport, setShowImport] = useState(false);
-  const [importTab, setImportTab] = useState<'file' | 'text' | 'ofx'>('ofx');
+  const [importTab, setImportTab] = useState<'ofx' | 'file' | 'text'>('ofx');
+  const [showDetail, setShowDetail] = useState<any>(null);
+  const [actionLoading, setActionLoading] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [forceItem, setForceItem] = useState<any>(null);
+  const [forceReason, setForceReason] = useState('');
+  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'batches' | 'flat'>('batches');
+
+  // Import states
   const [uploadingFile, setUploadingFile] = useState(false);
   const [parsedEntries, setParsedEntries] = useState<ParsedEntry[]>([]);
   const [parsedFilename, setParsedFilename] = useState('');
   const [parsedFormat, setParsedFormat] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bankText, setBankText] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
   const [suggestions, setSuggestions] = useState<any[] | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [confirmedMatches, setConfirmedMatches] = useState<Record<string, string | null>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchData = useCallback(async () => {
+  const load = useCallback(async () => {
     if (!activeCompanyId) return;
     setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filterStatus) params.set('status', filterStatus);
-      const res = await apiFetch(`/api/pj/reconciliation?${params}`);
-      if (res.ok) setItems(await res.json());
-    } catch { /* ignore */ }
+    const params = new URLSearchParams();
+    if (statusFilter) params.set('status', statusFilter);
+    const res = await apiFetch(`/api/pj/reconciliation?${params}`).then(r => r.json());
+    setData(res);
     setLoading(false);
-  }, [activeCompanyId, filterStatus]);
+    setSelected(new Set());
+  }, [activeCompanyId, statusFilter]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { load(); }, [load]);
+
+  const handleAction = async (reconId: string, action: string, extra?: any) => {
+    setActionLoading(reconId);
+    await apiFetch('/api/pj/reconciliation', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reconciliationId: reconId, action, ...extra }),
+    });
+    await load();
+    setActionLoading('');
+    setShowDetail(null);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  };
+  const toggleSelectAll = () => {
+    if (!data?.items) return;
+    const allIds = data.items.map((i: any) => i.id);
+    setSelected(selected.size === allIds.length ? new Set() : new Set(allIds));
+  };
+  const handleBatch = async (batchAction: string) => {
+    if (!selected.size) return;
+    setBatchLoading(true);
+    await apiFetch('/api/pj/reconciliation', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'batch', ids: Array.from(selected), batchAction }),
+    });
+    setBatchLoading(false);
+    await load();
+  };
+
+  const toggleBatch = (batchId: string) => {
+    setExpandedBatches(prev => { const next = new Set(prev); if (next.has(batchId)) next.delete(batchId); else next.add(batchId); return next; });
+  };
+
+  // Import handlers
+  const parseBankEntries = (text: string): ParsedEntry[] => {
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    return lines.map(line => {
+      const parts = line.split(';').map(p => p.trim());
+      const amt = parseFloat(parts[2]?.replace(/\./g, '').replace(',', '.') || '0');
+      return { date: parts[0] || new Date().toISOString().split('T')[0], reference: parts[1] || 'SEM_REF', amount: amt, type: amt < 0 ? 'DEBIT' : 'CREDIT' };
+    }).filter(e => e.amount !== 0);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingFile(true);
+    setParsedEntries([]);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiFetch('/api/pj/reconciliation/parse-file', { method: 'POST', body: formData });
+      const d = await res.json();
+      if (!res.ok) { setImportResult({ error: d.error }); return; }
+      if (d.entries.length === 0) { setImportResult({ error: 'Nenhuma transação encontrada no arquivo.' }); return; }
+      setParsedEntries(d.entries);
+      setParsedFilename(d.filename);
+      setParsedFormat(d.format);
+    } catch (err: any) {
+      setImportResult({ error: err?.message });
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleReconcileEntries = async (entries: ParsedEntry[]) => {
+    if (!entries.length) return;
+    setProcessing(true);
+    try {
+      const res = await apiFetch('/api/pj/reconciliation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'auto-match', bankEntries: entries }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setImportResult({ imported: d.summary.reconciled, divergent: d.summary.divergent, bankOnly: d.summary.bankOnly });
+        setBankText(''); setParsedEntries([]);
+        setTimeout(() => { setShowImport(false); setImportResult(null); load(); }, 1500);
+      } else {
+        setImportResult({ error: d.error });
+      }
+    } catch (err: any) {
+      setImportResult({ error: err?.message });
+    }
+    setProcessing(false);
+  };
 
   const handleSuggest = async (entries: ParsedEntry[]) => {
     if (!entries.length) return;
@@ -76,368 +173,285 @@ export default function ConciliacaoPJ() {
         body: JSON.stringify({ bankEntries: entries }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setSuggestions(data.suggestions);
-        // Pre-select best match if confidence >= 70%
+        const d = await res.json();
+        setSuggestions(d.suggestions);
         const init: Record<string, string | null> = {};
-        for (const s of data.suggestions) {
+        for (const s of d.suggestions) {
           const best = s.matches[0];
           init[s.bankEntry.reference + s.bankEntry.date] = best?.confidence >= 70 ? best.bill.id : null;
         }
         setConfirmedMatches(init);
         setShowImport(false);
-      } else {
-        toast({ title: 'Erro ao buscar sugestões', variant: 'destructive' });
       }
-    } catch {
-      toast({ title: 'Erro de conexão', variant: 'destructive' });
-    } finally {
-      setSuggestLoading(false);
-    }
+    } catch { /* silent */ }
+    setSuggestLoading(false);
   };
 
-  const parseBankEntries = (text: string) => {
-    const lines = text.trim().split('\n').filter(l => l.trim());
-    return lines.map(line => {
-      const parts = line.split(';').map(p => p.trim());
-      return {
-        date: parts[0] || new Date().toISOString().split('T')[0],
-        reference: parts[1] || 'SEM_REF',
-        amount: parseFloat(parts[2]?.replace(/\./g, '').replace(',', '.') || '0'),
-        type: parseFloat(parts[2]?.replace(/\./g, '').replace(',', '.') || '0') < 0 ? 'DEBIT' : 'CREDIT',
-      };
-    }).filter(e => e.amount !== 0);
+  const getBatchStatus = (batch: any) => {
+    if (batch.stats.total === batch.stats.reconciled + batch.stats.ignored) return 'concluido';
+    if (batch.stats.pending > 0 || batch.stats.bankOnly > 0 || batch.stats.divergent > 0) return 'pendente';
+    return 'em_andamento';
+  };
+  const getBatchStatusBadge = (status: string) => {
+    if (status === 'concluido') return { label: 'Concluído', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' };
+    if (status === 'pendente') return { label: 'Pendente', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
+    return { label: 'Em Andamento', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' };
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingFile(true);
-    setParsedEntries([]);
-    setParsedFilename('');
-    setParsedFormat('');
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await apiFetch('/api/pj/reconciliation/parse-file', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (!res.ok) { toast({ title: 'Erro ao processar arquivo', description: data.error, variant: 'destructive' }); return; }
-      if (data.entries.length === 0) { toast({ title: 'Nenhuma transacao encontrada no arquivo', variant: 'destructive' }); return; }
-      setParsedEntries(data.entries);
-      setParsedFilename(data.filename);
-      setParsedFormat(data.format);
-      toast({ title: `${data.count} transacoes encontradas em ${data.filename}` });
-    } catch (err: any) {
-      toast({ title: 'Erro ao enviar arquivo', description: err?.message, variant: 'destructive' });
-    } finally {
-      setUploadingFile(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+  const renderActions = (item: any) => {
+    return (
+      <div className="flex gap-1 justify-center flex-wrap">
+        <button onClick={() => setShowDetail(item)} className="p-1.5 rounded-lg hover:bg-muted" title="Detalhes">
+          <Eye className="w-4 h-4 text-muted-foreground" />
+        </button>
+        {(item.status === 'DIVERGENT' || item.status === 'BANK_ONLY' || item.status === 'PENDING' || item.status === 'NOT_FOUND') && (
+          <>
+            <button
+              onClick={() => handleAction(item.id, 'approve')}
+              disabled={actionLoading === item.id}
+              className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20" title="Conciliar"
+            >
+              <CheckCircle2 className="w-4 h-4 text-blue-600" />
+            </button>
+            <button
+              onClick={() => { setForceItem(item); setForceReason(''); }}
+              disabled={actionLoading === item.id}
+              className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20" title="Forçar"
+            >
+              <Zap className="w-4 h-4 text-amber-500" />
+            </button>
+            <button
+              onClick={() => handleAction(item.id, 'ignore')}
+              disabled={actionLoading === item.id}
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" title="Ignorar"
+            >
+              <EyeOff className="w-4 h-4 text-gray-400" />
+            </button>
+          </>
+        )}
+        {item.status === 'RECONCILED' && (
+          <>
+            <button
+              onClick={() => handleAction(item.id, 'unlink')}
+              disabled={actionLoading === item.id}
+              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" title="Reabrir"
+            >
+              <XCircle className="w-4 h-4 text-red-500" />
+            </button>
+            <button
+              onClick={() => handleAction(item.id, 'reopen')}
+              disabled={actionLoading === item.id}
+              className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20" title="Reabrir"
+            >
+              <RefreshCw className="w-4 h-4 text-amber-600" />
+            </button>
+          </>
+        )}
+        {item.status === 'IGNORED' && (
+          <button
+            onClick={() => handleAction(item.id, 'reopen')}
+            disabled={actionLoading === item.id}
+            className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20" title="Reabrir"
+          >
+            <RefreshCw className="w-4 h-4 text-amber-600" />
+          </button>
+        )}
+      </div>
+    );
   };
 
-  const handleReconcileEntries = async (entries: ParsedEntry[]) => {
-    if (entries.length === 0) return;
-    setProcessing(true);
-    try {
-      const res = await apiFetch('/api/pj/reconciliation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'auto-match', bankEntries: entries }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        toast({ title: `Conciliacao concluida: ${data.summary.reconciled} conciliados, ${data.summary.divergent} divergentes` });
-        setBankText('');
-        setParsedEntries([]);
-        setShowImport(false);
-        fetchData();
-      } else {
-        const err = await res.json();
-        toast({ title: 'Erro', description: err.error, variant: 'destructive' });
-      }
-    } catch { toast({ title: 'Erro na conciliacao', variant: 'destructive' }); }
-    setProcessing(false);
+  const renderRow = (item: any) => {
+    const st = STATUS_MAP[item.status] || STATUS_MAP.PENDING;
+    const Icon = st.icon;
+    const isSelected = selected.has(item.id);
+    const bankAmt = item.bankAmount || 0;
+    const intAmt = item.account?.amount || 0;
+    const isDebit = item.type === 'PAYABLE';
+    const hasDivergence = item.status === 'DIVERGENT' && item.account && Math.abs(bankAmt - intAmt) > 0.01;
+    return (
+      <tr key={item.id} className={`border-b hover:bg-muted/20 transition-colors ${isSelected ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
+        <td className="py-3 px-3 text-center">
+          <button onClick={() => toggleSelect(item.id)} className="p-0.5">
+            {isSelected ? <SquareCheck className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+          </button>
+        </td>
+        <td className="py-3 px-4">
+          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${st.color}`}>
+            <Icon className="w-3 h-3" /> {st.label}
+          </span>
+        </td>
+        <td className="py-3 px-4">
+          <p className="font-medium text-foreground">{item.bankReference || 'Sem referência'}</p>
+          <p className="text-xs text-muted-foreground">
+            {item.bankDate ? formatDate(item.bankDate) : '-'}
+            {' • '}{isDebit ? 'Conta a Pagar' : 'Conta a Receber'}
+          </p>
+        </td>
+        <td className="py-3 px-4 text-right">
+          <span className={isDebit ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}>
+            {isDebit ? '-' : '+'}{formatCurrency(bankAmt)}
+          </span>
+        </td>
+        <td className="py-3 px-4">
+          {item.account ? (
+            <>
+              <p className="font-medium text-foreground">{item.account.description}</p>
+              <p className="text-xs text-muted-foreground">
+                {item.account.dueDate ? formatDate(item.account.dueDate) : '-'}
+                {item.account.party ? ` • ${item.account.party}` : ''}
+              </p>
+              {hasDivergence && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Δ {formatCurrency(Math.abs(bankAmt - intAmt))}</p>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground text-xs italic">Sem correspondência</span>
+          )}
+        </td>
+        <td className="py-3 px-4 text-right">
+          {item.account ? (
+            <span className={hasDivergence ? 'text-amber-600 dark:text-amber-400 font-medium' : ''}>{formatCurrency(intAmt)}</span>
+          ) : '-'}
+        </td>
+        <td className="py-3 px-4 text-center">{renderActions(item)}</td>
+      </tr>
+    );
   };
 
-  const handleAutoMatchText = async () => {
-    if (!bankText.trim()) { toast({ title: 'Cole os dados bancarios', variant: 'destructive' }); return; }
-    const bankEntries = parseBankEntries(bankText);
-    if (bankEntries.length === 0) { toast({ title: 'Nenhuma entrada valida', variant: 'destructive' }); return; }
-    await handleReconcileEntries(bankEntries);
-  };
+  const s = data?.summary || {};
+  const allItems = data?.items || [];
+  const batches = data?.batches || [];
+  const hasSelection = selected.size > 0;
 
-  const handleManualAction = async (id: string, newStatus: string) => {
-    const res = await apiFetch('/api/pj/reconciliation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'manual-update', reconciliationId: id, newStatus }),
-    });
-    if (res.ok) { toast({ title: 'Status atualizado' }); fetchData(); }
-    else { toast({ title: 'Erro ao atualizar', variant: 'destructive' }); }
-  };
-
-  const summary = {
-    total: items.length,
-    reconciled: items.filter(i => i.status === 'RECONCILED').length,
-    divergent: items.filter(i => i.status === 'DIVERGENT').length,
-    pending: items.filter(i => i.status === 'PENDING').length,
-    bankOnly: items.filter(i => i.status === 'BANK_ONLY').length,
-  };
-
-  if (!activeCompanyId) return <div className="text-center py-12 text-muted-foreground">Selecione uma empresa primeiro.</div>;
+  if (!activeCompanyId) {
+    return <div className="text-center py-12 text-muted-foreground">Selecione uma empresa primeiro.</div>;
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><FileCheck className="w-6 h-6 text-primary" />Conciliacao Bancaria PJ</h1>
-          <p className="text-muted-foreground">Concilie automaticamente extratos bancarios com suas contas</p>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <FileText className="w-6 h-6 text-blue-500" /> Conciliação Bancária
+          </h1>
+          <p className="text-muted-foreground mt-1">Compare lançamentos internos com extrato bancário</p>
         </div>
-        <Button onClick={() => { setShowImport(!showImport); setParsedEntries([]); }}><Upload className="w-4 h-4 mr-2" />Importar Extrato</Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={() => { setShowImport(true); setParsedEntries([]); setImportResult(null); }} variant="outline" size="sm">
+            <Upload className="w-4 h-4 mr-1" /> Importar Extrato
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-4 pb-4 text-center"><p className="text-2xl font-bold">{summary.total}</p><p className="text-xs text-muted-foreground">Total</p></CardContent></Card>
-        <Card><CardContent className="pt-4 pb-4 text-center"><p className="text-2xl font-bold text-green-600">{summary.reconciled}</p><p className="text-xs text-muted-foreground">Conciliados</p></CardContent></Card>
-        <Card><CardContent className="pt-4 pb-4 text-center"><p className="text-2xl font-bold text-red-600">{summary.divergent}</p><p className="text-xs text-muted-foreground">Divergentes</p></CardContent></Card>
-        <Card><CardContent className="pt-4 pb-4 text-center"><p className="text-2xl font-bold text-amber-600">{summary.pending}</p><p className="text-xs text-muted-foreground">Pendentes</p></CardContent></Card>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { label: 'Total', value: s.total || 0, color: 'text-foreground' },
+          { label: 'Conciliados', value: s.reconciled || 0, color: 'text-blue-600' },
+          { label: 'Divergentes', value: s.divergent || 0, color: 'text-amber-600' },
+          { label: 'Só no Banco', value: s.bankOnly || 0, color: 'text-blue-600' },
+          { label: 'Pendentes', value: s.pending || 0, color: 'text-gray-600' },
+          { label: 'Ignorados', value: s.ignored || 0, color: 'text-gray-400' },
+        ].map(k => (
+          <Card key={k.label} className="shadow-sm">
+            <CardContent className="p-4 text-center">
+              <p className={`text-2xl font-bold ${k.color}`}>{k.value}</p>
+              <p className="text-xs text-muted-foreground">{k.label}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Import Section */}
-      {showImport && (
-        <Card className="border-primary">
-          <CardHeader>
-            <CardTitle className="text-base">Importar Extrato Bancario</CardTitle>
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={() => setImportTab('ofx')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${importTab === 'ofx' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-              >
-                <FileSpreadsheet className="w-4 h-4 inline mr-1.5" />OFX / CSV
-              </button>
-              <button
-                onClick={() => setImportTab('file')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${importTab === 'file' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-              >
-                <Upload className="w-4 h-4 inline mr-1.5" />PDF / Excel
-              </button>
-              <button
-                onClick={() => setImportTab('text')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${importTab === 'text' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-              >
-                <FileText className="w-4 h-4 inline mr-1.5" />Colar Texto
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {importTab === 'ofx' ? (
-              <BankImportDialog
-                onSuccess={() => { setTimeout(() => { fetchData(); setShowImport(false); }, 800); }}
-                onClose={() => setShowImport(false)}
-              />
-            ) : importTab === 'file' ? (
-              <>
-                {/* File format info */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {FILE_FORMATS.map(f => (
-                    <div key={f.ext} className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
-                      <f.icon className="w-5 h-5 text-primary flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold">.{f.ext}</p>
-                        <p className="text-[10px] text-muted-foreground leading-tight">{f.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      {/* Filters + View Toggle */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
+          {['', 'RECONCILED', 'DIVERGENT', 'BANK_ONLY', 'PENDING', 'IGNORED'].map(st => (
+            <button
+              key={st}
+              onClick={() => setStatusFilter(st)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                statusFilter === st ? 'bg-blue-500 text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {st ? STATUS_MAP[st]?.label || st : 'Todos'}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+          <button
+            onClick={() => setViewMode('batches')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === 'batches' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          >
+            <Package className="w-3.5 h-3.5 inline mr-1" /> Por Lote
+          </button>
+          <button
+            onClick={() => setViewMode('flat')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === 'flat' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          >
+            <ListChecks className="w-3.5 h-3.5 inline mr-1" /> Lista
+          </button>
+        </div>
+      </div>
 
-                {/* Upload area */}
-                <div
-                  className="relative border-2 border-dashed border-primary/30 rounded-xl p-8 text-center hover:border-primary/60 transition-colors cursor-pointer bg-primary/5"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,.txt,.ofx,.ofc,.pdf"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  {uploadingFile ? (
-                    <div className="flex flex-col items-center gap-3">
-                      <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                      <p className="text-sm font-medium">Processando arquivo...</p>
-                      <p className="text-xs text-muted-foreground">PDFs podem levar alguns segundos para leitura por IA</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-3">
-                      <Upload className="w-10 h-10 text-primary/60" />
-                      <div>
-                        <p className="text-sm font-medium">Clique para selecionar ou arraste o arquivo</p>
-                        <p className="text-xs text-muted-foreground mt-1">Formatos aceitos: CSV, OFX, TXT, PDF</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Parsed entries preview */}
-                {parsedEntries.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        <p className="text-sm font-semibold">{parsedEntries.length} transacoes encontradas</p>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{parsedFormat} - {parsedFilename}</span>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => setParsedEntries([])}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    <div className="max-h-48 overflow-y-auto border rounded-lg">
-                      <table className="w-full text-xs">
-                        <thead className="bg-muted sticky top-0">
-                          <tr>
-                            <th className="px-3 py-2 text-left">Data</th>
-                            <th className="px-3 py-2 text-left">Referencia</th>
-                            <th className="px-3 py-2 text-right">Valor</th>
-                            <th className="px-3 py-2 text-center">Tipo</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {parsedEntries.slice(0, 50).map((e, i) => (
-                            <tr key={i} className="border-t">
-                              <td className="px-3 py-1.5">{e.date}</td>
-                              <td className="px-3 py-1.5 truncate max-w-[200px]">{e.reference}</td>
-                              <td className={`px-3 py-1.5 text-right font-medium ${e.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>{fmt(e.amount)}</td>
-                              <td className="px-3 py-1.5 text-center">
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${e.type === 'DEBIT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                  {e.type === 'DEBIT' ? 'Debito' : 'Credito'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                          {parsedEntries.length > 50 && (
-                            <tr className="border-t"><td colSpan={4} className="px-3 py-2 text-center text-muted-foreground">... e mais {parsedEntries.length - 50} transacoes</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-3">
-                      <div className="flex gap-4 text-sm">
-                        <span className="text-green-600 font-medium">Creditos: {fmt(parsedEntries.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0))}</span>
-                        <span className="text-red-600 font-medium">Debitos: {fmt(parsedEntries.filter(e => e.amount < 0).reduce((s, e) => s + e.amount, 0))}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setShowImport(false); setParsedEntries([]); }}>Cancelar</Button>
-                  <Button variant="outline" onClick={() => handleSuggest(parsedEntries)} disabled={suggestLoading || parsedEntries.length === 0}>
-                    {suggestLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analisando...</> : <><Sparkles className="w-4 h-4 mr-2" />Analisar com IA</>}
-                  </Button>
-                  <Button onClick={() => handleReconcileEntries(parsedEntries)} disabled={processing || parsedEntries.length === 0}>
-                    {processing ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4 mr-2" />Conciliar Direto</>}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <Label>Cole os dados do extrato (formato: data;referencia;valor)</Label>
-                  <p className="text-xs text-muted-foreground mb-2">Exemplo: 2025-01-15;PIX-FORNECEDOR-123;-1500,00</p>
-                  <textarea
-                    value={bankText}
-                    onChange={e => setBankText(e.target.value)}
-                    rows={6}
-                    className="w-full px-3 py-2 border rounded-lg text-sm bg-background font-mono"
-                    placeholder={"2025-01-15;PIX-123;-1500,00\n2025-01-16;TED-456;5000,00"}
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setShowImport(false)}>Cancelar</Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => { const entries = parseBankEntries(bankText); if (entries.length) handleSuggest(entries); }}
-                    disabled={suggestLoading || !bankText.trim()}
-                  >
-                    {suggestLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analisando...</> : <><Sparkles className="w-4 h-4 mr-2" />Analisar com IA</>}
-                  </Button>
-                  <Button onClick={handleAutoMatchText} disabled={processing}>
-                    {processing ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4 mr-2" />Conciliar Direto</>}
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      {/* Batch action bar */}
+      {hasSelection && (
+        <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+          <ListChecks className="w-5 h-5 text-blue-600" />
+          <span className="text-sm font-medium text-blue-800 dark:text-blue-300">{selected.size} selecionado{selected.size > 1 ? 's' : ''}</span>
+          <div className="flex gap-2 ml-auto flex-wrap">
+            <Button size="sm" variant="outline" onClick={() => handleBatch('approve')} disabled={batchLoading} className="text-blue-700 border-blue-300 hover:bg-blue-100">
+              <CheckCircle2 className="w-4 h-4 mr-1" /> Conciliar
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => handleBatch('ignore')} disabled={batchLoading} className="text-gray-600 border-gray-300 hover:bg-gray-100">
+              <EyeOff className="w-4 h-4 mr-1" /> Ignorar
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => handleBatch('reopen')} disabled={batchLoading} className="text-amber-600 border-amber-300 hover:bg-amber-100">
+              <RefreshCw className="w-4 h-4 mr-1" /> Reabrir
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} className="text-muted-foreground">Limpar</Button>
+          </div>
+        </div>
       )}
 
       {/* AI Suggestions Panel */}
       {suggestions && suggestions.length > 0 && (
         <Card className="border-blue-200 dark:border-blue-900">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-blue-500" />
-                Sugestões de Conciliação por IA
-                <span className="text-xs font-normal text-muted-foreground">— revise e confirme cada correspondência</span>
-              </span>
-              <button onClick={() => setSuggestions(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {suggestions.map((s: any, i: number) => {
-              const key = s.bankEntry.reference + s.bankEntry.date;
+          <div className="p-4 border-b flex items-center justify-between">
+            <span className="font-semibold text-sm flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-500" /> Sugestões de Conciliação por IA
+              <span className="text-xs font-normal text-muted-foreground">— revise e confirme cada correspondência</span>
+            </span>
+            <button onClick={() => setSuggestions(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+          </div>
+          <CardContent className="space-y-4 pt-4">
+            {suggestions.map((sg: any, i: number) => {
+              const key = sg.bankEntry.reference + sg.bankEntry.date;
               const selectedId = confirmedMatches[key];
               return (
                 <div key={i} className="rounded-lg border border-border p-4 space-y-3">
-                  {/* Bank entry */}
                   <div className="flex items-center gap-3 text-sm">
-                    {s.bankEntry.type === 'DEBIT'
+                    {sg.bankEntry.type === 'DEBIT'
                       ? <TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0" />
                       : <TrendingUp className="w-4 h-4 text-green-500 flex-shrink-0" />}
                     <div className="flex-1 min-w-0">
-                      <span className="font-medium truncate block">{s.bankEntry.reference}</span>
-                      <span className="text-xs text-muted-foreground">{s.bankEntry.date} • {fmt(Math.abs(s.bankEntry.amount))}</span>
+                      <span className="font-medium truncate block">{sg.bankEntry.reference}</span>
+                      <span className="text-xs text-muted-foreground">{sg.bankEntry.date} • {formatCurrency(Math.abs(sg.bankEntry.amount))}</span>
                     </div>
-                    {s.matches.length === 0 && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800">Sem correspondência</span>
-                    )}
+                    {sg.matches.length === 0 && <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800">Sem correspondência</span>}
                   </div>
-
-                  {/* Match options */}
-                  {s.matches.length > 0 && (
+                  {sg.matches.length > 0 && (
                     <div className="space-y-2 pl-7">
-                      {s.matches.map((m: any) => {
+                      {sg.matches.map((m: any) => {
                         const isSelected = selectedId === m.bill.id;
                         const confColor = m.confidence >= 80 ? 'text-green-600' : m.confidence >= 50 ? 'text-amber-600' : 'text-red-500';
                         return (
-                          <label
-                            key={m.bill.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                              isSelected
-                                ? 'border-primary bg-primary/5'
-                                : 'border-border hover:bg-muted/40'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name={`match-${key}`}
-                              value={m.bill.id}
-                              checked={isSelected}
-                              onChange={() => setConfirmedMatches(prev => ({ ...prev, [key]: m.bill.id }))}
-                              className="accent-primary"
-                            />
+                          <label key={m.bill.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40'}`}>
+                            <input type="radio" name={`match-${key}`} value={m.bill.id} checked={isSelected}
+                              onChange={() => setConfirmedMatches(prev => ({ ...prev, [key]: m.bill.id }))} className="accent-primary" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate">{m.bill.description}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {fmt(m.bill.amount)} • vence {m.bill.dueDate}
-                                {m.bill.category && ` • ${m.bill.category}`}
-                              </p>
+                              <p className="text-xs text-muted-foreground">{formatCurrency(m.bill.amount)} • vence {m.bill.dueDate}{m.bill.category && ` • ${m.bill.category}`}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">Correspondência: {m.reason}</p>
                             </div>
                             <div className="text-right flex-shrink-0">
@@ -447,19 +461,9 @@ export default function ConciliacaoPJ() {
                           </label>
                         );
                       })}
-                      <label
-                        className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors text-sm ${
-                          selectedId === null ? 'border-gray-400 bg-gray-50 dark:bg-gray-900' : 'border-dashed border-border hover:bg-muted/20'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`match-${key}`}
-                          value=""
-                          checked={selectedId === null}
-                          onChange={() => setConfirmedMatches(prev => ({ ...prev, [key]: null }))}
-                          className="accent-primary"
-                        />
+                      <label className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors text-sm ${selectedId === null ? 'border-gray-400 bg-gray-50 dark:bg-gray-900' : 'border-dashed border-border hover:bg-muted/20'}`}>
+                        <input type="radio" name={`match-${key}`} value="" checked={selectedId === null}
+                          onChange={() => setConfirmedMatches(prev => ({ ...prev, [key]: null }))} className="accent-primary" />
                         <span className="text-muted-foreground text-xs">Ignorar esta transação</span>
                       </label>
                     </div>
@@ -467,16 +471,12 @@ export default function ConciliacaoPJ() {
                 </div>
               );
             })}
-
             <div className="flex justify-end gap-2 pt-2 border-t">
               <Button variant="outline" onClick={() => setSuggestions(null)}>Cancelar</Button>
               <Button
                 onClick={async () => {
-                  // Build confirmed entries only (where selectedId is not null)
-                  const confirmedEntries = suggestions
-                    .filter(s => confirmedMatches[s.bankEntry.reference + s.bankEntry.date] !== null)
-                    .map(s => s.bankEntry);
-                  if (!confirmedEntries.length) { toast({ title: 'Nenhuma transação confirmada' }); return; }
+                  const confirmedEntries = suggestions.filter(sg => confirmedMatches[sg.bankEntry.reference + sg.bankEntry.date] !== null).map(sg => sg.bankEntry);
+                  if (!confirmedEntries.length) return;
                   setSuggestions(null);
                   await handleReconcileEntries(confirmedEntries);
                 }}
@@ -484,85 +484,367 @@ export default function ConciliacaoPJ() {
               >
                 {processing
                   ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Processando...</>
-                  : <><Check className="w-4 h-4 mr-2" />Confirmar {Object.values(confirmedMatches).filter(v => v !== null).length} correspondência(s)</>
-                }
+                  : <><Check className="w-4 h-4 mr-2" />Confirmar {Object.values(confirmedMatches).filter(v => v !== null).length} correspondência(s)</>}
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap gap-3 items-end">
-            <div>
-              <Label className="text-xs">Status</Label>
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
-                <option value="">Todos</option>
-                {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* List */}
+      {/* Main Content */}
       {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>
-      ) : items.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">Nenhuma conciliação encontrada. Importe um extrato para começar.</CardContent></Card>
-      ) : (
-        <div className="space-y-3">
-          {items.map((item: any) => {
-            const st = STATUS_MAP[item.status] || STATUS_MAP.PENDING;
-            const StIcon = st.icon;
-            const isExpanded = expandedId === item.id;
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+        </div>
+      ) : !allItems.length ? (
+        <Card className="shadow-sm">
+          <CardContent className="text-center py-12 text-muted-foreground">
+            <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>Nenhuma conciliação encontrada</p>
+            <p className="text-sm mt-1">Importe um extrato para começar</p>
+          </CardContent>
+        </Card>
+      ) : viewMode === 'batches' && batches.length > 0 ? (
+        <div className="space-y-4">
+          {batches.map((batch: any) => {
+            const isExpanded = expandedBatches.has(batch.id);
+            const batchStatus = getBatchStatus(batch);
+            const badge = getBatchStatusBadge(batchStatus);
+            const progress = batch.stats.total > 0 ? ((batch.stats.reconciled + batch.stats.ignored) / batch.stats.total) * 100 : 0;
             return (
-              <Card key={item.id} className="overflow-hidden">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <StIcon className="w-5 h-5 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{item.bankReference || 'Sem referência'}</p>
-                        <p className="text-xs text-muted-foreground">{item.type === 'PAYABLE' ? 'Conta a Pagar' : 'Conta a Receber'} • {item.bankDate ? new Date(item.bankDate).toLocaleDateString('pt-BR') : '-'}</p>
+              <Card key={batch.id} className="shadow-sm overflow-hidden">
+                <button onClick={() => toggleBatch(batch.id)} className="w-full text-left p-4 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Building2 className="w-4 h-4 text-blue-500" />
+                        <span className="font-semibold text-foreground">{batch.bankName}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.color}`}>{badge.label}</span>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> Importado em {formatDate(batch.importedAt)}
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className="font-semibold">{item.bankAmount ? fmt(Number(item.bankAmount)) : '-'}</p>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${st.color}`}>{st.label}</span>
-                      {/* Manual Actions */}
-                      {['DIVERGENT', 'PENDING', 'BANK_ONLY', 'NOT_FOUND'].includes(item.status) && (
-                        <div className="flex gap-1">
-                          <button onClick={() => handleManualAction(item.id, 'RECONCILED')} title="Conciliar manualmente" className="p-1.5 rounded-lg hover:bg-green-100 text-green-600"><Check className="w-4 h-4" /></button>
-                          <button onClick={() => handleManualAction(item.id, 'IGNORED')} title="Ignorar" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600"><XCircle className="w-4 h-4" /></button>
-                        </div>
+                      {batch.dateRange?.min && (
+                        <p className="text-xs text-muted-foreground mt-1">Período: {formatDate(batch.dateRange.min)} a {formatDate(batch.dateRange.max)}</p>
                       )}
-                      <button onClick={() => setExpandedId(isExpanded ? null : item.id)} className="p-1.5 rounded-lg hover:bg-muted">
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
+                    </div>
+                    <div className="flex gap-2 items-center flex-shrink-0">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" title="Conciliados">✓ {batch.stats.reconciled}</span>
+                      {batch.stats.divergent > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title="Divergentes">⚠ {batch.stats.divergent}</span>}
+                      {batch.stats.bankOnly > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Só no Banco">? {batch.stats.bankOnly}</span>}
+                      {batch.stats.pending > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" title="Pendentes">⏳ {batch.stats.pending}</span>}
+                      <span className="text-xs font-medium text-muted-foreground">{batch.stats.total} total</span>
                     </div>
                   </div>
-                  {item.divergenceNote && <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">⚠ {item.divergenceNote}</p>}
-                  {isExpanded && item.logs?.length > 0 && (
-                    <div className="mt-3 pt-3 border-t space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground">Histórico</p>
-                      {item.logs.map((log: any) => (
-                        <div key={log.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{new Date(log.createdAt).toLocaleString('pt-BR')}</span>
-                          <span className="font-medium">{log.action}</span>
-                          <span>{log.previousStatus} → {log.newStatus}</span>
-                        </div>
-                      ))}
+                  <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all bg-gradient-to-r from-blue-500 to-green-500" style={{ width: `${progress}%` }} />
+                  </div>
+                </button>
+                {isExpanded && (
+                  <CardContent className="p-0 border-t">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/30">
+                            <th className="py-2 px-3 text-center w-10">
+                              <button onClick={toggleSelectAll} className="p-0.5 rounded hover:bg-muted">
+                                {selected.size === allItems.length && allItems.length > 0 ? <SquareCheck className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                              </button>
+                            </th>
+                            <th className="py-2 px-4 text-left text-muted-foreground font-medium text-xs">Status</th>
+                            <th className="py-2 px-4 text-left text-muted-foreground font-medium text-xs">Extrato Bancário</th>
+                            <th className="py-2 px-4 text-right text-muted-foreground font-medium text-xs">Valor Banco</th>
+                            <th className="py-2 px-4 text-left text-muted-foreground font-medium text-xs">Conta Interna</th>
+                            <th className="py-2 px-4 text-right text-muted-foreground font-medium text-xs">Valor Interno</th>
+                            <th className="py-2 px-4 text-center text-muted-foreground font-medium text-xs">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>{batch.items.map((item: any) => renderRow(item))}</tbody>
+                      </table>
                     </div>
-                  )}
-                </CardContent>
+                  </CardContent>
+                )}
               </Card>
             );
           })}
         </div>
+      ) : (
+        <Card className="shadow-sm">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="py-3 px-3 text-center w-10">
+                      <button onClick={toggleSelectAll} className="p-0.5 rounded hover:bg-muted">
+                        {selected.size === allItems.length && allItems.length > 0 ? <SquareCheck className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                      </button>
+                    </th>
+                    <th className="py-3 px-4 text-left text-muted-foreground font-medium">Status</th>
+                    <th className="py-3 px-4 text-left text-muted-foreground font-medium">Extrato Bancário</th>
+                    <th className="py-3 px-4 text-right text-muted-foreground font-medium">Valor Banco</th>
+                    <th className="py-3 px-4 text-left text-muted-foreground font-medium">Conta Interna</th>
+                    <th className="py-3 px-4 text-right text-muted-foreground font-medium">Valor Interno</th>
+                    <th className="py-3 px-4 text-center text-muted-foreground font-medium">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>{allItems.map((item: any) => renderRow(item))}</tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Import Dialog */}
+      <Dialog open={showImport} onOpenChange={(open) => { setShowImport(open); if (!open) { setParsedEntries([]); setImportResult(null); } }}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader><DialogTitle>Importar Extrato Bancário</DialogTitle></DialogHeader>
+
+          <div className="flex gap-1 bg-muted p-1 rounded-lg mb-2">
+            {(['ofx', 'file', 'text'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setImportTab(tab)}
+                className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-colors ${importTab === tab ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                {tab === 'ofx' ? 'OFX / CSV' : tab === 'file' ? 'PDF / Arquivo' : 'Colar Texto'}
+              </button>
+            ))}
+          </div>
+
+          {importTab === 'ofx' ? (
+            <BankImportDialog
+              onSuccess={() => { setTimeout(() => { load(); setShowImport(false); }, 800); }}
+              onClose={() => setShowImport(false)}
+            />
+          ) : importTab === 'file' ? (
+            <div className="space-y-4">
+              <div
+                className="relative border-2 border-dashed border-primary/30 rounded-xl p-8 text-center hover:border-primary/60 transition-colors cursor-pointer bg-primary/5"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input ref={fileInputRef} type="file" accept=".csv,.txt,.ofx,.ofc,.pdf" onChange={handleFileUpload} className="hidden" />
+                {uploadingFile ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                    <p className="text-sm font-medium">Processando arquivo...</p>
+                    <p className="text-xs text-muted-foreground">PDFs podem levar alguns segundos</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <Upload className="w-10 h-10 text-primary/60" />
+                    <div>
+                      <p className="text-sm font-medium">Clique para selecionar ou arraste o arquivo</p>
+                      <p className="text-xs text-muted-foreground mt-1">Formatos aceitos: CSV, OFX, TXT, PDF</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {parsedEntries.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <p className="text-sm font-semibold">{parsedEntries.length} transações encontradas</p>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{parsedFormat} — {parsedFilename}</span>
+                    </div>
+                    <button onClick={() => setParsedEntries([])} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto border rounded-lg">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Data</th>
+                          <th className="px-3 py-2 text-left">Referência</th>
+                          <th className="px-3 py-2 text-right">Valor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parsedEntries.slice(0, 50).map((e, i) => (
+                          <tr key={i} className="border-t">
+                            <td className="px-3 py-1.5">{e.date}</td>
+                            <td className="px-3 py-1.5 truncate max-w-[200px]">{e.reference}</td>
+                            <td className={`px-3 py-1.5 text-right font-medium ${e.amount < 0 ? 'text-red-600' : 'text-green-600'}`}>{formatCurrency(e.amount)}</td>
+                          </tr>
+                        ))}
+                        {parsedEntries.length > 50 && (
+                          <tr className="border-t"><td colSpan={3} className="px-3 py-2 text-center text-muted-foreground">... e mais {parsedEntries.length - 50} transações</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {importResult && (
+                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
+                  {importResult.error ? `Erro: ${importResult.error}` : `Conciliados: ${importResult.imported} | Divergentes: ${importResult.divergent} | Só no Banco: ${importResult.bankOnly}`}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setShowImport(false); setParsedEntries([]); }}>Cancelar</Button>
+                <Button variant="outline" onClick={() => handleSuggest(parsedEntries)} disabled={suggestLoading || parsedEntries.length === 0}>
+                  {suggestLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analisando...</> : <><Sparkles className="w-4 h-4 mr-2" />Analisar com IA</>}
+                </Button>
+                <Button onClick={() => handleReconcileEntries(parsedEntries)} disabled={processing || parsedEntries.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  {processing ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4 mr-2" />Conciliar</>}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <Label>Cole os dados do extrato (formato: data;referencia;valor)</Label>
+                <p className="text-xs text-muted-foreground mb-2">Exemplo: 2025-01-15;PIX-FORNECEDOR-123;-1500,00</p>
+                <textarea
+                  value={bankText}
+                  onChange={e => setBankText(e.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 border rounded-lg text-sm bg-background text-foreground font-mono"
+                  placeholder={'2025-01-15;PIX-123;-1500,00\n2025-01-16;TED-456;5000,00'}
+                />
+              </div>
+              {importResult && (
+                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
+                  {importResult.error ? `Erro: ${importResult.error}` : `Conciliados: ${importResult.imported} | Divergentes: ${importResult.divergent} | Só no Banco: ${importResult.bankOnly}`}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowImport(false)}>Cancelar</Button>
+                <Button variant="outline" onClick={() => { const e = parseBankEntries(bankText); if (e.length) handleSuggest(e); }} disabled={suggestLoading || !bankText.trim()}>
+                  {suggestLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analisando...</> : <><Sparkles className="w-4 h-4 mr-2" />Analisar com IA</>}
+                </Button>
+                <Button
+                  onClick={async () => { const e = parseBankEntries(bankText); if (e.length) await handleReconcileEntries(e); }}
+                  disabled={processing || !bankText.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {processing ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4 mr-2" />Conciliar</>}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!showDetail} onOpenChange={() => setShowDetail(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Detalhes da Conciliação</DialogTitle></DialogHeader>
+          {showDetail && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 rounded-lg bg-muted">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Extrato Bancário</p>
+                  <p className="font-medium text-foreground">{showDetail.bankReference || 'Sem referência'}</p>
+                  <p className="text-sm">{formatCurrency(showDetail.bankAmount || 0)}</p>
+                  <p className="text-xs text-muted-foreground">{showDetail.bankDate ? formatDate(showDetail.bankDate) : '-'}</p>
+                  <p className="text-xs text-muted-foreground">{showDetail.type === 'PAYABLE' ? 'Conta a Pagar' : 'Conta a Receber'}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Conta Interna</p>
+                  {showDetail.account ? (
+                    <>
+                      <p className="font-medium text-foreground">{showDetail.account.description}</p>
+                      <p className="text-sm">{formatCurrency(showDetail.account.amount)}</p>
+                      <p className="text-xs text-muted-foreground">{showDetail.account.dueDate ? formatDate(showDetail.account.dueDate) : '-'}</p>
+                      {showDetail.account.party && <p className="text-xs text-muted-foreground">{showDetail.account.party}</p>}
+                    </>
+                  ) : <p className="text-sm text-muted-foreground italic">Não encontrada</p>}
+                </div>
+              </div>
+              {showDetail.divergenceNote && <p className="text-sm text-amber-600">⚠ {showDetail.divergenceNote}</p>}
+              {showDetail.notes && <p className="text-sm text-muted-foreground italic">{showDetail.notes}</p>}
+              {showDetail.logs?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Histórico</p>
+                  <div className="space-y-1">
+                    {showDetail.logs.map((log: any, i: number) => (
+                      <div key={i} className="text-xs text-muted-foreground flex justify-between">
+                        <span>{log.action}: {log.previousStatus} → {log.newStatus}</span>
+                        <span>{formatDate(log.createdAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(showDetail.status === 'DIVERGENT' || showDetail.status === 'BANK_ONLY' || showDetail.status === 'PENDING' || showDetail.status === 'NOT_FOUND') && (
+                <div className="flex gap-2 pt-2 border-t flex-wrap">
+                  <Button size="sm" onClick={() => handleAction(showDetail.id, 'approve')} disabled={actionLoading === showDetail.id} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Conciliar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setForceItem(showDetail); setForceReason(''); setShowDetail(null); }} className="border-amber-300 text-amber-700 hover:bg-amber-50">
+                    <Zap className="w-4 h-4 mr-1" /> Forçar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleAction(showDetail.id, 'ignore')} disabled={actionLoading === showDetail.id}>
+                    <EyeOff className="w-4 h-4 mr-1" /> Ignorar
+                  </Button>
+                </div>
+              )}
+              {showDetail.status === 'RECONCILED' && (
+                <div className="flex gap-2 pt-2 border-t flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => handleAction(showDetail.id, 'unlink')} disabled={actionLoading === showDetail.id} className="text-red-600 border-red-300 hover:bg-red-50">
+                    <XCircle className="w-4 h-4 mr-1" /> Desfazer
+                  </Button>
+                  <p className="text-xs text-muted-foreground self-center">Reabre a conciliação para revisão</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Force Reconciliation Dialog */}
+      <Dialog open={!!forceItem} onOpenChange={() => setForceItem(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-amber-500" /> Forçar Conciliação
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                <strong>Atenção:</strong> Esta ação marca o lançamento como conciliado independentemente de correspondência interna.
+              </p>
+            </div>
+            {forceItem && (
+              <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                <p className="font-medium">{forceItem.bankReference || 'Sem referência'}</p>
+                <p className="text-muted-foreground mt-1">
+                  {formatCurrency(forceItem.bankAmount || 0)} — {forceItem.bankDate ? formatDate(forceItem.bankDate) : '-'}
+                </p>
+              </div>
+            )}
+            <div>
+              <Label className="text-sm font-medium">Motivo da conciliação forçada</Label>
+              <textarea
+                value={forceReason}
+                onChange={e => setForceReason(e.target.value)}
+                placeholder="Ex: Transferência entre contas, taxa bancária identificada..."
+                className="w-full mt-1.5 px-3 py-2 border rounded-lg text-sm bg-background text-foreground resize-none h-20"
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setForceItem(null)} className="flex-1">Cancelar</Button>
+              <Button
+                onClick={async () => {
+                  if (!forceItem) return;
+                  await handleAction(forceItem.id, 'force', { notes: forceReason || 'Conciliação forçada' });
+                  setForceItem(null);
+                }}
+                disabled={actionLoading === forceItem?.id}
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                <Zap className="w-4 h-4 mr-1" /> Forçar Conciliação
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
