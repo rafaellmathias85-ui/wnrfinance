@@ -247,6 +247,7 @@ model Alert {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String?  // null = PF, set = PJ
   type      String
   title     String
   message   String
@@ -256,6 +257,7 @@ model Alert {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([companyId])
   @@index([createdAt])
 }
 
@@ -318,6 +320,7 @@ model BankTransaction {
   id               String          @id @default(cuid())
   userId           String
   user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId        String?         // null = PF, set = PJ
   bankConnectionId String?
   bankConnection   BankConnection? @relation("BankTxConn", fields: [bankConnectionId], references: [id], onDelete: SetNull)
   externalId       String?
@@ -336,6 +339,7 @@ model BankTransaction {
 
   @@unique([userId, externalId])
   @@index([userId])
+  @@index([companyId])
   @@index([date])
   @@index([bankConnectionId])
   @@index([status])

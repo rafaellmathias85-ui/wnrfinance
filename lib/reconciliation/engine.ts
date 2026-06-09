@@ -57,8 +57,8 @@ function computeScore(bankTx: { amount: number; date: Date; description: string 
 }
 
 export async function runReconciliation(userId: string, bankConnectionId?: string) {
-  // 1. Get unreconciled bank transactions (PENDING or BANK_ONLY without internal link)
-  const where: any = { userId, status: { in: ['PENDING', 'BANK_ONLY'] } };
+  // 1. Get unreconciled PF bank transactions only (companyId: null = PF context)
+  const where: any = { userId, companyId: null, status: { in: ['PENDING', 'BANK_ONLY'] } };
   if (bankConnectionId) where.bankConnectionId = bankConnectionId;
 
   const bankTxs = await prisma.bankTransaction.findMany({
@@ -77,11 +77,11 @@ export async function runReconciliation(userId: string, bankConnectionId?: strin
   // 3. Get internal transactions in range
   const [expenses, incomes] = await Promise.all([
     prisma.expense.findMany({
-      where: { userId, date: { gte: minDate, lte: maxDate } },
+      where: { userId, companyId: null, date: { gte: minDate, lte: maxDate } },
       select: { id: true, description: true, amount: true, date: true },
     }),
     prisma.income.findMany({
-      where: { userId, date: { gte: minDate, lte: maxDate } },
+      where: { userId, companyId: null, date: { gte: minDate, lte: maxDate } },
       select: { id: true, description: true, amount: true, date: true },
     }),
   ]);

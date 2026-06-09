@@ -42,6 +42,13 @@ export async function POST(request: Request) {
     let imported = 0;
     let skipped = 0;
 
+    // Resolve companyId from the bank connection (null = PF context)
+    let connectionCompanyId: string | null = null;
+    if (bankConnectionId) {
+      const conn = await prisma.bankConnection.findFirst({ where: { id: bankConnectionId }, select: { companyId: true } });
+      connectionCompanyId = conn?.companyId ?? null;
+    }
+
     for (const tx of statement.transactions) {
       // Check for duplicates using externalId
       const exists = await prisma.bankTransaction.findFirst({
@@ -53,6 +60,7 @@ export async function POST(request: Request) {
       await prisma.bankTransaction.create({
         data: {
           userId,
+          companyId: connectionCompanyId,
           bankConnectionId: bankConnectionId || null,
           externalId: tx.externalId,
           description: tx.description,

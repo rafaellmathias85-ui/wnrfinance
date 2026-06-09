@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const page = parseInt(url.get('page') || '1');
   const limit = 50;
 
-  const where: any = { userId: session.user.id };
+  const where: any = { userId: session.user.id, companyId: null };
   if (bankId) where.bankConnectionId = bankId;
   if (status) where.status = status;
 

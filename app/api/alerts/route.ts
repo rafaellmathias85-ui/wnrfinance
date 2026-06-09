@@ -10,8 +10,10 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
+    // Filter by context: PF (companyId = null) or PJ (companyId = activeCompanyId)
+    const companyId = (session.user as any).activeCompanyId ?? null;
     const alerts = await prisma.alert.findMany({
-      where: { userId: session.user.id },
+      where: { userId: session.user.id, companyId: companyId ?? null },
       orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
       take: 100,
     });
@@ -30,8 +32,9 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     if (body.action === 'read-all') {
+      const companyId = (session.user as any).activeCompanyId ?? null;
       await prisma.alert.updateMany({
-        where: { userId: session.user.id, isRead: false },
+        where: { userId: session.user.id, isRead: false, companyId: companyId ?? null },
         data: { isRead: true },
       });
       return NextResponse.json({ success: true });

@@ -1,7 +1,6 @@
 'use client';
 import { apiFetch } from '@/lib/fetch';
 import { formatDate } from '@/lib/format';
-import { BankImportDialog } from '@/components/bank-import-dialog';
 import { usePJ } from '@/lib/pj-context';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,7 @@ export default function ConciliacaoPJ() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
-  const [importTab, setImportTab] = useState<'ofx' | 'file' | 'text'>('ofx');
+  const [importTab, setImportTab] = useState<'file' | 'text'>('file');
   const [showDetail, setShowDetail] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -631,23 +630,18 @@ export default function ConciliacaoPJ() {
           <DialogHeader><DialogTitle>Importar Extrato Bancário</DialogTitle></DialogHeader>
 
           <div className="flex gap-1 bg-muted p-1 rounded-lg mb-2">
-            {(['ofx', 'file', 'text'] as const).map(tab => (
+            {(['file', 'text'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setImportTab(tab)}
                 className={`flex-1 text-sm py-1.5 rounded-md font-medium transition-colors ${importTab === tab ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                {tab === 'ofx' ? 'OFX / CSV' : tab === 'file' ? 'PDF / Arquivo' : 'Colar Texto'}
+                {tab === 'file' ? 'OFX / CSV / PDF' : 'Colar Texto'}
               </button>
             ))}
           </div>
 
-          {importTab === 'ofx' ? (
-            <BankImportDialog
-              onSuccess={() => { setTimeout(() => { load(); setShowImport(false); }, 800); }}
-              onClose={() => setShowImport(false)}
-            />
-          ) : importTab === 'file' ? (
+          {importTab === 'file' ? (
             <div className="space-y-4">
               <div
                 className="relative border-2 border-dashed border-primary/30 rounded-xl p-8 text-center hover:border-primary/60 transition-colors cursor-pointer bg-primary/5"

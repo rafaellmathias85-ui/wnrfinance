@@ -83,8 +83,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ expenses: enrichedExpenses, incomes: enrichedIncomes });
   }
 
-  const where: any = { userId: session.user.id };
-  if (bankId) where.bankTransactionId = { in: (await prisma.bankTransaction.findMany({ where: { bankConnectionId: bankId }, select: { id: true } })).map((t: any) => t.id) };
+  // PF-only: only reconciliations whose bank transaction has no companyId
+  const where: any = { userId: session.user.id, bankTransaction: { companyId: null } };
+  if (bankId) where.bankTransaction = { companyId: null, bankConnectionId: bankId };
 
   const [stats, items] = await Promise.all([
     prisma.reconciliation.groupBy({
