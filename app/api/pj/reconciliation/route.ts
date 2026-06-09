@@ -166,6 +166,56 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
 
+  if (action === 'rerun-match') {
+    const pendingItems = await prisma.pJReconciliation.findMany({
+      where: { companyId, status: { in: ['PENDING', 'BANK_ONLY', 'NOT_FOUND'] } },
+    });
+    if (!pendingItems.length) return NextResponse.json({ summary: { total: 0, updated: 0 } });
+
+    const payables = await prisma.accountsPayable.findMany({ where: { companyId, status: { in: ['pendente', 'vencido'] } } });
+    const receivables = await prisma.accountsReceivable.findMany({ where: { companyId, status: { in: ['pendente', 'vencido'] } } });
+
+    let updated = 0;
+    for (const item of pendingItems) {
+      if (!item.bankAmount || !item.bankDate) continue;
+      const pool = item.type === 'PAYABLE' ? payables : receivables;
+      const absAmount = item.bankAmount;
+
+      let match = pool.find((p: any) => Math.abs(Number(p.amount) - absAmount) < 0.01);
+      let newStatus = 'BANK_ONLY';
+      let divergenceNote = null;
+
+      if (match) {
+        const dateDiff = Math.abs(new Date(item.bankDate).getTime() - new Date(match.dueDate).getTime());
+        newStatus = dateDiff <= 5 * 86400000 ? 'RECONCILED' : 'DIVERGENT';
+        if (newStatus === 'DIVERGENT') divergenceNote = `Data divergente: banco ${item.bankDate.toISOString().split('T')[0]}, sistema ${match.dueDate}`;
+      } else {
+        match = pool.find((p: any) => Math.abs(Number(p.amount) - absAmount) / Number(p.amount) < 0.05);
+        if (match) { newStatus = 'DIVERGENT'; divergenceNote = `Valor divergente: banco R$ ${absAmount.toFixed(2)}, sistema R$ ${Number(match.amount).toFixed(2)}`; }
+      }
+
+      if (newStatus !== item.status) {
+        await prisma.pJReconciliation.update({
+          where: { id: item.id },
+          data: {
+            status: newStatus,
+            accountId: match?.id || item.accountId,
+            divergenceNote,
+            matchMethod: 'auto',
+            ...(newStatus === 'RECONCILED' ? { reconciledAt: new Date(), reconciledBy: session.user.id } : {}),
+            logs: { create: { action: 'RERUN_MATCH', previousStatus: item.status, newStatus, details: { matchedId: match?.id || null }, performedBy: session.user.id } },
+          },
+        });
+        if (newStatus === 'RECONCILED' && match) {
+          if (item.type === 'PAYABLE') await prisma.accountsPayable.update({ where: { id: match.id }, data: { status: 'pago', paidAt: item.bankDate, amountPaid: absAmount } });
+          else await prisma.accountsReceivable.update({ where: { id: match.id }, data: { status: 'recebido', receivedAt: item.bankDate, amountReceived: absAmount } });
+        }
+        updated++;
+      }
+    }
+    return NextResponse.json({ summary: { total: pendingItems.length, updated } });
+  }
+
   if (action === 'auto-match') {
     const payables = await prisma.accountsPayable.findMany({
       where: { companyId, status: { in: ['pendente', 'vencido'] } },

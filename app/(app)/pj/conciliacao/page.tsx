@@ -31,6 +31,8 @@ export default function ConciliacaoPJ() {
   const formatCurrency = useFormatCurrency();
 
   const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [running, setRunning] = useState(false);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
@@ -62,13 +64,25 @@ export default function ConciliacaoPJ() {
     setLoading(true);
     const params = new URLSearchParams();
     if (statusFilter) params.set('status', statusFilter);
+    if (typeFilter) params.set('type', typeFilter);
     const res = await apiFetch(`/api/pj/reconciliation?${params}`).then(r => r.json());
     setData(res);
     setLoading(false);
     setSelected(new Set());
-  }, [activeCompanyId, statusFilter]);
+  }, [activeCompanyId, statusFilter, typeFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  const runEngine = async () => {
+    setRunning(true);
+    await apiFetch('/api/pj/reconciliation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rerun-match' }),
+    });
+    await load();
+    setRunning(false);
+  };
 
   const handleAction = async (reconId: string, action: string, extra?: any) => {
     setActionLoading(reconId);
@@ -337,9 +351,24 @@ export default function ConciliacaoPJ() {
           </h1>
           <p className="text-muted-foreground mt-1">Compare lançamentos internos com extrato bancário</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <select
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-input text-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            >
+              <option value="">Todos os tipos</option>
+              <option value="PAYABLE">Contas a Pagar</option>
+              <option value="RECEIVABLE">Contas a Receber</option>
+            </select>
+          </div>
           <Button onClick={() => { setShowImport(true); setParsedEntries([]); setImportResult(null); }} variant="outline" size="sm">
             <Upload className="w-4 h-4 mr-1" /> Importar Extrato
+          </Button>
+          <Button onClick={runEngine} disabled={running} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+            <RefreshCw className={`w-4 h-4 mr-1 ${running ? 'animate-spin' : ''}`} /> {running ? 'Processando...' : 'Conciliar'}
           </Button>
         </div>
       </div>
