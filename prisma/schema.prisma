@@ -268,14 +268,18 @@ model BankConnection {
   companyId        String?
   company          Company?          @relation("CompanyBankConnections", fields: [companyId], references: [id], onDelete: Cascade)
   scope            String            @default("PF") // PF or PJ
-  provider         String // pluggy, belvo, quanto
+  provider         String // ofx, banco-inter, banco-brasil, sicoob, sicredi, itau, santander, bradesco, cora, asaas, efi, open-finance
   connectionId     String // external connection/item id from provider
+  connectionMode   String            @default("manual") // manual, api, open_finance
   bankName         String
   bankLogo         String?
-  status           String            @default("active") // active, syncing, error, disconnected
+  bankCode         String?           // COMPE/ISPB bank code
+  status           String            @default("active") // active, syncing, error, disconnected, unstable
   lastSyncAt       DateTime?
+  tokenExpiresAt   DateTime?
   accountType      String? // checking, savings, credit, investment
   accountNumber    String?
+  accountDigit     String?
   agency           String?
   openingBalance   Float?            @default(0)
   currentBalance   Float?            @default(0)
@@ -283,6 +287,14 @@ model BankConnection {
   allowsReceipts   Boolean           @default(true)
   allowsTransfers  Boolean           @default(true)
   syncError        String?
+  // Encrypted credentials (AES-256-GCM, never stored in plain text)
+  clientIdEnc      String?
+  clientSecretEnc  String?
+  certPathEnc      String?
+  certPasswordEnc  String?
+  accessTokenEnc   String?
+  refreshTokenEnc  String?
+  extraConfig      Json?             // bank-specific fields (convenio, cooperativa, etc.)
   expenses         Expense[]
   incomes          Income[]
   creditCards      CreditCard[]
@@ -294,6 +306,7 @@ model BankConnection {
   @@unique([provider, connectionId])
   @@index([userId])
   @@index([companyId])
+  @@index([status])
 }
 
 model Transaction {
@@ -324,12 +337,16 @@ model BankTransaction {
   bankConnectionId String?
   bankConnection   BankConnection? @relation("BankTxConn", fields: [bankConnectionId], references: [id], onDelete: SetNull)
   externalId       String?
+  transactionHash  String?         // sha256 dedup hash (bankCode+agency+account+date+amount+desc)
   description      String
   amount           Float
-  type             String // credit, debit
+  type             String          // credit, debit
   date             DateTime
   category         String?
   balanceAfter     Float?
+  documentNumber   String?
+  payerName        String?
+  payerDocument    String?
   rawData          Json?
   status           String          @default("PENDING") // PENDING, RECONCILED, BANK_ONLY, IGNORED
   importBatchId    String?
@@ -344,6 +361,7 @@ model BankTransaction {
   @@index([bankConnectionId])
   @@index([status])
   @@index([importBatchId])
+  @@index([transactionHash])
 }
 
 model Reconciliation {

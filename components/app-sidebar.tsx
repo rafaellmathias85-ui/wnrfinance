@@ -439,7 +439,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
                     <p className="text-sm font-medium text-foreground">{session?.user?.name}</p>
                     <p className="text-[11px] text-muted-foreground">{session?.user?.email}</p>
                   </div>
-                  <Link href="/configuracoes" className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                  <Link href={activeEnv === 'pj' ? '/pj/configuracoes' : '/configuracoes'} className="flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                     <span className="w-4 h-4 flex items-center justify-center text-muted-foreground">⚙</span>
                     Configurações
                   </Link>
