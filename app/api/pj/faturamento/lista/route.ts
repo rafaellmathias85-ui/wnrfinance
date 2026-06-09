@@ -123,6 +123,7 @@ export async function GET(req: NextRequest) {
 
     const emailMap = new Map<string, (typeof emailLogs)>();
     for (const e of emailLogs) {
+      if (!e.contextId) continue;
       if (!emailMap.has(e.contextId)) emailMap.set(e.contextId, []);
       emailMap.get(e.contextId)!.push(e);
     }
