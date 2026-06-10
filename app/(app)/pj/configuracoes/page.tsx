@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { usePJ } from '@/lib/pj-context';
 import {
-  Building2, ChevronRight, Crown, FileText, Key, Link2, Mail,
+  Building2, ChevronRight, Crown, Database, FileText, Key, Link2, Loader2, Mail,
   MessageCircle, Moon, Palette, Shield, ShieldCheck, ShieldOff, Sun, Users, Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ export default function PJConfiguracoesPage() {
   const { activeCompanyId, companies } = usePJ();
   const activeCompany = companies.find((c: any) => c.id === activeCompanyId);
   const [entitlements, setEntitlements] = useState<any>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaSetupData, setMfaSetupData] = useState<{ qrDataUrl: string; secret: string; backupCodes: string[] } | null>(null);
   const [mfaCode, setMfaCode] = useState('');
@@ -68,6 +70,20 @@ export default function PJConfiguracoesPage() {
       setMfaEnabled(false); setMfaSetupData(null); setShowDisableDialog(false); setDisableCode(''); setMfaSuccess('MFA desativado.');
     } catch (e: any) { setMfaError(e.message || 'Código inválido'); }
     setMfaLoading(false);
+  };
+
+  const handleImportSeed = async () => {
+    if (!confirm('Importar dados PJ 2025 (bancos, categorias, clientes, fornecedores, funcionários e movimentações) para a empresa ativa? Registros já existentes não serão duplicados.')) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await apiFetch('/api/admin/import-seed', { method: 'POST' });
+      const result = await res.json();
+      setImportResult(result);
+    } catch (e: any) {
+      setImportResult({ error: e.message });
+    }
+    setImporting(false);
   };
 
   const subscription = entitlements?.subscription;
@@ -236,6 +252,39 @@ export default function PJConfiguracoesPage() {
                   <div className="grid grid-cols-2 gap-1">
                     {mfaSetupData.backupCodes.map((c, i) => (
                       <code key={i} className="text-sm font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded border">{c}</code>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Importar Dados */}
+      <Card className="shadow-sm">
+        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Database className="w-5 h-5" /> Importar Dados PJ</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Popula a empresa ativa com os dados do extrato S1/2025: 2 contas bancárias (Itaú e Inter), categorias, clientes, fornecedores, funcionários e movimentações financeiras. Não duplica registros já existentes.
+          </p>
+          <Button onClick={handleImportSeed} disabled={importing} variant="outline" className="gap-2">
+            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+            {importing ? 'Importando...' : 'Executar Import'}
+          </Button>
+          {importResult && (
+            <div className={`p-3 rounded-lg text-sm mt-2 ${importResult.error ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'}`}>
+              {importResult.error ? (
+                <p>Erro: {importResult.error}</p>
+              ) : (
+                <div>
+                  <p className="font-semibold mb-2">Import concluído!</p>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {Object.entries(importResult.results || {}).map(([k, v]) => (
+                      <div key={k} className="text-center p-2 bg-white/60 dark:bg-black/20 rounded">
+                        <p className="text-base font-bold">{String(v)}</p>
+                        <p className="text-[10px] capitalize">{k}</p>
+                      </div>
                     ))}
                   </div>
                 </div>
