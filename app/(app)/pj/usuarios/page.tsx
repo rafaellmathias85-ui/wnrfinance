@@ -107,13 +107,12 @@ export default function UsuariosPage() {
   const canManage = ['OWNER', 'ADMIN'].includes(activeCompanyRole || '');
 
   const fetchUsers = useCallback(async () => {
-    if (!activeCompanyId) return;
+    if (!activeCompanyId) { setLoading(false); return; }
     setLoading(true);
     const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/users`);
     if (res.ok) {
       const data = await res.json();
       setUsers(data);
-      // Fetch permissions for each user to derive module badges
       fetchAllModuleAccess(data);
     }
     setLoading(false);
@@ -226,6 +225,12 @@ export default function UsuariosPage() {
         <div className="flex justify-center py-12">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
         </div>
+      ) : users.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Nenhum usuário encontrado nesta empresa.
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {users.map((u: any) => {

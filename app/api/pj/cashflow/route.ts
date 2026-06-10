@@ -19,22 +19,34 @@ export async function GET(req: NextRequest) {
 
   const [payables, receivables] = await Promise.all([
     prisma.accountsPayable.findMany({
-      where: { companyId, dueDate: { gte: now, lte: endDate }, status: { in: ['pendente', 'vencido'] } },
+      where: { companyId, status: { in: ['pendente', 'vencido'] } },
       select: { amount: true, dueDate: true },
       orderBy: { dueDate: 'asc' },
     }),
     prisma.accountsReceivable.findMany({
-      where: { companyId, dueDate: { gte: now, lte: endDate }, status: { in: ['pendente', 'vencido'] } },
+      where: { companyId, status: { in: ['pendente', 'vencido'] } },
       select: { amount: true, dueDate: true },
       orderBy: { dueDate: 'asc' },
     }),
   ]);
 
-  // Group by week
+  // Group by week; overdue items (dueDate < now) go into a leading "Em Atraso" bucket
   const weeks: any[] = [];
   const weekMs = 7 * 24 * 60 * 60 * 1000;
-  let current = new Date(now);
 
+  const overduePayables = payables.filter(p => new Date(p.dueDate) < now).reduce((s, p) => s + Number(p.amount), 0);
+  const overdueReceivables = receivables.filter(r => new Date(r.dueDate) < now).reduce((s, r) => s + Number(r.amount), 0);
+  if (overduePayables > 0 || overdueReceivables > 0) {
+    weeks.push({
+      start: 'Em Atraso',
+      end: 'Em Atraso',
+      payables: overduePayables,
+      receivables: overdueReceivables,
+      net: overdueReceivables - overduePayables,
+    });
+  }
+
+  let current = new Date(now);
   while (current < endDate) {
     const weekEnd = new Date(current.getTime() + weekMs);
     const weekPayables = payables

@@ -13,8 +13,11 @@ import {
   History,
   KeyRound,
   Loader2,
+  Pencil,
   Plus,
+  QrCode,
   RefreshCw,
+  Settings2,
   ShieldCheck,
   Trash2,
   Upload,
@@ -42,7 +45,12 @@ interface BankConnection {
   agency?: string | null;
   accountNumber?: string | null;
   accountDigit?: string | null;
+  openingBalance?: number | null;
   currentBalance?: number | null;
+  allowsPayments?: boolean;
+  allowsReceipts?: boolean;
+  allowsTransfers?: boolean;
+  extraConfig?: Record<string, any> | null;
   lastSyncAt?: string | null;
   syncError?: string | null;
 }
@@ -90,6 +98,41 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+
+  // ── Edit connection state ──────────────────────────────────────────────────
+  const [editConnection, setEditConnection] = useState<BankConnection | null>(null);
+  const [editTab, setEditTab] = useState<'basico' | 'bancario' | 'boleto' | 'pix' | 'conciliacao'>('basico');
+  // Dados básicos
+  const [editName, setEditName] = useState('');
+  const [editOpeningBalance, setEditOpeningBalance] = useState('');
+  const [editOpeningDate, setEditOpeningDate] = useState('');
+  const [editIsDefault, setEditIsDefault] = useState(false);
+  const [editAllowsPayments, setEditAllowsPayments] = useState(false);
+  const [editAllowsReceipts, setEditAllowsReceipts] = useState(false);
+  const [editAllowsTransfers, setEditAllowsTransfers] = useState(false);
+  // Dados bancários
+  const [editAgency, setEditAgency] = useState('');
+  const [editAccount, setEditAccount] = useState('');
+  const [editAccountDigit, setEditAccountDigit] = useState('');
+  const [editLimit, setEditLimit] = useState('');
+  const [editFinePercent, setEditFinePercent] = useState('');
+  const [editInterestPercent, setEditInterestPercent] = useState('');
+  const [editDiscountPercent, setEditDiscountPercent] = useState('');
+  const [editDaysBeforeDue, setEditDaysBeforeDue] = useState('');
+  // Boleto
+  const [editBoletoEnabled, setEditBoletoEnabled] = useState(false);
+  const [editBoletoUseApi, setEditBoletoUseApi] = useState(false);
+  const [editBoletoDaysToSettle, setEditBoletoDaysToSettle] = useState('30');
+  const [editBoletoMinValue, setEditBoletoMinValue] = useState('');
+  const [editBoletoGracePeriod, setEditBoletoGracePeriod] = useState('');
+  const [editBoletoInstructions, setEditBoletoInstructions] = useState('');
+  // Pix
+  const [editPixEnabled, setEditPixEnabled] = useState(false);
+  const [editPixKey, setEditPixKey] = useState('');
+  const [editPixKeyType, setEditPixKeyType] = useState('cpf');
+  // Conciliação
+  const [editAutoReconcile, setEditAutoReconcile] = useState(false);
+  const [editSaveLoading, setEditSaveLoading] = useState(false);
 
   const loadConnections = useCallback(async () => {
     setLoading(true);
@@ -303,6 +346,95 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
     setBusy(null);
   };
 
+  const openEditDialog = (conn: BankConnection) => {
+    const ex: any = conn.extraConfig || {};
+    setEditConnection(conn);
+    setEditTab('basico');
+    setEditName(conn.bankName || '');
+    setEditOpeningBalance(String(conn.openingBalance ?? ''));
+    setEditOpeningDate(ex.openingDate || '');
+    setEditIsDefault(ex.isDefault || false);
+    setEditAllowsPayments(conn.allowsPayments || false);
+    setEditAllowsReceipts(conn.allowsReceipts || false);
+    setEditAllowsTransfers(conn.allowsTransfers || false);
+    setEditAgency(conn.agency || '');
+    setEditAccount(conn.accountNumber || '');
+    setEditAccountDigit(conn.accountDigit || '');
+    setEditLimit(String(ex.limit ?? ''));
+    setEditFinePercent(String(ex.finePercent ?? ''));
+    setEditInterestPercent(String(ex.interestPercent ?? ''));
+    setEditDiscountPercent(String(ex.discountPercent ?? ''));
+    setEditDaysBeforeDue(String(ex.daysBeforeDue ?? ''));
+    const boleto = ex.boleto || {};
+    setEditBoletoEnabled(boleto.enabled || false);
+    setEditBoletoUseApi(boleto.useApi || false);
+    setEditBoletoDaysToSettle(String(boleto.daysToSettle ?? '30'));
+    setEditBoletoMinValue(String(boleto.minValue ?? ''));
+    setEditBoletoGracePeriod(String(boleto.gracePeriod ?? ''));
+    setEditBoletoInstructions(boleto.instructions || '');
+    const pix = ex.pix || {};
+    setEditPixEnabled(pix.enabled || false);
+    setEditPixKey(pix.key || '');
+    setEditPixKeyType(pix.keyType || 'cpf');
+    setEditAutoReconcile(ex.autoReconciliation?.enabled || false);
+  };
+
+  const saveEdit = async () => {
+    if (!editConnection) return;
+    setEditSaveLoading(true);
+    try {
+      const extraConfig = {
+        openingDate: editOpeningDate || null,
+        isDefault: editIsDefault,
+        limit: parseFloat(editLimit) || 0,
+        finePercent: parseFloat(editFinePercent) || 0,
+        interestPercent: parseFloat(editInterestPercent) || 0,
+        discountPercent: parseFloat(editDiscountPercent) || 0,
+        daysBeforeDue: parseInt(editDaysBeforeDue) || 0,
+        boleto: {
+          enabled: editBoletoEnabled,
+          useApi: editBoletoUseApi,
+          daysToSettle: parseInt(editBoletoDaysToSettle) || 30,
+          minValue: parseFloat(editBoletoMinValue) || 0,
+          gracePeriod: parseInt(editBoletoGracePeriod) || 0,
+          instructions: editBoletoInstructions,
+        },
+        pix: {
+          enabled: editPixEnabled,
+          key: editPixKey,
+          keyType: editPixKeyType,
+        },
+        autoReconciliation: { enabled: editAutoReconcile },
+      };
+
+      const res = await apiFetch(`/api/banking/connections/${editConnection.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bankName: editName,
+          agency: editAgency,
+          accountNumber: editAccount,
+          accountDigit: editAccountDigit,
+          openingBalance: parseFloat(editOpeningBalance) || 0,
+          allowsPayments: editAllowsPayments,
+          allowsReceipts: editAllowsReceipts,
+          allowsTransfers: editAllowsTransfers,
+          extraConfig,
+        }),
+      });
+      if (res.ok) {
+        setEditConnection(null);
+        await loadConnections();
+        setMessage('Conta bancária atualizada com sucesso.');
+      } else {
+        const d = await res.json();
+        setError(d.error || 'Erro ao salvar alterações.');
+      }
+    } finally {
+      setEditSaveLoading(false);
+    }
+  };
+
   const selectedBank = () => BANKS.find((item) => item.code === bankCode) || BANKS[0];
   const methods = getMethods(bankCode, personType);
   const isApiMode = connectionMode === 'API';
@@ -408,6 +540,10 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
                         Importar OFX/CSV
                       </Button>
                     )}
+                    <Button variant="outline" size="sm" onClick={() => openEditDialog(connection)} className="gap-2">
+                      <Settings2 className="h-4 w-4" />
+                      Configurar
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => setMessage('Logs disponíveis em Auditoria.')} className="gap-2">
                       <History className="h-4 w-4" />
                       Ver logs
@@ -428,6 +564,262 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
           ))}
         </div>
       )}
+
+      {/* ── Edit connection dialog ─────────────────────────────────────────── */}
+      <Dialog open={!!editConnection} onOpenChange={(open) => { if (!open) setEditConnection(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5 text-blue-600" />
+              Configurar Conta Bancária
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Tab bar */}
+          <div className="flex flex-wrap gap-1 border-b pb-2">
+            {([
+              { id: 'basico', label: 'Dados Básicos' },
+              { id: 'bancario', label: 'Conta Bancária' },
+              { id: 'boleto', label: 'Boleto' },
+              { id: 'pix', label: 'Pix Cobrança' },
+              { id: 'conciliacao', label: 'Conciliação' },
+            ] as const).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setEditTab(t.id)}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${editTab === t.id ? 'bg-blue-600 text-white' : 'text-muted-foreground hover:bg-muted'}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4 pt-1">
+
+            {/* ── Dados Básicos ───────────────────────────────────── */}
+            {editTab === 'basico' && (
+              <div className="grid gap-4">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>Nome da conta</Label>
+                    <Input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1" placeholder="Ex: Conta Principal Itaú" />
+                  </div>
+                  <div>
+                    <Label>Data de abertura</Label>
+                    <Input type="date" value={editOpeningDate} onChange={e => setEditOpeningDate(e.target.value)} className="mt-1" />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="flex items-center gap-1.5 text-sm font-semibold">
+                    Saldo de Abertura (R$)
+                    <span className="text-xs font-normal text-muted-foreground">— define o saldo inicial para cálculo do extrato real</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editOpeningBalance}
+                    onChange={e => setEditOpeningBalance(e.target.value)}
+                    className="mt-1 text-lg font-semibold"
+                    placeholder="0,00"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Informe o saldo da conta na data de abertura. O sistema usará esse valor como base para o fluxo real.
+                  </p>
+                </div>
+
+                <div className="rounded-lg border p-3 space-y-3">
+                  <p className="text-sm font-medium">Uso da conta</p>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {[
+                      { key: 'editAllowsPayments', label: 'Pagamentos', val: editAllowsPayments, set: setEditAllowsPayments },
+                      { key: 'editAllowsReceipts', label: 'Recebimentos', val: editAllowsReceipts, set: setEditAllowsReceipts },
+                      { key: 'editAllowsTransfers', label: 'Transferências', val: editAllowsTransfers, set: setEditAllowsTransfers },
+                      { key: 'editIsDefault', label: 'Conta padrão', val: editIsDefault, set: setEditIsDefault },
+                    ].map(item => (
+                      <label key={item.key} className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={item.val}
+                          onChange={e => item.set(e.target.checked)}
+                          className="w-4 h-4 rounded border-border"
+                        />
+                        <span className="text-sm">{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Conta Bancária ──────────────────────────────────── */}
+            {editTab === 'bancario' && (
+              <div className="grid gap-4">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <Label>Agência</Label>
+                    <Input value={editAgency} onChange={e => setEditAgency(e.target.value)} className="mt-1" placeholder="0001" />
+                  </div>
+                  <div>
+                    <Label>Dígito ag.</Label>
+                    <Input value={editAccountDigit} onChange={e => setEditAccountDigit(e.target.value)} className="mt-1" placeholder="0" />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <Label>Conta corrente</Label>
+                    <Input value={editAccount} onChange={e => setEditAccount(e.target.value)} className="mt-1" placeholder="123456" />
+                  </div>
+                  <div>
+                    <Label>Dígito cc.</Label>
+                    <Input value={editAccountDigit} onChange={e => setEditAccountDigit(e.target.value)} className="mt-1" placeholder="0" />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label>Limite de crédito (R$)</Label>
+                    <Input type="number" step="0.01" value={editLimit} onChange={e => setEditLimit(e.target.value)} className="mt-1" placeholder="0,00" />
+                  </div>
+                  <div>
+                    <Label>Dias de antecedência para boleto</Label>
+                    <Input type="number" value={editDaysBeforeDue} onChange={e => setEditDaysBeforeDue(e.target.value)} className="mt-1" placeholder="5" />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div>
+                    <Label>Multa (%)</Label>
+                    <Input type="number" step="0.01" value={editFinePercent} onChange={e => setEditFinePercent(e.target.value)} className="mt-1" placeholder="2,00" />
+                  </div>
+                  <div>
+                    <Label>Juros ao mês (%)</Label>
+                    <Input type="number" step="0.01" value={editInterestPercent} onChange={e => setEditInterestPercent(e.target.value)} className="mt-1" placeholder="1,00" />
+                  </div>
+                  <div>
+                    <Label>Desconto (%)</Label>
+                    <Input type="number" step="0.01" value={editDiscountPercent} onChange={e => setEditDiscountPercent(e.target.value)} className="mt-1" placeholder="0,00" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Boleto ──────────────────────────────────────────── */}
+            {editTab === 'boleto' && (
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editBoletoEnabled} onChange={e => setEditBoletoEnabled(e.target.checked)} className="w-4 h-4 rounded" />
+                  <span className="font-medium">Emitir Boletos nesta conta</span>
+                </label>
+
+                {editBoletoEnabled && (
+                  <>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={editBoletoUseApi} onChange={e => setEditBoletoUseApi(e.target.checked)} className="w-4 h-4 rounded" />
+                      <span className="text-sm">Emitir via API bancária</span>
+                    </label>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label>Prazo de vencimento (dias)</Label>
+                        <Input type="number" value={editBoletoDaysToSettle} onChange={e => setEditBoletoDaysToSettle(e.target.value)} className="mt-1" placeholder="30" />
+                      </div>
+                      <div>
+                        <Label>Valor mínimo (R$)</Label>
+                        <Input type="number" step="0.01" value={editBoletoMinValue} onChange={e => setEditBoletoMinValue(e.target.value)} className="mt-1" placeholder="5,00" />
+                      </div>
+                      <div>
+                        <Label>Prazo de baixa automática (dias)</Label>
+                        <Input type="number" value={editBoletoGracePeriod} onChange={e => setEditBoletoGracePeriod(e.target.value)} className="mt-1" placeholder="60" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Instruções no boleto</Label>
+                      <textarea
+                        value={editBoletoInstructions}
+                        onChange={e => setEditBoletoInstructions(e.target.value)}
+                        rows={3}
+                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                        placeholder="Ex: Após o vencimento cobrar multa de 2% e juros de 1% ao mês."
+                      />
+                    </div>
+                  </>
+                )}
+
+                {!editBoletoEnabled && (
+                  <p className="text-sm text-muted-foreground">Ative para configurar emissão de boletos nesta conta.</p>
+                )}
+              </div>
+            )}
+
+            {/* ── Pix Cobrança ────────────────────────────────────── */}
+            {editTab === 'pix' && (
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editPixEnabled} onChange={e => setEditPixEnabled(e.target.checked)} className="w-4 h-4 rounded" />
+                  <span className="font-medium">Ativar Pix Cobrança nesta conta</span>
+                </label>
+
+                {editPixEnabled && (
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label>Tipo de chave Pix</Label>
+                      <select
+                        value={editPixKeyType}
+                        onChange={e => setEditPixKeyType(e.target.value)}
+                        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="cpf">CPF</option>
+                        <option value="cnpj">CNPJ</option>
+                        <option value="email">E-mail</option>
+                        <option value="phone">Telefone</option>
+                        <option value="random">Chave aleatória</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label>Chave Pix</Label>
+                      <Input value={editPixKey} onChange={e => setEditPixKey(e.target.value)} className="mt-1" placeholder="Ex: 00.000.000/0000-00" />
+                    </div>
+                  </div>
+                )}
+
+                {editPixEnabled && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 flex gap-2">
+                    <QrCode className="w-4 h-4 mt-0.5 shrink-0" />
+                    A chave Pix é usada para geração de QR Codes de cobrança nas notas e recebimentos.
+                  </div>
+                )}
+
+                {!editPixEnabled && (
+                  <p className="text-sm text-muted-foreground">Ative para configurar Pix Cobrança e geração de QR Codes nesta conta.</p>
+                )}
+              </div>
+            )}
+
+            {/* ── Conciliação ─────────────────────────────────────── */}
+            {editTab === 'conciliacao' && (
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={editAutoReconcile} onChange={e => setEditAutoReconcile(e.target.checked)} className="w-4 h-4 rounded" />
+                  <span className="font-medium">Conciliação automática ao importar extrato</span>
+                </label>
+                <p className="text-sm text-muted-foreground">
+                  Quando ativada, o sistema tentará vincular automaticamente cada lançamento do extrato com os contas a pagar/receber ao importar.
+                </p>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  Regras de conciliação avançadas (por texto, categoria, valor exato) disponíveis na próxima versão.
+                </div>
+              </div>
+            )}
+
+          </div>
+
+          <div className="flex justify-between border-t pt-4">
+            <Button variant="outline" onClick={() => setEditConnection(null)}>Cancelar</Button>
+            <Button onClick={saveEdit} disabled={editSaveLoading} className="gap-2 bg-blue-600 text-white hover:bg-blue-700 min-w-[100px]">
+              {editSaveLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+              Salvar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showAdd} onOpenChange={(open) => { if (!open) resetForm(); else setShowAdd(true); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">

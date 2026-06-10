@@ -66,6 +66,38 @@ export async function POST(
   }
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+
+  const connection = await prisma.bankConnection.findFirst({
+    where: { id: params.id, userId: session.user.id },
+  });
+  if (!connection) return NextResponse.json({ error: 'Conexão não encontrada' }, { status: 404 });
+
+  const updated = await prisma.bankConnection.update({
+    where: { id: params.id },
+    data: {
+      ...(body.bankName !== undefined && { bankName: body.bankName }),
+      ...(body.agency !== undefined && { agency: body.agency || null }),
+      ...(body.accountNumber !== undefined && { accountNumber: body.accountNumber || null }),
+      ...(body.accountDigit !== undefined && { accountDigit: body.accountDigit || null }),
+      ...(body.openingBalance !== undefined && { openingBalance: Number(body.openingBalance) || 0 }),
+      ...(body.allowsPayments !== undefined && { allowsPayments: Boolean(body.allowsPayments) }),
+      ...(body.allowsReceipts !== undefined && { allowsReceipts: Boolean(body.allowsReceipts) }),
+      ...(body.allowsTransfers !== undefined && { allowsTransfers: Boolean(body.allowsTransfers) }),
+      ...(body.extraConfig !== undefined && { extraConfig: body.extraConfig }),
+    },
+  });
+
+  return NextResponse.json({ connection: updated });
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } },
