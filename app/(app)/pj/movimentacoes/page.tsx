@@ -68,7 +68,8 @@ const fmtDate = (d: string) =>
   new Date(d + (d.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('pt-BR');
 
 const now = new Date();
-const DEFAULT_START = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+// Default: last 24 months so historical data is immediately visible
+const DEFAULT_START = `${now.getFullYear() - 2}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 const DEFAULT_END = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 

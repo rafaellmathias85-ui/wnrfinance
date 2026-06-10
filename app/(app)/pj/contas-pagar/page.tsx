@@ -54,8 +54,9 @@ export default function ContasPagar() {
   const { suggestion: aiSuggestion, loading: aiLoading, categorize: aiCategorize, clear: aiClear } = useAiCategorize();
 
   const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
+  // 0 = "Todos os períodos" (sem filtro de data)
+  const [month, setMonth] = useState(0);
+  const [year, setYear] = useState(0);
 
   const buildQueryString = (af: AdvancedFilterValues) => {
     const p = new URLSearchParams();
@@ -63,7 +64,7 @@ export default function ContasPagar() {
       if (af.dateFrom) p.set('dateFrom', af.dateFrom);
       if (af.dateTo) p.set('dateTo', af.dateTo);
       p.set('dateType', af.dateType);
-    } else {
+    } else if (month > 0 && year > 0) {
       p.set('month', String(month));
       p.set('year', String(year));
     }
@@ -312,17 +313,17 @@ export default function ContasPagar() {
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div>
-              <Label className="text-xs">Mes</Label>
-              <select value={month} onChange={e => setMonth(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
-                {Array.from({ length: 12 }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>{new Date(2000, i).toLocaleString('pt-BR', { month: 'long' })}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label className="text-xs">Ano</Label>
-              <select value={year} onChange={e => setYear(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
-                {[year - 1, year, year + 1].map(y => <option key={y} value={y}>{y}</option>)}
+              <Label className="text-xs">Período</Label>
+              <select value={year === 0 ? 'todos' : `${year}-${month}`} onChange={e => {
+                if (e.target.value === 'todos') { setYear(0); setMonth(0); }
+                else { const [y, m] = e.target.value.split('-'); setYear(Number(y)); setMonth(Number(m)); }
+              }} className="w-full px-3 py-2 border rounded-lg text-sm bg-background min-w-[160px]">
+                <option value="todos">Todos os períodos</option>
+                {Array.from({ length: 24 }, (_, i) => {
+                  const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                  const y = d.getFullYear(); const m = d.getMonth() + 1;
+                  return <option key={`${y}-${m}`} value={`${y}-${m}`}>{d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</option>;
+                })}
               </select>
             </div>
             <div>
