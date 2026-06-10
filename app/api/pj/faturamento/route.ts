@@ -16,15 +16,22 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const year = parseInt(req.nextUrl.searchParams.get('year') || String(now.getFullYear()));
     const monthParam = req.nextUrl.searchParams.get('month');
+    const dateFrom = req.nextUrl.searchParams.get('dateFrom');
+    const dateTo = req.nextUrl.searchParams.get('dateTo');
 
     let startDate: Date, endDate: Date;
-    if (monthParam) {
+    if (dateFrom || dateTo) {
+      // Explicit date range takes highest priority
+      startDate = dateFrom ? new Date(dateFrom) : new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = dateTo ? new Date(dateTo + 'T23:59:59') : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    } else if (monthParam) {
       const month = parseInt(monthParam) - 1;
       startDate = new Date(year, month, 1);
       endDate = new Date(year, month + 1, 0, 23, 59, 59);
     } else {
-      startDate = new Date(year, 0, 1);
-      endDate = new Date(year, 11, 31, 23, 59, 59);
+      // Default: current month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     }
 
     const [payables, receivables] = await Promise.all([

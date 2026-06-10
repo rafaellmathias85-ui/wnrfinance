@@ -19,12 +19,12 @@ export async function GET(req: NextRequest) {
 
   const [payables, receivables] = await Promise.all([
     prisma.accountsPayable.findMany({
-      where: { companyId, dueDate: { gte: now, lte: endDate }, status: { in: ['PENDING', 'OVERDUE'] } },
+      where: { companyId, dueDate: { gte: now, lte: endDate }, status: { in: ['pendente', 'vencido'] } },
       select: { amount: true, dueDate: true },
       orderBy: { dueDate: 'asc' },
     }),
     prisma.accountsReceivable.findMany({
-      where: { companyId, dueDate: { gte: now, lte: endDate }, status: { in: ['PENDING', 'OVERDUE'] } },
+      where: { companyId, dueDate: { gte: now, lte: endDate }, status: { in: ['pendente', 'vencido'] } },
       select: { amount: true, dueDate: true },
       orderBy: { dueDate: 'asc' },
     }),

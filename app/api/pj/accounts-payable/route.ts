@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
   const items = await prisma.accountsPayable.findMany({
     where,
     include: { category: true, costCenter: true, tags: { include: { tag: true } } },
-    orderBy: { dueDate: 'asc' },
+    orderBy: { dueDate: 'desc' },
   });
   return NextResponse.json(items);
 }

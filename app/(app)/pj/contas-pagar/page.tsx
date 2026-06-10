@@ -54,9 +54,9 @@ export default function ContasPagar() {
   const { suggestion: aiSuggestion, loading: aiLoading, categorize: aiCategorize, clear: aiClear } = useAiCategorize();
 
   const now = new Date();
-  // 0 = "Todos os períodos" (sem filtro de data)
-  const [month, setMonth] = useState(0);
-  const [year, setYear] = useState(0);
+  // Default: current month; use 0 for "Todos os períodos" (sem filtro de data)
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const [year, setYear] = useState(now.getFullYear());
 
   const buildQueryString = (af: AdvancedFilterValues) => {
     const p = new URLSearchParams();

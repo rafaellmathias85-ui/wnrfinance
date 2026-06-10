@@ -68,8 +68,8 @@ const fmtDate = (d: string) =>
   new Date(d + (d.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('pt-BR');
 
 const now = new Date();
-// Default: last 24 months so historical data is immediately visible
-const DEFAULT_START = `${now.getFullYear() - 2}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+// Default: current month only
+const DEFAULT_START = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 const DEFAULT_END = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
@@ -774,33 +774,68 @@ export default function MovimentacoesPage() {
                       <div className="flex items-center justify-center gap-1">
                         <button
                           title="Visualizar"
+                          onClick={() => {
+                            const path = m.tipo === 'entrada' ? '/pj/contas-receber' : '/pj/contas-pagar';
+                            window.open(`${path}?id=${m.id}`, '_self');
+                          }}
                           className="p-1.5 rounded hover:bg-slate-600 text-slate-400 hover:text-white"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          title="Quitar"
-                          className="p-1.5 rounded hover:bg-emerald-600 text-slate-400 hover:text-white"
+                          title={m.status === 'pago' || m.status === 'recebido' ? 'Quitado' : 'Quitar'}
+                          onClick={() => handleBatchAction('quitar')}
+                          className={`p-1.5 rounded hover:bg-emerald-600 ${m.status === 'pago' || m.status === 'recebido' ? 'text-green-500' : 'text-red-500'} hover:text-white`}
                         >
                           <HandCoins className="w-4 h-4" />
                         </button>
                         <button
-                          title="Conciliar"
-                          className="p-1.5 rounded hover:bg-blue-600 text-slate-400 hover:text-white"
+                          title={(m as any).reconciledAt ? 'Conciliado' : 'Conciliar'}
+                          onClick={() => handleBatchAction('conciliar')}
+                          className={`p-1.5 rounded hover:bg-blue-600 ${(m as any).reconciledAt ? 'text-green-500' : 'text-blue-400'} hover:text-white`}
                         >
                           <GitMerge className="w-4 h-4" />
                         </button>
                         <button
                           title="Aprovar"
+                          onClick={() => handleBatchAction('estornar')}
                           className="p-1.5 rounded hover:bg-green-600 text-slate-400 hover:text-white"
                         >
                           <ThumbsUp className="w-4 h-4" />
                         </button>
                         <RowMoreMenu
                           item={m}
-                          onDuplicate={() => {}}
-                          onEstornar={() => {}}
-                          onDelete={() => {}}
+                          onDuplicate={async () => {
+                            try {
+                              await apiFetch('/api/pj/movimentacoes/batch', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ids: [m.id], action: 'duplicate' }),
+                              });
+                              load();
+                            } catch { /* silent */ }
+                          }}
+                          onEstornar={async () => {
+                            try {
+                              await apiFetch('/api/pj/movimentacoes/batch', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ids: [m.id], action: 'estornar' }),
+                              });
+                              load();
+                            } catch { /* silent */ }
+                          }}
+                          onDelete={async () => {
+                            if (!confirm('Excluir este lançamento?')) return;
+                            try {
+                              await apiFetch('/api/pj/movimentacoes/batch', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ids: [m.id], action: 'delete' }),
+                              });
+                              load();
+                            } catch { /* silent */ }
+                          }}
                         />
                       </div>
                     </td>

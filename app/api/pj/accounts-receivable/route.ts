@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
   const items = await prisma.accountsReceivable.findMany({
     where,
     include: { category: true, costCenter: true, fiscalRule: true },
-    orderBy: { dueDate: 'asc' },
+    orderBy: { dueDate: 'desc' },
   });
 
   // Enriquecer com status de NF-e e Boleto para exibição

@@ -31,6 +31,11 @@ import {
 
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
 
+// Current-month defaults for date filters (computed once at module load)
+const _now0 = new Date();
+const CURRENT_MONTH_FIRST = `${_now0.getFullYear()}-${String(_now0.getMonth() + 1).padStart(2, '0')}-01`;
+const CURRENT_MONTH_LAST = `${_now0.getFullYear()}-${String(_now0.getMonth() + 1).padStart(2, '0')}-${String(new Date(_now0.getFullYear(), _now0.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+
 const STATUS_COLORS: Record<string, string> = {
   pago: 'bg-emerald-100 text-emerald-700',
   recebido: 'bg-emerald-100 text-emerald-700',
@@ -489,8 +494,8 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [sourceType, setSourceType] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useState(CURRENT_MONTH_FIRST);
+  const [to, setTo] = useState(CURRENT_MONTH_LAST);
 
   // Filtros avançados
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -499,7 +504,7 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
   const [tipoValor, setTipoValor] = useState('');
   const [tipo, setTipo] = useState('');
 
-  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({ search: '', status: '', sourceType: '', from: '', to: '', cliente: '', situacaoParcela: '', tipoValor: '', tipo: '' });
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({ search: '', status: '', sourceType: '', from: CURRENT_MONTH_FIRST, to: CURRENT_MONTH_LAST, cliente: '', situacaoParcela: '', tipoValor: '', tipo: '' });
 
   // Modals
   const [detailId, setDetailId] = useState<string | null>(null);
