@@ -5,7 +5,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "import:pj": "tsx --require dotenv/config scripts/import-pj-data.ts"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
