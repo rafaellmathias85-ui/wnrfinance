@@ -93,7 +93,7 @@ async function parsePDFWithLLM(base64: string, filename: string): Promise<Array<
   if (!apiKey) throw new Error('Chave de API nao configurada para leitura de PDF');
 
   const systemPrompt = `Voce e um especialista em extrair dados de extratos bancarios em PDF.
-Analise o documento e extraia TODAS as transacoes encontradas.
+Analise o documento e extraia apenas as MOVIMENTACOES (debitos e creditos reais).
 
 Retorne um JSON com a seguinte estrutura:
 {
@@ -110,7 +110,8 @@ Regras:
 - Valores de debito/saida devem ser NEGATIVOS
 - Valores de credito/entrada devem ser POSITIVOS
 - Datas no formato YYYY-MM-DD
-- Inclua TODAS as transacoes visiveis
+- IGNORAR completamente linhas de saldo: "Saldo Anterior", "Saldo Total", "Saldo Disponivel", "Saldo Final", "Saldo Atual", "Saldo do Dia" e similares
+- IGNORAR linhas informativas que nao sejam movimentacoes reais
 - Se nao encontrar transacoes, retorne {"transactions": []}
 - Responda APENAS com o JSON, sem markdown ou texto adicional`;
 
@@ -212,6 +213,17 @@ export async function POST(req: NextRequest) {
       // CSV or TXT
       entries = parseCSVContent(buffer.toString('utf8'));
     }
+
+    // Remove balance / informational lines (not real transactions)
+    const BALANCE_KEYWORDS = [
+      'SALDO ANTERIOR', 'SALDO TOTAL', 'SALDO DISPONÍVEL', 'SALDO DISPONIVEL',
+      'SALDO FINAL', 'SALDO ATUAL', 'SALDO INICIAL', 'SALDO DO DIA',
+      'SALDO EM', 'TOTAL DO DIA', 'TOTAL GERAL',
+    ];
+    entries = entries.filter(e => {
+      const ref = e.reference.toUpperCase();
+      return !BALANCE_KEYWORDS.some(kw => ref.startsWith(kw) || ref === kw);
+    });
 
     return NextResponse.json({
       entries,

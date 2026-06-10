@@ -293,6 +293,88 @@ export default function ConciliacaoPJ() {
     );
   };
 
+  const renderSideBySide = (item: any) => {
+    const isDebit = item.type === 'PAYABLE';
+    const bankAmt = item.bankAmount || 0;
+    const intAmt = item.account?.amount || 0;
+    const hasDiff = item.status === 'DIVERGENT' && Math.abs(bankAmt - intAmt) > 0.01;
+    const isReconciled = item.status === 'RECONCILED';
+    const isDivergent = item.status === 'DIVERGENT';
+
+    return (
+      <div key={item.id} className="grid grid-cols-[1fr_56px_1fr] border-b last:border-0 hover:bg-muted/10 transition-colors text-sm">
+        {/* Left: bank entry */}
+        <div className="p-3 pr-1 min-w-0">
+          <p className="font-medium text-foreground truncate leading-snug">{item.bankReference || 'Sem referência'}</p>
+          <p className={`text-base font-bold mt-0.5 ${isDebit ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+            {isDebit ? '-' : '+'}{formatCurrency(bankAmt)}
+          </p>
+        </div>
+
+        {/* Middle: status + actions */}
+        <div className="flex flex-col items-center justify-center gap-1 py-2">
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+            isReconciled ? 'bg-green-100 dark:bg-green-900/30' :
+            isDivergent  ? 'bg-amber-100 dark:bg-amber-900/30' :
+                           'bg-muted'
+          }`}>
+            {isReconciled ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> :
+             isDivergent  ? <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> :
+                            <ListChecks className="w-3.5 h-3.5 text-muted-foreground" />}
+          </div>
+          {(item.status === 'DIVERGENT' || item.status === 'BANK_ONLY' || item.status === 'PENDING' || item.status === 'NOT_FOUND') && (
+            <div className="flex flex-col gap-0.5">
+              <button onClick={() => handleAction(item.id, 'approve')} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20" title="Conciliar">
+                <CheckCircle2 className="w-3 h-3 text-blue-600" />
+              </button>
+              <button onClick={() => { setForceItem(item); setForceReason(''); }} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/20" title="Forçar">
+                <Zap className="w-3 h-3 text-amber-500" />
+              </button>
+              <button onClick={() => handleAction(item.id, 'ignore')} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-muted" title="Ignorar">
+                <EyeOff className="w-3 h-3 text-gray-400" />
+              </button>
+            </div>
+          )}
+          {isReconciled && (
+            <button onClick={() => handleAction(item.id, 'unlink')} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/20" title="Desfazer">
+              <XCircle className="w-3 h-3 text-red-500" />
+            </button>
+          )}
+          {item.status === 'IGNORED' && (
+            <button onClick={() => handleAction(item.id, 'reopen')} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/20" title="Reabrir">
+              <RefreshCw className="w-3 h-3 text-amber-600" />
+            </button>
+          )}
+          <button onClick={() => setShowDetail(item)} className="p-0.5 rounded hover:bg-muted" title="Detalhes">
+            <Eye className="w-3 h-3 text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Right: system entry */}
+        <div className="p-3 pl-1 min-w-0">
+          {item.account ? (
+            <>
+              <p className="font-medium text-foreground truncate leading-snug">
+                {item.account.party || item.account.description}
+              </p>
+              {item.account.party && (
+                <p className="text-xs text-muted-foreground truncate">{item.account.description}</p>
+              )}
+              <p className={`text-base font-bold mt-0.5 ${hasDiff ? 'text-amber-600 dark:text-amber-400' : isDebit ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                {formatCurrency(intAmt)}
+                {hasDiff && <span className="text-xs font-normal ml-1.5">Δ {formatCurrency(Math.abs(bankAmt - intAmt))}</span>}
+              </p>
+            </>
+          ) : (
+            <div className="flex items-center h-full text-xs text-muted-foreground italic">
+              {item.status === 'IGNORED' ? 'Ignorado' : 'Sem correspondência'}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderRow = (item: any) => {
     const st = STATUS_MAP[item.status] || STATUS_MAP.PENDING;
     const Icon = st.icon;
@@ -593,26 +675,28 @@ export default function ConciliacaoPJ() {
                 </button>
                 {isExpanded && (
                   <CardContent className="p-0 border-t">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-muted/30">
-                            <th className="py-2 px-3 text-center w-10">
-                              <button onClick={toggleSelectAll} className="p-0.5 rounded hover:bg-muted">
-                                {selected.size === allItems.length && allItems.length > 0 ? <SquareCheck className="w-4 h-4 text-blue-600" /> : <Square className="w-4 h-4 text-muted-foreground" />}
-                              </button>
-                            </th>
-                            <th className="py-2 px-4 text-left text-muted-foreground font-medium text-xs">Status</th>
-                            <th className="py-2 px-4 text-left text-muted-foreground font-medium text-xs">Extrato Bancário</th>
-                            <th className="py-2 px-4 text-right text-muted-foreground font-medium text-xs">Valor Banco</th>
-                            <th className="py-2 px-4 text-left text-muted-foreground font-medium text-xs">Conta Interna</th>
-                            <th className="py-2 px-4 text-right text-muted-foreground font-medium text-xs">Valor Interno</th>
-                            <th className="py-2 px-4 text-center text-muted-foreground font-medium text-xs">Ações</th>
-                          </tr>
-                        </thead>
-                        <tbody>{batch.items.map((item: any) => renderRow(item))}</tbody>
-                      </table>
+                    {/* Column headers */}
+                    <div className="grid grid-cols-[1fr_56px_1fr] border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <div className="px-3 py-2">Extrato Bancário</div>
+                      <div />
+                      <div className="px-3 py-2">Movimentação no Sistema</div>
                     </div>
+                    {/* Group by date */}
+                    {Object.entries(
+                      (batch.items as any[]).reduce((acc: Record<string, any[]>, item: any) => {
+                        const dk = item.bankDate ? new Date(item.bankDate).toISOString().split('T')[0] : '0000-00-00';
+                        if (!acc[dk]) acc[dk] = [];
+                        acc[dk].push(item);
+                        return acc;
+                      }, {})
+                    ).sort(([a], [b]) => a.localeCompare(b)).map(([dk, dayItems]) => (
+                      <div key={dk}>
+                        <div className="px-3 py-1.5 bg-muted/20 border-b border-t text-xs font-semibold text-muted-foreground">
+                          {dk === '0000-00-00' ? 'Sem data' : new Date(dk + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </div>
+                        {(dayItems as any[]).map(item => renderSideBySide(item))}
+                      </div>
+                    ))}
                   </CardContent>
                 )}
               </Card>
