@@ -788,26 +788,30 @@ model Recurrence {
 // ====================== PJ RECONCILIATION ======================
 
 model PJReconciliation {
-  id             String                @id @default(cuid())
-  companyId      String
-  type           String // PAYABLE, RECEIVABLE
-  accountId      String // AccountsPayable or AccountsReceivable ID
-  bankReference  String?
-  bankDate       DateTime?
-  bankAmount     Float?
-  status         String                @default("PENDING") // PENDING, RECONCILED, DIVERGENT, NOT_FOUND, BANK_ONLY, IGNORED, SCHEDULED
-  matchMethod    String? // auto, manual
-  divergenceNote String?
-  reconciledAt   DateTime?
-  reconciledBy   String?
-  notes          String?
-  logs           PJReconciliationLog[]
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  id               String                @id @default(cuid())
+  companyId        String
+  type             String // PAYABLE, RECEIVABLE
+  accountId        String // AccountsPayable or AccountsReceivable ID
+  bankConnectionId String? // BankConnection.id
+  bankName         String? // display name e.g. "Itaú CC 0050212-2"
+  importBatchId    String? // groups all records from the same upload
+  bankReference    String?
+  bankDate         DateTime?
+  bankAmount       Float?
+  status           String                @default("PENDING") // PENDING, RECONCILED, DIVERGENT, NOT_FOUND, BANK_ONLY, IGNORED, SCHEDULED
+  matchMethod      String? // auto, manual
+  divergenceNote   String?
+  reconciledAt     DateTime?
+  reconciledBy     String?
+  notes            String?
+  logs             PJReconciliationLog[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
 
   @@index([companyId])
   @@index([status])
   @@index([accountId])
+  @@index([importBatchId])
 }
 
 model PJReconciliationLog {

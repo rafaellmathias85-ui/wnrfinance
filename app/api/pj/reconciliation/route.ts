@@ -3,18 +3,121 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { randomUUID } from 'crypto';
 
+// ── Scoring engine ─────────────────────────────────────────────────────────────
+interface ScoreResult {
+  score: number;
+  amountDiff: number;
+  dateDiffDays: number;
+}
+
+function scoreCandidate(
+  bankAmount: number,
+  bankDate: Date,
+  bankRef: string,
+  record: { amount: number; dueDate: Date | string; description?: string; customerName?: string | null; supplierName?: string | null },
+): ScoreResult {
+  const recAmount = Number(record.amount);
+  const recDate = new Date(record.dueDate);
+  const amountDiff = Math.abs(recAmount - bankAmount);
+  const dateDiffDays = Math.abs(recDate.getTime() - bankDate.getTime()) / 86400000;
+
+  // Amount score — no score at all beyond 2%
+  let amountScore = 0;
+  if (amountDiff < 0.01) amountScore = 60;
+  else if (amountDiff < 1.00) amountScore = 35;
+  else if (recAmount > 0 && amountDiff / recAmount < 0.02) amountScore = 20;
+
+  if (amountScore === 0) return { score: 0, amountDiff, dateDiffDays };
+
+  // Date score
+  let dateScore = 0;
+  if (dateDiffDays <= 2) dateScore = 40;
+  else if (dateDiffDays <= 7) dateScore = 25;
+  else if (dateDiffDays <= 15) dateScore = 10;
+  else if (dateDiffDays <= 30) dateScore = 3;
+  else dateScore = -100; // hard block: > 30 days = effectively excluded
+
+  // Name similarity bonus (max +20)
+  const recName = (record.customerName || record.supplierName || record.description || '').toLowerCase();
+  const ref = bankRef.toLowerCase();
+  if (recName && ref) {
+    const words = recName.split(/\s+/).filter(w => w.length > 3);
+    const matched = words.filter(w => ref.includes(w)).length;
+    if (matched > 0) dateScore += Math.min(20, matched * 6);
+  }
+
+  return { score: amountScore + dateScore, amountDiff, dateDiffDays };
+}
+
+function classifyMatch(
+  scored: ScoreResult,
+  bankAmount: number,
+  bankDate: Date,
+  record: { amount: number; dueDate: Date | string },
+): { status: string; note: string | null } {
+  const { amountDiff, dateDiffDays } = scored;
+  const recDate = new Date(record.dueDate);
+
+  if (amountDiff < 0.01 && dateDiffDays <= 7) return { status: 'RECONCILED', note: null };
+
+  if (amountDiff < 0.01 && dateDiffDays > 7) {
+    return {
+      status: 'DIVERGENT',
+      note: `Data divergente: banco ${bankDate.toISOString().split('T')[0]}, sistema ${recDate.toISOString().split('T')[0]} (${Math.round(dateDiffDays)}d)`,
+    };
+  }
+
+  return {
+    status: 'DIVERGENT',
+    note: `Valor divergente: banco R$ ${bankAmount.toFixed(2)}, sistema R$ ${Number(record.amount).toFixed(2)}`,
+  };
+}
+
+// Find best match from a pool, excluding already-used IDs
+function findBestMatch(
+  bankAmount: number,
+  bankDate: Date,
+  bankRef: string,
+  pool: any[],
+  usedIds: Set<string>,
+): { record: any; scored: ScoreResult } | null {
+  // Pre-filter: only records within 30 days of bank date
+  const window = pool.filter(p => {
+    if (usedIds.has(p.id)) return false;
+    const diff = Math.abs(new Date(p.dueDate).getTime() - bankDate.getTime()) / 86400000;
+    return diff <= 30;
+  });
+
+  if (window.length === 0) return null;
+
+  let best: { record: any; scored: ScoreResult } | null = null;
+  for (const rec of window) {
+    const scored = scoreCandidate(bankAmount, bankDate, bankRef, rec);
+    if (scored.score <= 0) continue;
+    if (!best || scored.score > best.scored.score) best = { record: rec, scored };
+  }
+
+  // Minimum viable score: at least amount matches (amountScore > 0) and not heavily penalised
+  if (!best || best.scored.score <= 0) return null;
+  return best;
+}
+
+// ── GET ────────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-  const companyId = session.user.activeCompanyId;
+  const companyId = (session.user as any).activeCompanyId;
   if (!companyId) return NextResponse.json({ error: 'Nenhuma empresa ativa' }, { status: 400 });
 
   const url = new URL(req.url);
   const status = url.searchParams.get('status');
+  const type = url.searchParams.get('type');
 
   const where: any = { companyId };
   if (status) where.status = status;
+  if (type) where.type = type;
 
   const items = await prisma.pJReconciliation.findMany({
     where,
@@ -22,7 +125,6 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'desc' },
   });
 
-  // Enrich with linked account details
   const payableIds = items.filter(i => i.type === 'PAYABLE' && i.accountId && i.accountId !== 'N/A').map(i => i.accountId);
   const receivableIds = items.filter(i => i.type === 'RECEIVABLE' && i.accountId && i.accountId !== 'N/A').map(i => i.accountId);
 
@@ -38,32 +140,35 @@ export async function GET(req: NextRequest) {
   const payableMap = Object.fromEntries(payables.map(p => [p.id, { ...p, party: p.supplierName }]));
   const receivableMap = Object.fromEntries(receivables.map(r => [r.id, { ...r, party: r.customerName }]));
 
-  const enrichedItems = items.map(item => ({
+  const enriched = items.map(item => ({
     ...item,
     account: item.type === 'PAYABLE' ? (payableMap[item.accountId] ?? null) : (receivableMap[item.accountId] ?? null),
   }));
 
   const summary = {
-    total: enrichedItems.length,
-    reconciled: enrichedItems.filter(i => i.status === 'RECONCILED').length,
-    divergent: enrichedItems.filter(i => i.status === 'DIVERGENT').length,
-    bankOnly: enrichedItems.filter(i => i.status === 'BANK_ONLY').length,
-    suggested: enrichedItems.filter(i => i.status === 'SUGGESTED').length,
-    pending: enrichedItems.filter(i => i.status === 'PENDING').length,
-    ignored: enrichedItems.filter(i => i.status === 'IGNORED').length,
+    total: enriched.length,
+    reconciled: enriched.filter(i => i.status === 'RECONCILED').length,
+    divergent: enriched.filter(i => i.status === 'DIVERGENT').length,
+    bankOnly: enriched.filter(i => i.status === 'BANK_ONLY').length,
+    suggested: enriched.filter(i => i.status === 'SUGGESTED').length,
+    pending: enriched.filter(i => i.status === 'PENDING').length,
+    ignored: enriched.filter(i => i.status === 'IGNORED').length,
   };
 
-  // Group into batches by creation minute
+  // Group by importBatchId (preferred) or by creation-minute (legacy records without batchId)
   const batchMap = new Map<string, any>();
-  for (const item of enrichedItems) {
-    const d = new Date(item.createdAt);
-    d.setSeconds(0, 0);
-    const batchKey = d.toISOString();
+  for (const item of enriched) {
+    const batchKey = (item as any).importBatchId
+      ? `bid_${(item as any).importBatchId}`
+      : (() => { const d = new Date(item.createdAt); d.setSeconds(0, 0); return `min_${d.toISOString()}`; })();
+
     if (!batchMap.has(batchKey)) {
+      const bName = (item as any).bankName || 'Extrato PJ';
       batchMap.set(batchKey, {
         id: `batch_${batchKey}`,
         importedAt: item.createdAt,
-        bankName: 'Extrato PJ',
+        bankName: bName,
+        bankConnectionId: (item as any).bankConnectionId || null,
         stats: { total: 0, reconciled: 0, divergent: 0, bankOnly: 0, suggested: 0, pending: 0, ignored: 0 },
         items: [],
         dateRange: { min: item.bankDate, max: item.bankDate },
@@ -85,13 +190,14 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ items: enrichedItems, summary, batches: Array.from(batchMap.values()) });
+  return NextResponse.json({ items: enriched, summary, batches: Array.from(batchMap.values()) });
 }
 
+// ── PATCH ──────────────────────────────────────────────────────────────────────
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-  const companyId = session.user.activeCompanyId;
+  const companyId = (session.user as any).activeCompanyId;
   if (!companyId) return NextResponse.json({ error: 'Nenhuma empresa ativa' }, { status: 400 });
 
   const body = await req.json();
@@ -125,27 +231,22 @@ export async function PATCH(req: NextRequest) {
     const updated = await doUpdate(body.reconciliationId, 'RECONCILED', { logAction: 'APPROVE' });
     return updated ? NextResponse.json(updated) : NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
-
   if (action === 'ignore') {
     const updated = await doUpdate(body.reconciliationId, 'IGNORED', { logAction: 'IGNORE' });
     return updated ? NextResponse.json(updated) : NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
-
   if (action === 'reopen') {
     const updated = await doUpdate(body.reconciliationId, 'PENDING', { logAction: 'REOPEN' });
     return updated ? NextResponse.json(updated) : NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
-
   if (action === 'force') {
     const updated = await doUpdate(body.reconciliationId, 'RECONCILED', { notes: body.notes, logAction: 'FORCE' });
     return updated ? NextResponse.json(updated) : NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
-
   if (action === 'unlink') {
     const updated = await doUpdate(body.reconciliationId, 'PENDING', { logAction: 'UNLINK' });
     return updated ? NextResponse.json(updated) : NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
-
   if (action === 'batch') {
     const { ids, batchAction } = body;
     if (!ids?.length) return NextResponse.json({ error: 'IDs obrigatórios' }, { status: 400 });
@@ -159,15 +260,17 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
 }
 
+// ── POST ───────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-  const companyId = session.user.activeCompanyId;
+  const companyId = (session.user as any).activeCompanyId;
   if (!companyId) return NextResponse.json({ error: 'Nenhuma empresa ativa' }, { status: 400 });
 
   const body = await req.json();
   const { action } = body;
 
+  // ── rerun-match (re-process PENDING/BANK_ONLY existing records) ────────────
   if (action === 'rerun-match') {
     const pendingItems = await prisma.pJReconciliation.findMany({
       where: { companyId, status: { in: ['PENDING', 'BANK_ONLY', 'NOT_FOUND'] } },
@@ -177,23 +280,27 @@ export async function POST(req: NextRequest) {
     const payables = await prisma.accountsPayable.findMany({ where: { companyId, status: { in: ['pendente', 'vencido'] } } });
     const receivables = await prisma.accountsReceivable.findMany({ where: { companyId, status: { in: ['pendente', 'vencido'] } } });
 
+    const usedPayableIds = new Set<string>();
+    const usedReceivableIds = new Set<string>();
     let updated = 0;
+
     for (const item of pendingItems) {
       if (!item.bankAmount || !item.bankDate) continue;
       const pool = item.type === 'PAYABLE' ? payables : receivables;
-      const absAmount = item.bankAmount;
+      const usedIds = item.type === 'PAYABLE' ? usedPayableIds : usedReceivableIds;
 
-      let match = pool.find((p: any) => Math.abs(Number(p.amount) - absAmount) < 0.01);
+      const best = findBestMatch(item.bankAmount, item.bankDate, item.bankReference || '', pool, usedIds);
+
       let newStatus = 'BANK_ONLY';
-      let divergenceNote = null;
+      let divergenceNote: string | null = null;
+      let matchId: string | null = null;
 
-      if (match) {
-        const dateDiff = Math.abs(new Date(item.bankDate).getTime() - new Date(match.dueDate).getTime());
-        newStatus = dateDiff <= 5 * 86400000 ? 'RECONCILED' : 'DIVERGENT';
-        if (newStatus === 'DIVERGENT') divergenceNote = `Data divergente: banco ${item.bankDate.toISOString().split('T')[0]}, sistema ${match.dueDate}`;
-      } else {
-        match = pool.find((p: any) => Math.abs(Number(p.amount) - absAmount) / Number(p.amount) < 0.05);
-        if (match) { newStatus = 'DIVERGENT'; divergenceNote = `Valor divergente: banco R$ ${absAmount.toFixed(2)}, sistema R$ ${Number(match.amount).toFixed(2)}`; }
+      if (best) {
+        const cls = classifyMatch(best.scored, item.bankAmount, item.bankDate, best.record);
+        newStatus = cls.status;
+        divergenceNote = cls.note;
+        matchId = best.record.id;
+        if (newStatus === 'RECONCILED') usedIds.add(best.record.id);
       }
 
       if (newStatus !== item.status) {
@@ -201,16 +308,16 @@ export async function POST(req: NextRequest) {
           where: { id: item.id },
           data: {
             status: newStatus,
-            accountId: match?.id || item.accountId,
+            accountId: matchId || item.accountId,
             divergenceNote,
             matchMethod: 'auto',
             ...(newStatus === 'RECONCILED' ? { reconciledAt: new Date(), reconciledBy: session.user.id } : {}),
-            logs: { create: { action: 'RERUN_MATCH', previousStatus: item.status, newStatus, details: { matchedId: match?.id || null }, performedBy: session.user.id } },
+            logs: { create: { action: 'RERUN_MATCH', previousStatus: item.status, newStatus, details: { matchedId: matchId }, performedBy: session.user.id } },
           },
         });
-        if (newStatus === 'RECONCILED' && match) {
-          if (item.type === 'PAYABLE') await prisma.accountsPayable.update({ where: { id: match.id }, data: { status: 'pago', paidAt: item.bankDate, amountPaid: absAmount } });
-          else await prisma.accountsReceivable.update({ where: { id: match.id }, data: { status: 'recebido', receivedAt: item.bankDate, amountReceived: absAmount } });
+        if (newStatus === 'RECONCILED' && matchId) {
+          if (item.type === 'PAYABLE') await prisma.accountsPayable.update({ where: { id: matchId }, data: { status: 'pago', paidAt: item.bankDate, amountPaid: item.bankAmount } });
+          else await prisma.accountsReceivable.update({ where: { id: matchId }, data: { status: 'recebido', receivedAt: item.bankDate, amountReceived: item.bankAmount } });
         }
         updated++;
       }
@@ -218,7 +325,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ summary: { total: pendingItems.length, updated } });
   }
 
+  // ── auto-match (new import) ────────────────────────────────────────────────
   if (action === 'auto-match') {
+    const bankEntries = body.bankEntries as Array<{ reference: string; date: string; amount: number; type: string }>;
+    if (!bankEntries?.length) return NextResponse.json({ error: 'Nenhuma entrada bancária fornecida' }, { status: 400 });
+
+    const bankConnectionId: string | null = body.bankConnectionId || null;
+    const bankName: string = body.bankName || 'Extrato PJ';
+    const importBatchId = randomUUID();
+
     const payables = await prisma.accountsPayable.findMany({
       where: { companyId, status: { in: ['pendente', 'vencido'] } },
     });
@@ -226,40 +341,41 @@ export async function POST(req: NextRequest) {
       where: { companyId, status: { in: ['pendente', 'vencido'] } },
     });
 
-    const bankEntries = body.bankEntries as Array<{ reference: string; date: string; amount: number; type: string }>;
-    if (!bankEntries?.length) return NextResponse.json({ error: 'Nenhuma entrada bancária fornecida' }, { status: 400 });
-
+    const usedPayableIds = new Set<string>();
+    const usedReceivableIds = new Set<string>();
     const results: any[] = [];
+
     for (const entry of bankEntries) {
       const pool = entry.type === 'DEBIT' ? payables : receivables;
       const matchType = entry.type === 'DEBIT' ? 'PAYABLE' : 'RECEIVABLE';
+      const usedIds = entry.type === 'DEBIT' ? usedPayableIds : usedReceivableIds;
       const absAmount = Math.abs(entry.amount);
+      const bankDate = new Date(entry.date);
 
-      let match = pool.find((p: any) => Math.abs(Number(p.amount) - absAmount) < 0.01);
-      let matchStatus = 'NOT_FOUND';
-      let divergenceNote = null;
+      const best = findBestMatch(absAmount, bankDate, entry.reference, pool, usedIds);
 
-      if (match) {
-        const dateDiff = Math.abs(new Date(entry.date).getTime() - new Date(match.dueDate).getTime());
-        matchStatus = dateDiff <= 5 * 86400000 ? 'RECONCILED' : 'DIVERGENT';
-        if (matchStatus === 'DIVERGENT') divergenceNote = `Data divergente: banco ${entry.date}, sistema ${match.dueDate}`;
-      } else {
-        match = pool.find((p: any) => Math.abs(Number(p.amount) - absAmount) / Number(p.amount) < 0.05);
-        if (match) {
-          matchStatus = 'DIVERGENT';
-          divergenceNote = `Valor divergente: banco R$ ${absAmount.toFixed(2)}, sistema R$ ${Number(match.amount).toFixed(2)}`;
-        } else {
-          matchStatus = 'BANK_ONLY';
-        }
+      let matchStatus = 'BANK_ONLY';
+      let divergenceNote: string | null = null;
+      let matchId: string | null = null;
+
+      if (best) {
+        const cls = classifyMatch(best.scored, absAmount, bankDate, best.record);
+        matchStatus = cls.status;
+        divergenceNote = cls.note;
+        matchId = best.record.id;
+        if (matchStatus === 'RECONCILED') usedIds.add(best.record.id);
       }
 
       const recon = await prisma.pJReconciliation.create({
         data: {
           companyId,
           type: matchType,
-          accountId: match?.id || 'N/A',
+          accountId: matchId || 'N/A',
+          bankConnectionId,
+          bankName,
+          importBatchId,
           bankReference: entry.reference,
-          bankDate: new Date(entry.date),
+          bankDate,
           bankAmount: absAmount,
           status: matchStatus,
           matchMethod: 'auto',
@@ -270,7 +386,7 @@ export async function POST(req: NextRequest) {
               action: 'AUTO_MATCH',
               previousStatus: 'NEW',
               newStatus: matchStatus,
-              details: { bankRef: entry.reference, matchedId: match?.id || null },
+              details: { bankRef: entry.reference, matchedId: matchId },
               performedBy: session.user.id,
             },
           },
@@ -278,12 +394,9 @@ export async function POST(req: NextRequest) {
         include: { logs: true },
       });
 
-      if (matchStatus === 'RECONCILED' && match) {
-        if (matchType === 'PAYABLE') {
-          await prisma.accountsPayable.update({ where: { id: match.id }, data: { status: 'pago', paidAt: new Date(entry.date), amountPaid: absAmount } });
-        } else {
-          await prisma.accountsReceivable.update({ where: { id: match.id }, data: { status: 'recebido', receivedAt: new Date(entry.date), amountReceived: absAmount } });
-        }
+      if (matchStatus === 'RECONCILED' && matchId) {
+        if (matchType === 'PAYABLE') await prisma.accountsPayable.update({ where: { id: matchId }, data: { status: 'pago', paidAt: bankDate, amountPaid: absAmount } });
+        else await prisma.accountsReceivable.update({ where: { id: matchId }, data: { status: 'recebido', receivedAt: bankDate, amountReceived: absAmount } });
       }
 
       results.push(recon);
@@ -295,7 +408,6 @@ export async function POST(req: NextRequest) {
         total: results.length,
         reconciled: results.filter(r => r.status === 'RECONCILED').length,
         divergent: results.filter(r => r.status === 'DIVERGENT').length,
-        notFound: results.filter(r => r.status === 'NOT_FOUND').length,
         bankOnly: results.filter(r => r.status === 'BANK_ONLY').length,
       },
     });
@@ -304,10 +416,8 @@ export async function POST(req: NextRequest) {
   if (action === 'manual-update') {
     const { reconciliationId, newStatus, notes } = body;
     if (!reconciliationId) return NextResponse.json({ error: 'ID obrigatório' }, { status: 400 });
-
     const existing = await prisma.pJReconciliation.findFirst({ where: { id: reconciliationId, companyId } });
     if (!existing) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
-
     const updated = await prisma.pJReconciliation.update({
       where: { id: reconciliationId },
       data: {
@@ -315,15 +425,7 @@ export async function POST(req: NextRequest) {
         notes: notes || existing.notes,
         ...(newStatus === 'RECONCILED' ? { reconciledAt: new Date(), reconciledBy: session.user.id, matchMethod: 'manual' } : {}),
         ...(newStatus === 'IGNORED' ? { reconciledAt: new Date(), reconciledBy: session.user.id } : {}),
-        logs: {
-          create: {
-            action: 'MANUAL_UPDATE',
-            previousStatus: existing.status,
-            newStatus,
-            details: { notes },
-            performedBy: session.user.id,
-          },
-        },
+        logs: { create: { action: 'MANUAL_UPDATE', previousStatus: existing.status, newStatus, details: { notes }, performedBy: session.user.id } },
       },
       include: { logs: true },
     });

@@ -58,6 +58,8 @@ export default function ConciliacaoPJ() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [confirmedMatches, setConfirmedMatches] = useState<Record<string, string | null>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bankConnections, setBankConnections] = useState<any[]>([]);
+  const [selectedBankId, setSelectedBankId] = useState('');
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -72,6 +74,16 @@ export default function ConciliacaoPJ() {
   }, [activeCompanyId, statusFilter, typeFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!activeCompanyId) return;
+    apiFetch('/api/pj/extrato')
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d.bankAccounts)) setBankConnections(d.bankAccounts);
+      })
+      .catch(() => {});
+  }, [activeCompanyId]);
 
   const runEngine = async () => {
     setRunning(true);
@@ -156,11 +168,18 @@ export default function ConciliacaoPJ() {
   const handleReconcileEntries = async (entries: ParsedEntry[]) => {
     if (!entries.length) return;
     setProcessing(true);
+    const selBank = bankConnections.find(b => b.id === selectedBankId);
+    const bankName = selBank
+      ? `${selBank.bankName} CC ${selBank.accountNumber}`
+      : (parsedFilename
+          ? (parsedFilename.toLowerCase().includes('itau') || parsedFilename.toLowerCase().includes('itaú') ? 'Itaú' :
+             parsedFilename.toLowerCase().includes('inter') ? 'Inter' : parsedFilename)
+          : 'Extrato PJ');
     try {
       const res = await apiFetch('/api/pj/reconciliation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'auto-match', bankEntries: entries }),
+        body: JSON.stringify({ action: 'auto-match', bankEntries: entries, bankConnectionId: selectedBankId || null, bankName }),
       });
       const d = await res.json();
       if (res.ok) {
@@ -646,6 +665,22 @@ export default function ConciliacaoPJ() {
 
           {importTab === 'file' ? (
             <div className="space-y-4">
+              {/* Bank selector */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Conta Bancária</label>
+                <select
+                  value={selectedBankId}
+                  onChange={e => setSelectedBankId(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground"
+                >
+                  <option value="">— Selecionar banco (opcional) —</option>
+                  {bankConnections.map(b => (
+                    <option key={b.id} value={b.id}>{b.bankName} — CC {b.accountNumber}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">Identificação que aparece em cada lote importado.</p>
+              </div>
+
               <div
                 className="relative border-2 border-dashed border-primary/30 rounded-xl p-8 text-center hover:border-primary/60 transition-colors cursor-pointer bg-primary/5"
                 onClick={() => fileInputRef.current?.click()}

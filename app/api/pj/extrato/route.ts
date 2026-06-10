@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   // Load bank accounts for company
   const bankAccounts = await prisma.bankConnection.findMany({
-    where: { companyId, status: 'active' },
+    where: { companyId, status: { in: ['active', 'ACTIVE'] } },
     select: { id: true, bankName: true, accountNumber: true, openingBalance: true, currentBalance: true },
   });
 
