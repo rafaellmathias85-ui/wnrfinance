@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
     const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-    if (!user || user.role !== 'admin') {
+    if (!user || !['admin', 'master'].includes(user.role)) {
       return NextResponse.json({ error: 'Apenas admins podem executar o import' }, { status: 403 });
     }
 
