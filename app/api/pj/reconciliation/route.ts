@@ -519,12 +519,30 @@ export async function DELETE(req: NextRequest) {
   if (!companyId) return NextResponse.json({ error: 'Nenhuma empresa ativa' }, { status: 400 });
 
   const { searchParams } = new URL(req.url);
+
+  // New batches: delete by importBatchId UUID
   const importBatchId = searchParams.get('importBatchId');
-  if (!importBatchId) return NextResponse.json({ error: 'importBatchId obrigatório' }, { status: 400 });
+  if (importBatchId) {
+    const { count } = await prisma.pJReconciliation.deleteMany({
+      where: { importBatchId, companyId },
+    });
+    return NextResponse.json({ deleted: count });
+  }
 
-  const { count } = await prisma.pJReconciliation.deleteMany({
-    where: { importBatchId, companyId },
-  });
+  // Legacy batches (no importBatchId): delete by createdAt minute window
+  const createdAtMinute = searchParams.get('createdAtMinute');
+  if (createdAtMinute) {
+    const base = new Date(createdAtMinute);
+    if (isNaN(base.getTime())) return NextResponse.json({ error: 'Data inválida' }, { status: 400 });
+    const start = new Date(base);
+    start.setSeconds(0, 0);
+    const end = new Date(base);
+    end.setSeconds(59, 999);
+    const { count } = await prisma.pJReconciliation.deleteMany({
+      where: { companyId, importBatchId: null, createdAt: { gte: start, lte: end } },
+    });
+    return NextResponse.json({ deleted: count });
+  }
 
-  return NextResponse.json({ deleted: count });
+  return NextResponse.json({ error: 'importBatchId ou createdAtMinute obrigatório' }, { status: 400 });
 }

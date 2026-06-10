@@ -136,10 +136,13 @@ export default function ConciliacaoPJ() {
     setExpandedBatches(prev => { const next = new Set(prev); if (next.has(batchId)) next.delete(batchId); else next.add(batchId); return next; });
   };
 
-  const handleDeleteBatch = async (importBatchId: string, e: React.MouseEvent) => {
+  const handleDeleteBatch = async (batch: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('Excluir este lote de importação? Esta ação não pode ser desfeita.')) return;
-    await apiFetch(`/api/pj/reconciliation?importBatchId=${importBatchId}`, { method: 'DELETE' });
+    const params = batch.importBatchId
+      ? `importBatchId=${encodeURIComponent(batch.importBatchId)}`
+      : `createdAtMinute=${encodeURIComponent(batch.importedAt)}`;
+    await apiFetch(`/api/pj/reconciliation?${params}`, { method: 'DELETE' });
     await load();
   };
 
@@ -714,15 +717,13 @@ export default function ConciliacaoPJ() {
                       {batch.stats.bankOnly > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Só no Banco">? {batch.stats.bankOnly}</span>}
                       {batch.stats.pending > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" title="Pendentes">⏳ {batch.stats.pending}</span>}
                       <span className="text-xs font-medium text-muted-foreground">{batch.stats.total} total</span>
-                      {batch.importBatchId && (
-                        <button
-                          onClick={(e) => handleDeleteBatch(batch.importBatchId, e)}
-                          title="Excluir lote"
-                          className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => handleDeleteBatch(batch, e)}
+                        title="Excluir lote"
+                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                   <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
