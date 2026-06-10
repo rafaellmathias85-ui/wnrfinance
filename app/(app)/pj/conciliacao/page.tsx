@@ -47,6 +47,8 @@ export default function ConciliacaoPJ() {
   const [vinculoCandidates, setVinculoCandidates] = useState<any[]>([]);
   const [vinculoLoading, setVinculoLoading] = useState(false);
   const [vinculoSearch, setVinculoSearch] = useState('');
+  const [vinculoDateStart, setVinculoDateStart] = useState('');
+  const [vinculoDateEnd, setVinculoDateEnd] = useState('');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'batches' | 'flat'>('batches');
 
@@ -149,6 +151,8 @@ export default function ConciliacaoPJ() {
   const handleOpenVincular = async (item: any) => {
     setVinculoItem(item);
     setVinculoSearch('');
+    setVinculoDateStart('');
+    setVinculoDateEnd('');
     setVinculoLoading(true);
     setVinculoCandidates([]);
     const res = await apiFetch('/api/pj/reconciliation', {
@@ -280,6 +284,15 @@ export default function ConciliacaoPJ() {
           <Eye className="w-4 h-4 text-muted-foreground" />
         </button>
         {(item.status === 'DIVERGENT' || item.status === 'BANK_ONLY' || item.status === 'PENDING' || item.status === 'NOT_FOUND') && (
+          <button
+            onClick={() => handleOpenVincular(item)}
+            disabled={actionLoading === item.id}
+            className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20" title="Vincular manualmente"
+          >
+            <Link className="w-4 h-4 text-blue-500" />
+          </button>
+        )}
+        {(item.status === 'DIVERGENT' || item.status === 'BANK_ONLY' || item.status === 'PENDING' || item.status === 'NOT_FOUND') && (
           <>
             <button
               onClick={() => handleAction(item.id, 'approve')}
@@ -355,11 +368,13 @@ export default function ConciliacaoPJ() {
 
         {/* Middle: status + actions */}
         <div className="flex flex-col items-center justify-center gap-1 py-2">
-          <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-            isReconciled ? 'bg-green-100 dark:bg-green-900/30' :
-            isDivergent  ? 'bg-amber-100 dark:bg-amber-900/30' :
-                           'bg-muted'
-          }`}>
+          <div
+            title={isDivergent ? (item.divergenceNote || 'Divergência detectada') : undefined}
+            className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 cursor-default ${
+              isReconciled ? 'bg-green-100 dark:bg-green-900/30' :
+              isDivergent  ? 'bg-amber-100 dark:bg-amber-900/30' :
+                             'bg-muted'
+            }`}>
             {isReconciled ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> :
              isDivergent  ? <AlertTriangle className="w-3.5 h-3.5 text-amber-600" /> :
                             <ListChecks className="w-3.5 h-3.5 text-muted-foreground" />}
@@ -406,6 +421,14 @@ export default function ConciliacaoPJ() {
                 {formatCurrency(intAmt)}
                 {hasDiff && <span className="text-xs font-normal ml-1.5">Δ {formatCurrency(Math.abs(bankAmt - intAmt))}</span>}
               </p>
+              {isDivergent && (
+                <button
+                  onClick={() => handleOpenVincular(item)}
+                  className="mt-1 self-start flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-md bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 transition-colors"
+                >
+                  <Link className="w-3 h-3" /> Re-vincular
+                </button>
+              )}
             </>
           ) : item.status === 'IGNORED' ? (
             <div className="flex items-center h-full text-xs text-muted-foreground italic">Ignorado</div>
@@ -441,7 +464,10 @@ export default function ConciliacaoPJ() {
           </button>
         </td>
         <td className="py-3 px-4">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${st.color}`}>
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${st.color}`}
+            title={item.status === 'DIVERGENT' && item.divergenceNote ? item.divergenceNote : undefined}
+          >
             <Icon className="w-3 h-3" /> {st.label}
           </span>
         </td>
@@ -1001,7 +1027,7 @@ export default function ConciliacaoPJ() {
 
       {/* Vincular Dialog */}
       <Dialog open={!!vinculoItem} onOpenChange={(open) => { if (!open) setVinculoItem(null); }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="w-full max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Link className="w-5 h-5 text-blue-500" /> Vincular Lançamento Manualmente
@@ -1009,67 +1035,121 @@ export default function ConciliacaoPJ() {
           </DialogHeader>
           {vinculoItem && (() => {
             const filteredCandidates = vinculoCandidates.filter(c => {
-              if (!vinculoSearch) return true;
-              const q = vinculoSearch.toLowerCase();
-              return (c.description || '').toLowerCase().includes(q)
-                || (c.supplierName || '').toLowerCase().includes(q)
-                || (c.customerName || '').toLowerCase().includes(q)
-                || String(c.amount).includes(q);
+              if (vinculoSearch) {
+                const q = vinculoSearch.toLowerCase();
+                const amtStr = String(c.amount).replace('.', ',');
+                const match = (c.description || '').toLowerCase().includes(q)
+                  || (c.supplierName || '').toLowerCase().includes(q)
+                  || (c.customerName || '').toLowerCase().includes(q)
+                  || amtStr.includes(q)
+                  || formatCurrency(c.amount).includes(q);
+                if (!match) return false;
+              }
+              if (vinculoDateStart) {
+                const itemDate = new Date(c.dueDate);
+                if (itemDate < new Date(vinculoDateStart)) return false;
+              }
+              if (vinculoDateEnd) {
+                const itemDate = new Date(c.dueDate);
+                if (itemDate > new Date(vinculoDateEnd + 'T23:59:59')) return false;
+              }
+              return true;
             });
             const isDebit = vinculoItem.type === 'PAYABLE';
             return (
               <div className="space-y-4">
-                <div className="p-3 rounded-lg bg-muted/50 text-sm border">
-                  <p className="font-medium">{vinculoItem.bankReference || 'Sem referência'}</p>
-                  <p className="text-muted-foreground mt-0.5">
-                    <span className={isDebit ? 'text-red-600 font-semibold' : 'text-blue-600 font-semibold'}>
-                      {isDebit ? '-' : '+'}{formatCurrency(vinculoItem.bankAmount || 0)}
-                    </span>
-                    {' • '}{vinculoItem.bankDate ? formatDate(vinculoItem.bankDate) : '-'}
-                    {' • '}{isDebit ? 'Débito (Conta a Pagar)' : 'Crédito (Conta a Receber)'}
-                  </p>
+                {/* Bank entry summary */}
+                <div className="p-3 rounded-lg bg-muted/50 text-sm border flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="font-semibold text-foreground">{vinculoItem.bankReference || 'Sem referência'}</span>
+                  <span className={isDebit ? 'text-red-600 font-bold' : 'text-blue-600 font-bold'}>
+                    {isDebit ? '-' : '+'}{formatCurrency(vinculoItem.bankAmount || 0)}
+                  </span>
+                  <span className="text-muted-foreground">{vinculoItem.bankDate ? formatDate(vinculoItem.bankDate) : '-'}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{isDebit ? 'Débito — Conta a Pagar' : 'Crédito — Conta a Receber'}</span>
+                  {vinculoItem.divergenceNote && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400 italic">{vinculoItem.divergenceNote}</span>
+                  )}
                 </div>
-                <input
-                  value={vinculoSearch}
-                  onChange={e => setVinculoSearch(e.target.value)}
-                  placeholder={`Buscar ${isDebit ? 'contas a pagar' : 'contas a receber'}...`}
-                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  autoFocus
-                />
-                <div className="max-h-72 overflow-y-auto border rounded-lg divide-y">
+
+                {/* Filters row */}
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div className="flex-1 min-w-[220px]">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Buscar por nome ou valor</label>
+                    <input
+                      value={vinculoSearch}
+                      onChange={e => setVinculoSearch(e.target.value)}
+                      placeholder={isDebit ? 'Fornecedor, descrição ou valor...' : 'Cliente, descrição ou valor...'}
+                      className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Data início</label>
+                    <input
+                      type="date"
+                      value={vinculoDateStart}
+                      onChange={e => setVinculoDateStart(e.target.value)}
+                      className="px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Data fim</label>
+                    <input
+                      type="date"
+                      value={vinculoDateEnd}
+                      onChange={e => setVinculoDateEnd(e.target.value)}
+                      className="px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+                  {(vinculoSearch || vinculoDateStart || vinculoDateEnd) && (
+                    <button
+                      onClick={() => { setVinculoSearch(''); setVinculoDateStart(''); setVinculoDateEnd(''); }}
+                      className="px-3 py-2 text-xs text-muted-foreground hover:text-foreground border border-input rounded-lg hover:bg-muted transition-colors"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                {/* Results count */}
+                <p className="text-xs text-muted-foreground">
+                  {filteredCandidates.length} de {vinculoCandidates.length} lançamento{vinculoCandidates.length !== 1 ? 's' : ''} disponível{vinculoCandidates.length !== 1 ? 'is' : ''}
+                </p>
+
+                {/* Candidates list */}
+                <div className="max-h-[420px] overflow-y-auto border rounded-lg divide-y">
                   {vinculoLoading ? (
-                    <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                    <div className="p-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
                   ) : filteredCandidates.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-muted-foreground">
-                      {vinculoSearch ? 'Nenhum resultado para esta busca' : 'Nenhum lançamento disponível'}
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                      {vinculoSearch || vinculoDateStart || vinculoDateEnd ? 'Nenhum resultado para os filtros aplicados' : 'Nenhum lançamento disponível'}
                     </div>
                   ) : filteredCandidates.map((c: any) => (
-                    <div key={c.id} className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors">
+                    <div key={c.id} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{c.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatCurrency(c.amount)}
-                          {' • '}{c.dueDate ? formatDate(c.dueDate) : '-'}
-                          {c.supplierName ? ` • ${c.supplierName}` : ''}
-                          {c.customerName ? ` • ${c.customerName}` : ''}
+                        <p className="text-sm font-medium text-foreground truncate">{c.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {c.supplierName || c.customerName || ''}
+                          {(c.supplierName || c.customerName) ? ' • ' : ''}
+                          {c.dueDate ? formatDate(c.dueDate) : '-'}
                         </p>
                       </div>
-                      <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full ${c.status === 'pago' || c.status === 'recebido' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                      <span className={`shrink-0 text-sm font-bold ${isDebit ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                        {formatCurrency(c.amount)}
+                      </span>
+                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${c.status === 'pago' || c.status === 'recebido' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
                         {c.status}
                       </span>
                       <button
                         onClick={() => handleVincular(c.id)}
                         disabled={actionLoading === vinculoItem.id}
-                        className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+                        className="shrink-0 px-4 py-1.5 text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
                       >
                         Vincular
                       </button>
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {filteredCandidates.length} lançamento{filteredCandidates.length !== 1 ? 's' : ''} disponível{filteredCandidates.length !== 1 ? 'is' : ''}
-                </p>
               </div>
             );
           })()}
