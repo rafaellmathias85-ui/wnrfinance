@@ -63,6 +63,12 @@ export async function POST(request: Request) {
       permissions: Array<{ module: string; action: string; allowed: boolean }>;
     };
 
+    // Protect master user — rafaellmathias85@gmail.com must always keep full access
+    const targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (targetUser?.email === 'rafaellmathias85@gmail.com') {
+      return NextResponse.json({ error: 'Este usuário não pode ter suas permissões alteradas.' }, { status: 403 });
+    }
+
     if (!userId || !Array.isArray(permissions)) {
       return NextResponse.json({ error: 'userId e permissions[] são obrigatórios' }, { status: 400 });
     }

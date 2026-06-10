@@ -1,112 +1,315 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetch';
 import { toast } from 'sonner';
-import { X, Check, Shield } from 'lucide-react';
+import { X } from 'lucide-react';
 
-const MODULES = [
-  { id: 'financeiro', label: 'Financeiro' },
-  { id: 'contas-pagar', label: 'Contas a Pagar' },
-  { id: 'contas-receber', label: 'Contas a Receber' },
-  { id: 'faturamento', label: 'Faturamento' },
-  { id: 'inadimplencia', label: 'Inadimplência' },
-  { id: 'conciliacao', label: 'Conciliação' },
-  { id: 'contratos', label: 'Contratos' },
-  { id: 'fluxo-caixa', label: 'Fluxo de Caixa' },
-  { id: 'dre', label: 'DRE' },
-  { id: 'extrato', label: 'Extrato' },
-  { id: 'relatorios', label: 'Relatórios' },
-  { id: 'bancos', label: 'Bancos' },
-  { id: 'cartoes', label: 'Cartões' },
-  { id: 'investimentos', label: 'Investimentos' },
-  { id: 'cobrancas', label: 'Cobranças' },
-  { id: 'compras', label: 'Compras' },
-  { id: 'centros-custo', label: 'Centros de Custo' },
-  { id: 'nfe', label: 'NF-e' },
-  { id: 'fiscal', label: 'Fiscal' },
-  { id: 'estoque', label: 'Estoque' },
-  { id: 'vendas', label: 'Vendas' },
-  { id: 'crm', label: 'CRM' },
-  { id: 'servicedesk', label: 'ServiceDesk' },
-  { id: 'bpm', label: 'BPM' },
-  { id: 'configuracoes', label: 'Configurações' },
-  { id: 'usuarios', label: 'Usuários' },
+// ─── Module + Feature definitions ──────────────────────────────────────────
+
+type FeatureRow = { id: string; label: string };
+type Section = { id: string; label: string; features: FeatureRow[] };
+type ModuleDef = { id: string; label: string; sections: Section[] };
+
+const MODULES_DEF: ModuleDef[] = [
+  {
+    id: 'financeiro',
+    label: 'Financeiro',
+    sections: [
+      {
+        id: 'dia-a-dia', label: 'Dia-a-Dia',
+        features: [
+          { id: 'dashboard', label: 'Dashboard' },
+          { id: 'contas-receber', label: 'Contas a Receber' },
+          { id: 'contas-pagar', label: 'Contas a Pagar' },
+          { id: 'movimentacao', label: 'Movimentação' },
+          { id: 'faturamento', label: 'Faturamento' },
+          { id: 'inadimplencia', label: 'Inadimplência' },
+          { id: 'conciliacao', label: 'Conciliação' },
+          { id: 'contratos', label: 'Contratos' },
+          { id: 'aprovacao-financeira', label: 'Aprovação Financeira' },
+          { id: 'envio-remessa', label: 'Envio de Remessa' },
+          { id: 'retorno-remessa', label: 'Retorno Remessa' },
+          { id: 'historico-movimentacao', label: 'Histórico de Movimentação' },
+          { id: 'fatura-cartao', label: 'Fatura Cartão de Crédito' },
+        ],
+      },
+      {
+        id: 'cadastros', label: 'Cadastros',
+        features: [
+          { id: 'servico', label: 'Serviço' },
+          { id: 'tipo-servico', label: 'Tipo de Serviço' },
+          { id: 'minhas-empresas', label: 'Minhas Empresas' },
+          { id: 'fornecedor', label: 'Fornecedor' },
+          { id: 'cliente', label: 'Cliente' },
+          { id: 'plano-contas', label: 'Plano de Contas' },
+          { id: 'contas-bancarias', label: 'Contas Bancárias' },
+          { id: 'departamento', label: 'Departamento' },
+          { id: 'funcionario', label: 'Funcionário' },
+          { id: 'ramo-atividade', label: 'Ramo de Atividade' },
+          { id: 'tipo-atividade', label: 'Tipo de Atividade' },
+          { id: 'etiqueta', label: 'Etiqueta' },
+        ],
+      },
+      {
+        id: 'visoes', label: 'Visões',
+        features: [
+          { id: 'resumo-empresas', label: 'Resumo das Empresas' },
+          { id: 'fluxo-caixa', label: 'Fluxo de Caixa' },
+          { id: 'dre', label: 'DRE' },
+          { id: 'relatorio', label: 'Relatório' },
+          { id: 'extrato', label: 'Extrato' },
+          { id: 'relatorio-avancado', label: 'Relatório Avançado' },
+          { id: 'relatorio-comparativo', label: 'Relatório Comparativo' },
+          { id: 'previsao-orcamentaria', label: 'Previsão Orçamentária' },
+        ],
+      },
+      {
+        id: 'avancado', label: 'Avançado',
+        features: [
+          { id: 'caixa-email', label: 'Caixa de E-mail' },
+          { id: 'configuracoes-gerais', label: 'Configurações Gerais' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'estoque',
+    label: 'Estoque',
+    sections: [
+      {
+        id: 'dia-a-dia', label: 'Dia-a-Dia',
+        features: [
+          { id: 'dashboard', label: 'Dashboard' },
+          { id: 'entrada-produto', label: 'Entrada de Produto' },
+          { id: 'saida-estoque', label: 'Saída de Estoque' },
+          { id: 'ajuste-estoque', label: 'Ajuste de Estoque' },
+          { id: 'transferencia', label: 'Transferência' },
+          { id: 'pedidos', label: 'Pedidos' },
+          { id: 'pedido-compra', label: 'Pedido de Compra' },
+          { id: 'processo-compra', label: 'Processo de Compra' },
+          { id: 'consultar-movimentacoes', label: 'Consultar Movimentações' },
+          { id: 'consulta-estoque', label: 'Consulta de Estoque' },
+        ],
+      },
+      {
+        id: 'cadastros', label: 'Cadastros',
+        features: [
+          { id: 'produto', label: 'Produto' },
+          { id: 'estoque-satelite', label: 'Estoque Satélite' },
+          { id: 'minhas-empresas', label: 'Minhas Empresas' },
+          { id: 'departamento', label: 'Departamento' },
+          { id: 'fornecedor', label: 'Fornecedor' },
+          { id: 'classe-produto', label: 'Classe de Produto' },
+          { id: 'grupo-produto', label: 'Grupo de Produto' },
+          { id: 'familia-produto', label: 'Família Produto' },
+          { id: 'unidade-produto', label: 'Unidade de Produto' },
+          { id: 'caracteristica-grade', label: 'Característica de Grade' },
+        ],
+      },
+      {
+        id: 'visoes', label: 'Visões',
+        features: [
+          { id: 'relatorio', label: 'Relatório' },
+          { id: 'relatorio-avancado', label: 'Relatório Avançado' },
+        ],
+      },
+      {
+        id: 'avancado', label: 'Avançado',
+        features: [
+          { id: 'configuracoes-gerais', label: 'Configurações Gerais' },
+          { id: 'portal-intranet', label: 'Portal Intranet' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'vendas',
+    label: 'Vendas',
+    sections: [
+      {
+        id: 'dia-a-dia', label: 'Dia-a-Dia',
+        features: [
+          { id: 'dashboard', label: 'Dashboard' },
+          { id: 'cadastros', label: 'Cadastros' },
+          { id: 'relatorios', label: 'Relatórios' },
+        ],
+      },
+      {
+        id: 'avancado', label: 'Avançado',
+        features: [
+          { id: 'configuracoes', label: 'Configurações' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'crm',
+    label: 'CRM',
+    sections: [
+      {
+        id: 'dia-a-dia', label: 'Dia-a-Dia',
+        features: [
+          { id: 'dashboard', label: 'Dashboard' },
+          { id: 'cadastros', label: 'Cadastros' },
+          { id: 'relatorios', label: 'Relatórios' },
+        ],
+      },
+      {
+        id: 'avancado', label: 'Avançado',
+        features: [
+          { id: 'configuracoes', label: 'Configurações' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'servicedesk',
+    label: 'ServiceDesk',
+    sections: [
+      {
+        id: 'dia-a-dia', label: 'Dia-a-Dia',
+        features: [
+          { id: 'dashboard', label: 'Dashboard' },
+          { id: 'cadastros', label: 'Cadastros' },
+          { id: 'relatorios', label: 'Relatórios' },
+        ],
+      },
+      {
+        id: 'avancado', label: 'Avançado',
+        features: [
+          { id: 'configuracoes', label: 'Configurações' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'bpm',
+    label: 'BPM',
+    sections: [
+      {
+        id: 'dia-a-dia', label: 'Dia-a-Dia',
+        features: [
+          { id: 'dashboard', label: 'Dashboard' },
+          { id: 'cadastros', label: 'Cadastros' },
+          { id: 'relatorios', label: 'Relatórios' },
+        ],
+      },
+      {
+        id: 'avancado', label: 'Avançado',
+        features: [
+          { id: 'configuracoes', label: 'Configurações' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'configuracoes',
+    label: 'Configurações',
+    sections: [
+      {
+        id: 'configuracoes', label: 'Configurações',
+        features: [
+          { id: 'notificacoes-email', label: 'Notificações por e-mail' },
+          { id: 'api-key', label: 'Configuração de API Key' },
+          { id: 'integracoes', label: 'Integrações' },
+          { id: 'importacao-dados', label: 'Importação de Dados' },
+          { id: 'usuarios', label: 'Usuários' },
+          { id: 'meu-plano', label: 'Meu Plano' },
+        ],
+      },
+    ],
+  },
 ];
 
-const ACTIONS = [
-  { id: 'visualizar', label: 'Ver' },
-  { id: 'criar', label: 'Criar' },
-  { id: 'editar', label: 'Editar' },
-  { id: 'deletar', label: 'Deletar' },
-  { id: 'exportar', label: 'Exportar' },
-  { id: 'aprovar', label: 'Aprovar' },
-];
+// ─── Types ──────────────────────────────────────────────────────────────────
 
-type PermMap = Record<string, Record<string, boolean>>;
+/** Per-feature access level: 'view' | 'edit' | 'block' */
+type AccessLevel = 'view' | 'edit' | 'block';
 
-const PROFILES = {
-  owner: () => {
-    const m: PermMap = {};
-    MODULES.forEach((mod) => {
-      m[mod.id] = {};
-      ACTIONS.forEach((a) => { m[mod.id][a.id] = true; });
-    });
-    return m;
-  },
-  manager: () => {
-    const m: PermMap = {};
-    MODULES.forEach((mod) => {
-      m[mod.id] = {};
-      ACTIONS.forEach((a) => {
-        m[mod.id][a.id] = !(a.id === 'deletar' || mod.id === 'usuarios');
-      });
-    });
-    return m;
-  },
-  operator: () => {
-    const m: PermMap = {};
-    MODULES.forEach((mod) => {
-      m[mod.id] = {};
-      ACTIONS.forEach((a) => {
-        m[mod.id][a.id] = ['visualizar', 'criar', 'editar'].includes(a.id);
-      });
-    });
-    return m;
-  },
-  readonly: () => {
-    const m: PermMap = {};
-    MODULES.forEach((mod) => {
-      m[mod.id] = {};
-      ACTIONS.forEach((a) => { m[mod.id][a.id] = a.id === 'visualizar'; });
-    });
-    return m;
-  },
-};
+/** Per-module quick level */
+type ModuleLevel = 'custom' | 'total' | 'blocked';
 
-function detectProfile(perms: PermMap): string {
-  const allTrue = MODULES.every((mod) => ACTIONS.every((a) => perms[mod.id]?.[a.id]));
-  if (allTrue) return 'Proprietário';
-  const noneDelete = MODULES.every((mod) =>
-    ACTIONS.every((a) => {
-      if (a.id === 'deletar' || mod.id === 'usuarios') return !perms[mod.id]?.[a.id];
-      return perms[mod.id]?.[a.id];
-    })
-  );
-  if (noneDelete) return 'Gerente';
-  const onlyBasic = MODULES.every((mod) =>
-    ACTIONS.every((a) => {
-      const expected = ['visualizar', 'criar', 'editar'].includes(a.id);
-      return perms[mod.id]?.[a.id] === expected;
-    })
-  );
-  if (onlyBasic) return 'Operador';
-  const onlyView = MODULES.every((mod) =>
-    ACTIONS.every((a) => perms[mod.id]?.[a.id] === (a.id === 'visualizar'))
-  );
-  if (onlyView) return 'Somente Leitura';
-  return 'Personalizado';
+/** State: map of `moduleId.featureId` → AccessLevel */
+type PermState = Record<string, AccessLevel>;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function featureKey(moduleId: string, featureId: string): string {
+  return `${moduleId}.${featureId}`;
 }
+
+function allFeaturesInModule(mod: ModuleDef): string[] {
+  return mod.sections.flatMap((s) => s.features.map((f) => featureKey(mod.id, f.id)));
+}
+
+function detectModuleLevel(state: PermState, mod: ModuleDef): ModuleLevel {
+  const keys = allFeaturesInModule(mod);
+  if (keys.length === 0) return 'custom';
+  if (keys.every((k) => state[k] === 'edit')) return 'total';
+  if (keys.every((k) => state[k] === 'block')) return 'blocked';
+  return 'custom';
+}
+
+/** Convert flat UserPermission[] from API to our PermState */
+function apiPermissionsToState(apiPerms: Array<{ module: string; action: string; allowed: boolean }>): PermState {
+  // Build a map: key -> { view: bool, edit: bool }
+  const raw: Record<string, { view: boolean; edit: boolean }> = {};
+  for (const p of apiPerms) {
+    if (!raw[p.module]) raw[p.module] = { view: false, edit: false };
+    if (p.action === 'view') raw[p.module].view = p.allowed;
+    if (p.action === 'edit') raw[p.module].edit = p.allowed;
+  }
+
+  const state: PermState = {};
+  for (const [key, v] of Object.entries(raw)) {
+    if (!v.view && !v.edit) state[key] = 'block';
+    else if (v.edit) state[key] = 'edit';
+    else state[key] = 'view';
+  }
+  return state;
+}
+
+/** Build the full default state (all features = 'edit') */
+function buildDefaultState(): PermState {
+  const state: PermState = {};
+  for (const mod of MODULES_DEF) {
+    for (const sec of mod.sections) {
+      for (const feat of sec.features) {
+        state[featureKey(mod.id, feat.id)] = 'edit';
+      }
+    }
+  }
+  return state;
+}
+
+/** Merge loaded API state onto default, so all keys are always present */
+function mergeState(loaded: PermState): PermState {
+  const base = buildDefaultState();
+  return { ...base, ...loaded };
+}
+
+/** Convert PermState to the payload expected by the API */
+function stateToPayload(state: PermState): Array<{ module: string; action: string; allowed: boolean }> {
+  const payload: Array<{ module: string; action: string; allowed: boolean }> = [];
+  for (const [key, level] of Object.entries(state)) {
+    payload.push({ module: key, action: 'view', allowed: level === 'view' || level === 'edit' });
+    payload.push({ module: key, action: 'edit', allowed: level === 'edit' });
+  }
+  return payload;
+}
+
+// ─── Radio circle component ──────────────────────────────────────────────────
+
+function RadioCircle({ selected, color = 'text-blue-500' }: { selected: boolean; color?: string }) {
+  return (
+    <span className={`text-base leading-none select-none ${selected ? color : 'text-muted-foreground/40'}`}>
+      {selected ? '●' : '○'}
+    </span>
+  );
+}
+
+// ─── Main component ──────────────────────────────────────────────────────────
 
 interface Props {
   userId: string;
@@ -115,138 +318,237 @@ interface Props {
 }
 
 export function UserPermissionsModal({ userId, userName, onClose }: Props) {
-  const [perms, setPerms] = useState<PermMap>({});
+  const [state, setState] = useState<PermState>(buildDefaultState());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [activeModuleIdx, setActiveModuleIdx] = useState(0);
 
+  // Load permissions from API
   useEffect(() => {
+    setLoading(true);
     apiFetch(`/api/pj/permissions?userId=${userId}`)
       .then((r) => r.json())
       .then((d) => {
-        const map: PermMap = {};
-        MODULES.forEach((mod) => {
-          map[mod.id] = {};
-          ACTIONS.forEach((a) => { map[mod.id][a.id] = false; });
-        });
-        (d.permissions || []).forEach((p: any) => {
-          if (!map[p.module]) map[p.module] = {};
-          map[p.module][p.action] = p.allowed;
-        });
-        setPerms(map);
+        const loaded = apiPermissionsToState(d.permissions || []);
+        setState(mergeState(loaded));
+      })
+      .catch(() => {
+        toast.error('Erro ao carregar permissões');
       })
       .finally(() => setLoading(false));
   }, [userId]);
 
-  const toggle = (mod: string, action: string) => {
-    setPerms((prev) => ({
-      ...prev,
-      [mod]: { ...prev[mod], [action]: !prev[mod]?.[action] },
-    }));
-  };
+  const activeMod = MODULES_DEF[activeModuleIdx];
 
-  const applyProfile = (key: keyof typeof PROFILES) => {
-    setPerms(PROFILES[key]());
-  };
+  // Compute the current module-level for the active tab
+  const moduleLevel = detectModuleLevel(state, activeMod);
+
+  // Set a single feature's level
+  const setFeatureLevel = useCallback((moduleId: string, featureId: string, level: AccessLevel) => {
+    setState((prev) => ({ ...prev, [featureKey(moduleId, featureId)]: level }));
+  }, []);
+
+  // Apply a module-level shortcut
+  const applyModuleLevel = useCallback((level: ModuleLevel) => {
+    if (level === 'custom') return; // custom is only detected, not applied
+    const keys = allFeaturesInModule(activeMod);
+    setState((prev) => {
+      const next = { ...prev };
+      for (const k of keys) {
+        next[k] = level === 'total' ? 'edit' : 'block';
+      }
+      return next;
+    });
+  }, [activeMod]);
 
   const save = async () => {
     setSaving(true);
-    const payload: Array<{ module: string; action: string; allowed: boolean }> = [];
-    MODULES.forEach((mod) => {
-      ACTIONS.forEach((a) => {
-        payload.push({ module: mod.id, action: a.id, allowed: !!perms[mod.id]?.[a.id] });
-      });
-    });
+    const payload = stateToPayload(state);
     const r = await apiFetch('/api/pj/permissions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, permissions: payload }),
     });
-    if (r.ok) { toast.success('Permissões salvas'); onClose(); }
-    else { const d = await r.json(); toast.error(d.error || 'Erro ao salvar'); }
+    if (r.ok) {
+      toast.success('Permissões salvas');
+      onClose();
+    } else {
+      const d = await r.json();
+      toast.error(d.error || 'Erro ao salvar');
+    }
     setSaving(false);
   };
 
-  const profile = detectProfile(perms);
+  // Tab status icon
+  const tabIcon = (mod: ModuleDef) => {
+    const lvl = detectModuleLevel(state, mod);
+    if (lvl === 'blocked') return '🚫';
+    if (lvl === 'total') return '✓';
+    return '⚙';
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-5xl max-h-[92vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-          <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-blue-400" />
-            <div>
-              <h3 className="text-white font-bold">Permissões — {userName}</h3>
-              <p className="text-slate-400 text-xs">Perfil atual: <span className="text-blue-300 font-medium">{profile}</span></p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-background border border-border rounded-xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl">
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <h3 className="font-bold text-base text-foreground">
+            Cadastro de usuário — <span className="text-primary">{userName}</span>
+          </h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors rounded-md p-1">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Quick profiles */}
-        <div className="flex gap-2 px-6 py-3 border-b border-slate-700">
-          <span className="text-slate-400 text-xs self-center mr-2">Perfil rápido:</span>
-          {([
-            { key: 'owner' as const, label: 'Proprietário', color: 'bg-amber-600 hover:bg-amber-500' },
-            { key: 'manager' as const, label: 'Gerente', color: 'bg-blue-600 hover:bg-blue-500' },
-            { key: 'operator' as const, label: 'Operador', color: 'bg-green-700 hover:bg-green-600' },
-            { key: 'readonly' as const, label: 'Somente Leitura', color: 'bg-slate-600 hover:bg-slate-500' },
-          ]).map((p) => (
-            <button key={p.key} onClick={() => applyProfile(p.key)}
-              className={`px-3 py-1.5 rounded-lg text-white text-xs font-medium ${p.color}`}>
-              {p.label}
-            </button>
-          ))}
+        {/* ── Module Tabs ── */}
+        <div className="flex overflow-x-auto border-b border-border shrink-0 px-2">
+          {MODULES_DEF.map((mod, idx) => {
+            const isActive = idx === activeModuleIdx;
+            return (
+              <button
+                key={mod.id}
+                onClick={() => setActiveModuleIdx(idx)}
+                className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                  isActive
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {mod.label}
+                <span className="text-xs">{tabIcon(mod)}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Matrix */}
-        <div className="overflow-auto flex-1">
+        {/* ── Content area ── */}
+        <div className="flex-1 overflow-auto">
           {loading ? (
-            <div className="p-8 text-center text-slate-400">Carregando...</div>
+            <div className="flex justify-center items-center py-16">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+            </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-slate-900/80 sticky top-0 z-10">
-                <tr>
-                  <th className="text-left px-4 py-3 text-slate-300 font-medium w-48">Módulo</th>
-                  {ACTIONS.map((a) => (
-                    <th key={a.id} className="text-center px-3 py-3 text-slate-400 font-medium">{a.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700/50">
-                {MODULES.map((mod) => (
-                  <tr key={mod.id} className="hover:bg-slate-700/20">
-                    <td className="px-4 py-2 text-slate-200 font-medium">{mod.label}</td>
-                    {ACTIONS.map((a) => {
-                      const checked = !!perms[mod.id]?.[a.id];
+            <div className="p-5 space-y-4">
+
+              {/* Quick access level radios */}
+              <div className="flex flex-wrap gap-4 pb-4 border-b border-border">
+                {(
+                  [
+                    { level: 'custom' as ModuleLevel, label: 'Acesso Personalizado' },
+                    { level: 'total' as ModuleLevel, label: `Acesso Total ao Módulo ${activeMod.label}` },
+                    { level: 'blocked' as ModuleLevel, label: `Acesso BLOQUEADO ao Módulo ${activeMod.label}` },
+                  ] as const
+                ).map(({ level, label }) => (
+                  <button
+                    key={level}
+                    onClick={() => level !== 'custom' && applyModuleLevel(level)}
+                    className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                      moduleLevel === level
+                        ? 'border-primary/60 bg-primary/10 text-foreground'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
+                    } ${level === 'custom' ? 'cursor-default' : 'cursor-pointer'}`}
+                  >
+                    <RadioCircle
+                      selected={moduleLevel === level}
+                      color={
+                        level === 'blocked'
+                          ? 'text-red-500'
+                          : level === 'total'
+                          ? 'text-green-500'
+                          : 'text-blue-500'
+                      }
+                    />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Feature matrix */}
+              <div className="rounded-lg border border-border overflow-hidden">
+                {/* Column header */}
+                <div className="grid grid-cols-[1fr_80px_80px_80px] bg-muted/60 border-b border-border">
+                  <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Funcionalidade</div>
+                  <div className="text-center py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">👁 Ver</div>
+                  <div className="text-center py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">✏ Editar</div>
+                  <div className="text-center py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">🔒 Bloquear</div>
+                </div>
+
+                {activeMod.sections.map((sec) => (
+                  <div key={sec.id}>
+                    {/* Section header row */}
+                    <div className="bg-muted/30 px-4 py-1.5 border-b border-border">
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{sec.label}</span>
+                    </div>
+
+                    {sec.features.map((feat, fi) => {
+                      const key = featureKey(activeMod.id, feat.id);
+                      const current: AccessLevel = state[key] ?? 'edit';
                       return (
-                        <td key={a.id} className="px-3 py-2 text-center">
-                          <button
-                            onClick={() => toggle(mod.id, a.id)}
-                            className={`w-6 h-6 rounded flex items-center justify-center mx-auto transition-colors ${
-                              checked
-                                ? 'bg-green-600 hover:bg-green-500'
-                                : 'bg-slate-700 hover:bg-slate-600 border border-slate-600'
-                            }`}
-                          >
-                            {checked && <Check className="w-3.5 h-3.5 text-white" />}
-                          </button>
-                        </td>
+                        <div
+                          key={feat.id}
+                          className={`grid grid-cols-[1fr_80px_80px_80px] items-center border-b border-border/50 hover:bg-muted/20 transition-colors ${
+                            fi % 2 === 0 ? 'bg-background' : 'bg-muted/10'
+                          }`}
+                        >
+                          <div className="px-4 py-2 text-sm text-foreground">{feat.label}</div>
+
+                          {/* Ver */}
+                          <div className="flex justify-center py-2">
+                            <button
+                              onClick={() => setFeatureLevel(activeMod.id, feat.id, 'view')}
+                              className="p-1 rounded hover:bg-blue-500/10 transition-colors"
+                              title="Somente visualização"
+                            >
+                              <RadioCircle selected={current === 'view'} color="text-blue-500" />
+                            </button>
+                          </div>
+
+                          {/* Editar */}
+                          <div className="flex justify-center py-2">
+                            <button
+                              onClick={() => setFeatureLevel(activeMod.id, feat.id, 'edit')}
+                              className="p-1 rounded hover:bg-green-500/10 transition-colors"
+                              title="Pode editar (implica ver)"
+                            >
+                              <RadioCircle selected={current === 'edit'} color="text-green-500" />
+                            </button>
+                          </div>
+
+                          {/* Bloquear */}
+                          <div className="flex justify-center py-2">
+                            <button
+                              onClick={() => setFeatureLevel(activeMod.id, feat.id, 'block')}
+                              className="p-1 rounded hover:bg-red-500/10 transition-colors"
+                              title="Sem acesso"
+                            >
+                              <RadioCircle selected={current === 'block'} color="text-red-500" />
+                            </button>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tr>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-700">
-          <button onClick={onClose} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm">Cancelar</button>
-          <button onClick={save} disabled={saving || loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium disabled:opacity-60">
-            {saving ? 'Salvando...' : 'Salvar Permissões'}
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={save}
+            disabled={saving || loading}
+            className="px-5 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-60"
+          >
+            {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
       </div>
