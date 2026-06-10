@@ -126,6 +126,7 @@ export async function GET(req: NextRequest) {
     reconciled: stats.find((s: any) => s.status === 'RECONCILED')?._count || 0,
     divergent: stats.find((s: any) => s.status === 'DIVERGENT')?._count || 0,
     bankOnly: stats.find((s: any) => s.status === 'BANK_ONLY')?._count || 0,
+    suggested: stats.find((s: any) => s.status === 'SUGGESTED')?._count || 0,
     pending: stats.find((s: any) => s.status === 'PENDING')?._count || 0,
     ignored: stats.find((s: any) => s.status === 'IGNORED')?._count || 0,
   };
@@ -141,7 +142,7 @@ export async function GET(req: NextRequest) {
         bankName: firstTx?.bankConnection?.bankName || 'Banco',
         importedAt: firstTx?.createdAt || item.createdAt,
         items: [],
-        stats: { total: 0, reconciled: 0, divergent: 0, bankOnly: 0, pending: 0, ignored: 0 },
+        stats: { total: 0, reconciled: 0, divergent: 0, bankOnly: 0, suggested: 0, pending: 0, ignored: 0 },
         dateRange: { min: firstTx?.date, max: firstTx?.date },
       };
     }
@@ -151,6 +152,7 @@ export async function GET(req: NextRequest) {
     if (st === 'reconciled') batches[batchKey].stats.reconciled++;
     else if (st === 'divergent') batches[batchKey].stats.divergent++;
     else if (st === 'bank_only') batches[batchKey].stats.bankOnly++;
+    else if (st === 'suggested') batches[batchKey].stats.suggested++;
     else if (st === 'pending') batches[batchKey].stats.pending++;
     else if (st === 'ignored') batches[batchKey].stats.ignored++;
     // Update date range

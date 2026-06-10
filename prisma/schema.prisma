@@ -41,10 +41,13 @@ model User {
   activeCompanyId  String?
   activeCompany    Company?          @relation("ActiveCompany", fields: [activeCompanyId], references: [id], onDelete: SetNull)
   companies        UserCompany[]
-  permissions      UserPermission[]
-  subscription     Subscription?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  permissions          UserPermission[]
+  approvalsRequested   FinancialApproval[] @relation("ApprovalRequester")
+  approvalsToApprove   FinancialApproval[] @relation("ApprovalApprover")
+  debtNegotiations     DebtNegotiation[]   @relation("UserDebtNegotiations")
+  subscription         Subscription?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   @@index([resetToken])
   @@index([role])
@@ -263,50 +266,56 @@ model Alert {
 
 model BankConnection {
   id               String            @id @default(cuid())
-  userId           String
+  userId           String            @map("user_id")
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyId        String?
+  companyId        String?           @map("empresa_id")
   company          Company?          @relation("CompanyBankConnections", fields: [companyId], references: [id], onDelete: Cascade)
   scope            String            @default("PF") // PF or PJ
-  provider         String // ofx, banco-inter, banco-brasil, sicoob, sicredi, itau, santander, bradesco, cora, asaas, efi, open-finance
-  connectionId     String // external connection/item id from provider
-  connectionMode   String            @default("manual") // manual, api, open_finance
-  bankName         String
-  bankLogo         String?
-  bankCode         String?           // COMPE/ISPB bank code
-  status           String            @default("active") // active, syncing, error, disconnected, unstable
-  lastSyncAt       DateTime?
-  tokenExpiresAt   DateTime?
-  accountType      String? // checking, savings, credit, investment
-  accountNumber    String?
-  accountDigit     String?
+  personType       String            @default("PF") @map("person_type") // PF or PJ
+  provider         String // inter_pj, itau_pj, inter_pf_ofx, itau_pf_ofx, ofx, csv
+  connectionId     String            @map("connection_id") // stable internal connection id
+  connectionMode   String            @default("OFX") @map("connection_mode") // API, OFX, CSV, OPEN_FINANCE_FUTURE
+  bankName         String            @map("bank_name")
+  bankLogo         String?           @map("bank_logo")
+  bankCode         String?           @map("bank_code") // INTER, ITAU or COMPE/ISPB fallback
+  status           String            @default("PENDING_CONFIG") // ACTIVE, ERROR, DISABLED, PENDING_CONFIG
+  lastSyncAt       DateTime?         @map("last_sync_at")
+  tokenExpiresAt   DateTime?         @map("token_expires_at")
+  accountType      String?           @map("account_type") // checking, savings, credit, investment
+  accountNumber    String?           @map("account")
+  accountDigit     String?           @map("account_digit")
+  accountId        String?           @map("account_id")
   agency           String?
-  openingBalance   Float?            @default(0)
-  currentBalance   Float?            @default(0)
-  allowsPayments   Boolean           @default(true)
-  allowsReceipts   Boolean           @default(true)
-  allowsTransfers  Boolean           @default(true)
-  syncError        String?
+  openingBalance   Float?            @default(0) @map("opening_balance")
+  currentBalance   Float?            @default(0) @map("current_balance")
+  allowsPayments   Boolean           @default(false) @map("allows_payments")
+  allowsReceipts   Boolean           @default(false) @map("allows_receipts")
+  allowsTransfers  Boolean           @default(false) @map("allows_transfers")
+  syncError        String?           @map("last_error")
   // Encrypted credentials (AES-256-GCM, never stored in plain text)
-  clientIdEnc      String?
-  clientSecretEnc  String?
-  certPathEnc      String?
-  certPasswordEnc  String?
-  accessTokenEnc   String?
-  refreshTokenEnc  String?
-  extraConfig      Json?             // bank-specific fields (convenio, cooperativa, etc.)
+  ownerTaxIdEnc    String?           @map("owner_tax_id_encrypted")
+  clientIdEnc      String?           @map("client_id_encrypted")
+  clientSecretEnc  String?           @map("client_secret_encrypted")
+  certificateEnc   String?           @map("certificate_encrypted")
+  privateKeyEnc    String?           @map("private_key_encrypted")
+  certPathEnc      String?           @map("cert_path_encrypted")
+  certPasswordEnc  String?           @map("certificate_password_encrypted")
+  accessTokenEnc   String?           @map("access_token_encrypted")
+  refreshTokenEnc  String?           @map("refresh_token_encrypted")
+  extraConfig      Json?             @map("extra_config") // bank-specific fields (convenio, cooperativa, etc.)
   expenses         Expense[]
   incomes          Income[]
   creditCards      CreditCard[]
   investments      Investment[]
   bankTransactions BankTransaction[] @relation("BankTxConn")
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
   @@unique([provider, connectionId])
   @@index([userId])
   @@index([companyId])
   @@index([status])
+  @@map("bank_connections")
 }
 
 model Transaction {
@@ -331,30 +340,34 @@ model Transaction {
 
 model BankTransaction {
   id               String          @id @default(cuid())
-  userId           String
+  userId           String          @map("user_id")
   user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyId        String?         // null = PF, set = PJ
-  bankConnectionId String?
+  companyId        String?         @map("empresa_id") // null = PF, set = PJ
+  bankConnectionId String?         @map("bank_connection_id")
   bankConnection   BankConnection? @relation("BankTxConn", fields: [bankConnectionId], references: [id], onDelete: SetNull)
-  externalId       String?
-  transactionHash  String?         // sha256 dedup hash (bankCode+agency+account+date+amount+desc)
+  personType       String          @default("PF") @map("person_type")
+  bankCode         String?         @map("bank_code")
+  accountId        String?         @map("account_id")
+  externalId       String?         @map("external_id")
+  transactionHash  String?         @map("transaction_hash") // sha256 dedup hash
   description      String
   amount           Float
-  type             String          // credit, debit
-  date             DateTime
+  type             String          @map("direction") // credit, debit
+  date             DateTime        @map("transaction_date")
   category         String?
-  balanceAfter     Float?
-  documentNumber   String?
-  payerName        String?
-  payerDocument    String?
-  rawData          Json?
-  status           String          @default("PENDING") // PENDING, RECONCILED, BANK_ONLY, IGNORED
-  importBatchId    String?
+  balanceAfter     Float?          @map("balance_after")
+  documentNumber   String?         @map("document_number")
+  payerName        String?         @map("counterparty_name")
+  payerDocument    String?         @map("counterparty_tax_id")
+  rawData          Json?           @map("raw_payload")
+  status           String          @default("PENDING") @map("reconciliation_status") // PENDING, SUGGESTED, RECONCILED, IGNORED
+  importBatchId    String?         @map("import_batch_id")
   reconciliation   Reconciliation? @relation("ReconBankTx")
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
 
   @@unique([userId, externalId])
+  @@unique([companyId, bankConnectionId, transactionHash])
   @@index([userId])
   @@index([companyId])
   @@index([date])
@@ -362,6 +375,7 @@ model BankTransaction {
   @@index([status])
   @@index([importBatchId])
   @@index([transactionHash])
+  @@map("bank_transactions")
 }
 
 model Reconciliation {
@@ -457,6 +471,16 @@ model Company {
   serviceFiscalRules ServiceFiscalRule[]     @relation("CompanyServiceFiscalRules")
   purchaseOrders     PurchaseOrder[]         @relation("CompanyPurchaseOrders")
   contracts          Contract[]              @relation("CompanyContracts")
+  collectionRules    CollectionRule[]
+  financialApprovals FinancialApproval[]
+  receivedNFes       ReceivedNFe[]           @relation("CompanyReceivedNFes")
+  budgets            BudgetForecast[]        @relation("CompanyBudgets")
+  crmAutomations     CRMAutomation[]         @relation("CompanyCRMAutomations")
+  bpmFlows           BPMFlow[]               @relation("CompanyBPMFlows")
+  customFields       CustomField[]           @relation("CompanyCustomFields")
+  goals              Goal[]                  @relation("CompanyGoals")
+  commissions        Commission[]            @relation("CompanyCommissions")
+  debtNegotiations   DebtNegotiation[]       @relation("CompanyDebtNegotiations")
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 }
@@ -497,15 +521,25 @@ model BusinessCategory {
   companyId   String
   company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
-  type        String // receita, despesa, ambos
+  type        String               // receita, despesa, ambos
   color       String?
+  // Plano de contas hierárquico
+  parentId    String?
+  parent      BusinessCategory?    @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    BusinessCategory[]   @relation("CategoryHierarchy")
+  code        String?              // ex: "1.1.1"
+  isSystem    Boolean              @default(false)
+  isActive    Boolean              @default(true)
   payables    AccountsPayable[]
   receivables AccountsReceivable[]
   contracts   Contract[]
+  budgets     BudgetForecast[]     @relation("CategoryBudgets")
   createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt @default(now())
 
   @@unique([companyId, name])
   @@index([companyId])
+  @@index([parentId])
 }
 
 model CostCenter {
@@ -552,6 +586,7 @@ model AccountsPayable {
   recurrenceType      String?
   recurrenceId        String?
   recurrence          Recurrence?         @relation("RecurrencePayables", fields: [recurrenceId], references: [id], onDelete: SetNull)
+  launchType          String? // fornecedor, funcionario, impostos, transferencia, lucros
   notes               String?
   createdBy           String?
   tags                AccountPayableTag[]
@@ -591,6 +626,7 @@ model AccountsReceivable {
   sourceType     String? // manual, sale, contract
   sourceId       String? // SalesOrder.id ou Contract.id
   billingPeriod  String? // YYYY-MM para faturamento recorrente
+  launchType     String?                 // venda, contrato, aporte, outros
   // Automações
   autoNfe        Boolean                 @default(false)
   autoBoleto     Boolean                 @default(false)
@@ -599,6 +635,10 @@ model AccountsReceivable {
   fiscalRule     ServiceFiscalRule?      @relation("ReceivableFiscalRule", fields: [fiscalRuleId], references: [id], onDelete: SetNull)
   tags           AccountReceivableTag[]
   negotiations   ReceivableNegotiation[]
+  // Flags de geração automática
+  generateBoleto Boolean                 @default(true)
+  generatePix    Boolean                 @default(true)
+  generateNfe    Boolean                 @default(true)
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
 
@@ -893,23 +933,92 @@ model CompanyUpgradeLog {
 // ====================== CLIENTS & SUPPLIERS ======================
 
 model Client {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name      String
-  document  String? // CPF or CNPJ
-  email     String?
-  phone     String?
-  address   String?
-  city      String?
-  state     String?
-  notes     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                      String              @id @default(cuid())
+  companyId               String
+  company                 Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                    String
+  document                String? // CPF or CNPJ (legado)
+  email                   String?
+  phone                   String?
+  address                 String?
+  city                    String?
+  state                   String?
+  notes                   String?             @db.Text
+  isActive                Boolean             @default(true)
+  // Dados fiscais e cadastrais expandidos
+  countryOrigin           String?             @default("BR")
+  tradeName               String?
+  cnpj                    String?
+  cpf                     String?
+  clientType              String              @default("PJ") // PJ ou PF
+  stateRegistration       String?
+  stateRegistrationUF     String?
+  municipalRegistration   String?
+  activityBranch          String?
+  simplesNacional         Boolean             @default(false)
+  ignoreIMNfse            Boolean             @default(false)
+  rating                  Int?                @default(3) // 1-5 estrelas
+  // Faturamento por cliente
+  billingDaysAntecipation Int?
+  billingDay              Int?
+  nfseEmissionMode        String?             @default("company") // company | on_billing | on_payment
+  // Portal do cliente
+  portalSupportEnabled    Boolean             @default(true)
+  portalFinanceEnabled    Boolean             @default(true)
+  // Relacionamentos
+  portalToken             ClientPortalToken?
+  addresses               ClientAddress[]
+  contacts                ClientContact[]
+  debtNegotiations        DebtNegotiation[]
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
 
   @@index([companyId])
   @@index([name])
+}
+
+model ClientAddress {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  cep         String?
+  logradouro  String?
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  estado      String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([clientId])
+}
+
+model ClientContact {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  phone     String?
+  isBilling Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+}
+
+model ClientPortalToken {
+  id        String   @id @default(cuid())
+  clientId  String   @unique
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  companyId String
+  token     String   @unique @default(cuid())
+  isActive  Boolean  @default(true)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([companyId])
 }
 
 model Supplier {
@@ -1859,4 +1968,271 @@ model EmailQueue {
   @@index([status])
   @@index([nextRetryAt])
   @@index([smtpConfigId])
+}
+
+// ============================================================
+// Aprovação Financeira
+// ============================================================
+model FinancialApproval {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        String   // "expense" | "income" | "compra"
+  referenceId String
+  requesterId String
+  requester   User     @relation("ApprovalRequester", fields: [requesterId], references: [id])
+  approverId  String?
+  approver    User?    @relation("ApprovalApprover", fields: [approverId], references: [id])
+  status      String   @default("pending") // pending, approved, rejected
+  notes       String?
+  amount      Float
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+}
+
+// ============================================================
+// Régua de Cobrança
+// ============================================================
+model CollectionRule {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  isActive  Boolean  @default(true)
+  // triggers: [{type: "before"|"on"|"after", days: number, channels: ["email","whatsapp"], template: string}]
+  triggers  Json
+  sentLogs  CollectionRuleLog[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+model CollectionRuleLog {
+  id               String         @id @default(cuid())
+  collectionRuleId String
+  collectionRule   CollectionRule @relation(fields: [collectionRuleId], references: [id], onDelete: Cascade)
+  receivableId     String
+  channel          String         // email | whatsapp
+  triggerType      String         // before | on | after
+  triggerDays      Int
+  sentAt           DateTime       @default(now())
+
+  @@unique([collectionRuleId, receivableId, channel, triggerType, triggerDays])
+  @@index([collectionRuleId])
+  @@index([receivableId])
+}
+
+// ============================================================
+// NF-e Recebidas (SEFAZ)
+// ============================================================
+// ============================================================
+// BPM Flow
+// ============================================================
+model BPMFlow {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation("CompanyBPMFlows", fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  nodes       Json     // ReactFlow nodes
+  edges       Json     // ReactFlow edges
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+}
+
+// ============================================================
+// CRM Automations
+// ============================================================
+model CRMAutomation {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation("CompanyCRMAutomations", fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  isActive    Boolean  @default(true)
+  trigger     String   // new_client, new_receivable, payment_received, overdue, contract_expiring
+  conditions  Json?    // [{field, operator, value}]
+  actions     Json     // [{type: email|whatsapp|tag|task, ...}]
+  lastRunAt   DateTime?
+  runCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([trigger])
+}
+
+// ============================================================
+// Previsão Orçamentária (Budget Forecast)
+// ============================================================
+model BudgetForecast {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation("CompanyBudgets", fields: [companyId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      BusinessCategory? @relation("CategoryBudgets", fields: [categoryId], references: [id], onDelete: SetNull)
+  type          String            // receita | despesa
+  period        String            // YYYY-MM
+  plannedAmount Float
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, categoryId, period, type])
+  @@index([companyId])
+  @@index([period])
+}
+
+// ============================================================
+// Negociação de Inadimplência (DebtNegotiation)
+// ============================================================
+model DebtNegotiation {
+  id               String    @id @default(cuid())
+  companyId        String
+  company          Company   @relation("CompanyDebtNegotiations", fields: [companyId], references: [id], onDelete: Cascade)
+  clientId         String?
+  client           Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  receivableId     String?
+  userId           String
+  user             User      @relation("UserDebtNegotiations", fields: [userId], references: [id])
+  type             String    // renegotiated | lost | not_negotiated | scheduled_call | note
+  nextContactAt    DateTime?
+  forecastDate     DateTime?
+  penalty          Float?    @default(0)
+  interest         Float?    @default(0)
+  discount         Float?    @default(0)
+  totalAmount      Float?
+  paymentMethod    String?   // boleto | pix | deposito
+  bankConnectionId String?
+  notes            String?   @db.Text
+  emailSentAt      DateTime?
+  boletoCopiedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([receivableId])
+}
+
+model ReceivedNFe {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation("CompanyReceivedNFes", fields: [companyId], references: [id], onDelete: Cascade)
+  accessKey     String
+  number        String?
+  series        String?
+  supplierName  String?
+  supplierCnpj  String?
+  issueDate     DateTime?
+  totalValue    Float?
+  status        String   @default("valida") // valida, cancelada, denegada
+  items         Json?
+  xmlContent    String?  @db.Text
+  notes         String?
+  payableId     String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, accessKey])
+  @@index([companyId])
+  @@index([issueDate])
+  @@index([supplierCnpj])
+}
+
+// ====================== CUSTOM FIELDS ======================
+
+model CustomField {
+  id          String             @id @default(cuid())
+  companyId   String
+  company     Company            @relation("CompanyCustomFields", fields: [companyId], references: [id], onDelete: Cascade)
+  entity      String             // client, payable, receivable, product
+  name        String
+  fieldKey    String             // snake_case key for programmatic use
+  fieldType   String             @default("text") // text, number, date, boolean, select
+  options     Json?              // for fieldType=select: array of string options
+  required    Boolean            @default(false)
+  order       Int                @default(0)
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  values      CustomFieldValue[]
+
+  @@unique([companyId, entity, fieldKey])
+  @@index([companyId])
+  @@index([entity])
+}
+
+model CustomFieldValue {
+  id            String      @id @default(cuid())
+  customFieldId String
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  entityId      String      // id of the related record (client id, payable id, etc.)
+  value         String?     @db.Text
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([customFieldId, entityId])
+  @@index([customFieldId])
+  @@index([entityId])
+}
+
+// ====================== METAS / GOALS ======================
+
+model Goal {
+  id            String    @id @default(cuid())
+  companyId     String
+  company       Company   @relation("CompanyGoals", fields: [companyId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  type          String    @default("receita") // receita, despesa, clientes, nfe, custom
+  metric        String    @default("valor") // valor, quantidade, percentual
+  targetValue   Float
+  currentValue  Float     @default(0)
+  period        String    // YYYY-MM or YYYY (monthly or yearly)
+  status        String    @default("em_andamento") // em_andamento, atingida, nao_atingida
+  startDate     DateTime?
+  endDate       DateTime?
+  color         String    @default("#2563eb")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([period])
+  @@index([type])
+}
+
+// ====================== COMISSÕES ======================
+
+model Commission {
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation("CompanyCommissions", fields: [companyId], references: [id], onDelete: Cascade)
+  agentName      String    // seller / agent name
+  agentId        String?   // optional link to a user or employee id
+  referenceId    String?   // receivable or sale id
+  referenceType  String?   // receivable, nfe, manual
+  description    String?
+  saleAmount     Float     @default(0)
+  rate           Float     @default(0)  // percentage rate e.g. 5.0 = 5%
+  amount         Float                  // calculated commission amount
+  period         String                 // YYYY-MM
+  status         String    @default("pendente") // pendente, aprovada, paga, cancelada
+  paidAt         DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([period])
+  @@index([agentName])
+  @@index([status])
 }

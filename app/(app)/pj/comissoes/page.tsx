@@ -1,0 +1,289 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/fetch';
+import { toast } from 'sonner';
+import { DollarSign, Plus, Trash2, X, Check, Banknote } from 'lucide-react';
+
+interface Commission {
+  id: string;
+  agentName: string;
+  description: string | null;
+  saleAmount: number;
+  rate: number;
+  amount: number;
+  period: string;
+  status: string;
+  referenceType: string | null;
+  paidAt: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+interface Totals {
+  pendente: number;
+  aprovada: number;
+  paga: number;
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  pendente: 'bg-yellow-500/20 text-yellow-400',
+  aprovada: 'bg-blue-500/20 text-blue-400',
+  paga: 'bg-green-500/20 text-green-400',
+  cancelada: 'bg-slate-700 text-slate-400',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pendente: 'Pendente',
+  aprovada: 'Aprovada',
+  paga: 'Paga',
+  cancelada: 'Cancelada',
+};
+
+const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+function currentMonth() { return new Date().toISOString().slice(0, 7); }
+
+export default function ComissoesPage() {
+  const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [totals, setTotals] = useState<Totals>({ pendente: 0, aprovada: 0, paga: 0 });
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState(currentMonth());
+  const [filterStatus, setFilterStatus] = useState('');
+  const [showForm, setShowForm] = useState(false);
+
+  // form
+  const [fAgent, setFAgent] = useState('');
+  const [fDesc, setFDesc] = useState('');
+  const [fSale, setFSale] = useState('');
+  const [fRate, setFRate] = useState('');
+  const [fAmount, setFAmount] = useState('');
+  const [fNotes, setFNotes] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ period });
+    if (filterStatus) params.set('status', filterStatus);
+    const r = await apiFetch(`/api/pj/commissions?${params}`);
+    const data = await r.json();
+    setCommissions(data.commissions ?? []);
+    setTotals(data.totals ?? { pendente: 0, aprovada: 0, paga: 0 });
+    setLoading(false);
+  }, [period, filterStatus]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const calcAmount = () => {
+    const sale = parseFloat(fSale) || 0;
+    const rate = parseFloat(fRate) || 0;
+    if (sale && rate) setFAmount(((sale * rate) / 100).toFixed(2));
+  };
+
+  const create = async () => {
+    if (!fAgent.trim() || !fAmount) { toast.error('Agente e valor são obrigatórios'); return; }
+    const res = await apiFetch('/api/pj/commissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agentName: fAgent,
+        description: fDesc || null,
+        saleAmount: parseFloat(fSale) || 0,
+        rate: parseFloat(fRate) || 0,
+        amount: parseFloat(fAmount),
+        period,
+        notes: fNotes || null,
+      }),
+    });
+    if (res.ok) {
+      toast.success('Comissão registrada');
+      setShowForm(false);
+      setFAgent(''); setFDesc(''); setFSale(''); setFRate(''); setFAmount(''); setFNotes('');
+      load();
+    } else {
+      const d = await res.json();
+      toast.error(d.error || 'Erro');
+    }
+  };
+
+  const changeStatus = async (id: string, status: string) => {
+    const res = await apiFetch(`/api/pj/commissions?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, ...(status === 'paga' ? { paidAt: new Date().toISOString() } : {}) }),
+    });
+    if (res.ok) load();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm('Excluir esta comissão?')) return;
+    const res = await apiFetch(`/api/pj/commissions?id=${id}`, { method: 'DELETE' });
+    if (res.ok) { toast.success('Removida'); load(); }
+  };
+
+  const nextStatus: Record<string, string> = { pendente: 'aprovada', aprovada: 'paga' };
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-slate-300" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Comissões</h1>
+            <p className="text-slate-400 text-sm mt-0.5">Controle de comissões de vendedores e agentes</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <input type="month" value={period} onChange={e => setPeriod(e.target.value)}
+            className="bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+            className="bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+            <option value="">Todos os status</option>
+            {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <button onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            <Plus className="w-4 h-4" /> Registrar
+          </button>
+        </div>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'A pagar', value: totals.pendente + totals.aprovada, color: 'text-yellow-400' },
+          { label: 'Aprovadas', value: totals.aprovada, color: 'text-blue-400' },
+          { label: 'Pagas', value: totals.paga, color: 'text-green-400' },
+        ].map(s => (
+          <div key={s.label} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+            <p className={`text-xl font-bold ${s.color}`}>{fmt(s.value)}</p>
+            <p className="text-slate-400 text-xs mt-0.5">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-slate-500 text-sm">Carregando...</div>
+        ) : commissions.length === 0 ? (
+          <div className="p-12 text-center">
+            <Banknote className="w-10 h-10 text-slate-600 mx-auto mb-2" />
+            <p className="text-slate-400">Nenhuma comissão registrada para {period}</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-700 text-left">
+                <th className="px-4 py-3 text-slate-400 font-medium">Agente</th>
+                <th className="px-4 py-3 text-slate-400 font-medium hidden md:table-cell">Descrição</th>
+                <th className="px-4 py-3 text-slate-400 font-medium hidden lg:table-cell">Venda</th>
+                <th className="px-4 py-3 text-slate-400 font-medium hidden lg:table-cell">Taxa</th>
+                <th className="px-4 py-3 text-slate-400 font-medium">Comissão</th>
+                <th className="px-4 py-3 text-slate-400 font-medium">Status</th>
+                <th className="px-4 py-3 text-slate-400 font-medium w-24"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-700">
+              {commissions.map(c => (
+                <tr key={c.id} className="hover:bg-slate-700/30 transition-colors">
+                  <td className="px-4 py-3 text-white font-medium">{c.agentName}</td>
+                  <td className="px-4 py-3 text-slate-400 hidden md:table-cell">{c.description ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-300 hidden lg:table-cell">{c.saleAmount > 0 ? fmt(c.saleAmount) : '—'}</td>
+                  <td className="px-4 py-3 text-slate-300 hidden lg:table-cell">{c.rate > 0 ? `${c.rate}%` : '—'}</td>
+                  <td className="px-4 py-3 text-white font-semibold">{fmt(c.amount)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[c.status] ?? 'bg-slate-700 text-slate-300'}`}>
+                      {STATUS_LABELS[c.status] ?? c.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      {nextStatus[c.status] && (
+                        <button onClick={() => changeStatus(c.id, nextStatus[c.status])}
+                          title={nextStatus[c.status] === 'aprovada' ? 'Aprovar' : 'Marcar como paga'}
+                          className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-900/20 rounded">
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button onClick={() => remove(c.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-bold">Registrar Comissão</h3>
+              <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Agente / Vendedor *</label>
+                <input value={fAgent} onChange={e => setFAgent(e.target.value)}
+                  placeholder="Nome do vendedor"
+                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Descrição</label>
+                <input value={fDesc} onChange={e => setFDesc(e.target.value)}
+                  placeholder="ex: Venda contrato #123"
+                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Valor da venda</label>
+                  <input type="number" value={fSale} onChange={e => setFSale(e.target.value)} onBlur={calcAmount}
+                    placeholder="0,00"
+                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Taxa (%)</label>
+                  <input type="number" value={fRate} onChange={e => setFRate(e.target.value)} onBlur={calcAmount}
+                    placeholder="5"
+                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Valor da comissão *</label>
+                <input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)}
+                  placeholder="Calculado automaticamente ou manual"
+                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Observações</label>
+                <input value={fNotes} onChange={e => setFNotes(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setShowForm(false)}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+                Cancelar
+              </button>
+              <button onClick={create}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg text-sm font-medium">
+                Registrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

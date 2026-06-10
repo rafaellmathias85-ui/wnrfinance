@@ -14,7 +14,7 @@ export default function BancosPagePJ() {
       <BankConnectionPage
         scope="PJ"
         title="Contas Bancárias da Empresa"
-        subtitle="Cadastre manualmente ou conecte via Open Finance (quando ativado) para sincronizar extratos, cartões e investimentos da empresa."
+        subtitle="Conecte Banco Inter PJ por API oficial com mTLS ou importe OFX/CSV; Itaú PJ fica preparado com contingência OFX."
       />
     </div>
   );

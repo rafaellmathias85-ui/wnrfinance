@@ -33,6 +33,7 @@ export async function PUT(req: NextRequest, { params }: any) {
   if (body.chargeType !== undefined) data.chargeType = body.chargeType || 'boleto_pix';
   if (body.fiscalRuleId !== undefined) data.fiscalRuleId = body.fiscalRuleId || null;
   if (body.billingPeriod !== undefined) data.billingPeriod = body.billingPeriod || null;
+  if (body.launchType !== undefined) data.launchType = body.launchType || null;
 
   const updated = await prisma.accountsReceivable.update({ where: { id }, data });
   return NextResponse.json(updated);

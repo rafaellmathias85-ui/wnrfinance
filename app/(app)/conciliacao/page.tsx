@@ -21,6 +21,7 @@ import {
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
   RECONCILED: { label: 'Conciliado', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: CheckCircle2 },
   DIVERGENT: { label: 'Divergente', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400', icon: AlertTriangle },
+  SUGGESTED: { label: 'Sugestão', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400', icon: HelpCircle },
   BANK_ONLY: { label: 'Só no Banco', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: HelpCircle },
   PENDING: { label: 'Pendente', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300', icon: RefreshCw },
   IGNORED: { label: 'Ignorado', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500', icon: EyeOff },
@@ -414,7 +415,7 @@ export default function ConciliacaoPage() {
   // Determine batch status
   const getBatchStatus = (batch: any) => {
     if (batch.stats.total === batch.stats.reconciled + batch.stats.ignored) return 'concluido';
-    if (batch.stats.pending > 0 || batch.stats.bankOnly > 0 || batch.stats.divergent > 0) return 'pendente';
+    if (batch.stats.pending > 0 || batch.stats.bankOnly > 0 || batch.stats.divergent > 0 || batch.stats.suggested > 0) return 'pendente';
     return 'em_andamento';
   };
 
@@ -609,7 +610,7 @@ export default function ConciliacaoPage() {
       {/* Filters + View Toggle */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex gap-2 flex-wrap">
-          {['', 'RECONCILED', 'DIVERGENT', 'BANK_ONLY', 'PENDING', 'IGNORED'].map(st => (
+          {['', 'RECONCILED', 'DIVERGENT', 'SUGGESTED', 'BANK_ONLY', 'PENDING', 'IGNORED'].map(st => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -713,6 +714,11 @@ export default function ConciliacaoPage() {
                       {batch.stats.divergent > 0 && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title="Divergentes">
                           ⚠ {batch.stats.divergent}
+                        </span>
+                      )}
+                      {batch.stats.suggested > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" title="Sugestões">
+                          ~ {batch.stats.suggested}
                         </span>
                       )}
                       {batch.stats.bankOnly > 0 && (

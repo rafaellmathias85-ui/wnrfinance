@@ -19,7 +19,7 @@ export default function BancosPagePF() {
     <BankConnectionPage
       scope="PF"
       title="Minhas Contas Bancárias"
-      subtitle="Cadastre manualmente ou conecte via Open Finance (quando ativado) para sincronizar extratos, cartões e investimentos automaticamente."
+      subtitle="Importe extratos OFX/CSV de Banco Inter ou Itaú sem informar senha bancária."
     />
   );
 }

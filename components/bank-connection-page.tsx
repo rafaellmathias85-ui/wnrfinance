@@ -1,597 +1,596 @@
 'use client';
+
 import { apiFetch } from '@/lib/fetch';
-import { BRAZILIAN_BANKS } from '@/lib/format';
-import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import NextImage from 'next/image';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import BalanceOverview from '@/components/balance-overview';
-
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Building2, Plus, RefreshCw, Unplug, Link2, Trash2, CheckCircle, AlertCircle,
-  WifiOff, Loader2, ArrowRightLeft, CreditCard, TrendingUp, Wallet, Clock, Shield,
-  Info, PencilLine, Settings,
+  AlertCircle,
+  Banknote,
+  Building2,
+  CheckCircle2,
+  FileSearch,
+  FileText,
+  History,
+  KeyRound,
+  Loader2,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+  Upload,
+  Wifi,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
-const ACCOUNT_TYPES = [
-  { id: 'checking', label: 'Conta Corrente', icon: Wallet },
-  { id: 'savings', label: 'Poupança', icon: Building2 },
-  { id: 'credit', label: 'Cartão de Crédito', icon: CreditCard },
-  { id: 'investment', label: 'Investimentos', icon: TrendingUp },
-];
+type PersonType = 'PF' | 'PJ';
+type BankCode = 'INTER' | 'ITAU';
+type ConnectionMode = 'API' | 'OFX' | 'CSV' | 'OPEN_FINANCE_FUTURE';
 
 interface BankConnection {
   id: string;
   bankName: string;
-  bankLogo: string | null;
+  bankLogo?: string | null;
+  bankCode?: string | null;
+  personType: PersonType;
   provider: string;
+  connectionMode: ConnectionMode;
   status: string;
-  accountType: string | null;
-  accountNumber: string | null;
-  agency: string | null;
-  openingBalance?: number;
-  lastSyncAt: string | null;
-  syncError: string | null;
-  createdAt: string;
+  agency?: string | null;
+  accountNumber?: string | null;
+  accountDigit?: string | null;
+  currentBalance?: number | null;
+  lastSyncAt?: string | null;
+  syncError?: string | null;
 }
 
-function getBankLogo(bankName: string): string {
-  const bank = BRAZILIAN_BANKS.find(b => bankName?.toLowerCase().includes(b.name.toLowerCase().split(' ')[0]?.toLowerCase() || ''));
-  return bank?.logo || '';
+interface PreviewResult {
+  importId: string;
+  total: number;
+  duplicates: number;
+  errors: Array<{ row: number; message: string }>;
+  transactions: Array<any & { duplicate: boolean }>;
 }
 
 interface Props {
-  scope: 'PF' | 'PJ';
+  scope: PersonType;
   title: string;
   subtitle: string;
 }
 
+const BANKS: Array<{ code: BankCode; name: string; logo: string }> = [
+  { code: 'INTER', name: 'Banco Inter', logo: '/banks/inter.png' },
+  { code: 'ITAU', name: 'Itaú', logo: '/banks/itau.png' },
+];
+
 export function BankConnectionPage({ scope, title, subtitle }: Props) {
-  const [data, setData] = useState<{ connections: BankConnection[]; stats: any } | null>(null);
+  const [connections, setConnections] = useState<BankConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [addTab, setAddTab] = useState<'manual' | 'open-finance'>('manual');
-  const [addStep, setAddStep] = useState(1);
-  const [selectedBank, setSelectedBank] = useState('');
-  const [selectedBankLogo, setSelectedBankLogo] = useState('');
-  const [selectedAccountType, setSelectedAccountType] = useState('checking');
+  const [step, setStep] = useState(1);
+  const [bankCode, setBankCode] = useState<BankCode>('INTER');
+  const [personType, setPersonType] = useState<PersonType>(scope);
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>('OFX');
+  const [connectionName, setConnectionName] = useState('');
+  const [ownerTaxId, setOwnerTaxId] = useState('');
   const [agency, setAgency] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [openingBalance, setOpeningBalance] = useState('');
-  const [customBank, setCustomBank] = useState('');
-  const [syncing, setSyncing] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [pluggyStatus, setPluggyStatus] = useState<{ configured: boolean; healthy: boolean } | null>(null);
-  const [connectError, setConnectError] = useState('');
-  const [editConn, setEditConn] = useState<BankConnection | null>(null);
-  const [balanceRefreshKey, setBalanceRefreshKey] = useState(0);
+  const [account, setAccount] = useState('');
+  const [accountDigit, setAccountDigit] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [certificatePassword, setCertificatePassword] = useState('');
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [privateKeyFile, setPrivateKeyFile] = useState<File | null>(null);
+  const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [createdConnectionId, setCreatedConnectionId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
 
-  const refreshBalance = () => setBalanceRefreshKey(k => k + 1);
-
-  const fetchData = useCallback(() => {
-    apiFetch('/api/banks')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const loadConnections = useCallback(async () => {
+    setLoading(true);
+    const res = await apiFetch(`/api/banking/connections?personType=${scope}`);
+    const data = await res.json();
+    setConnections(data.connections || []);
+    setLoading(false);
+  }, [scope]);
 
   useEffect(() => {
-    apiFetch('/api/integrations/status')
-      .then(r => r.json())
-      .then(d => setPluggyStatus(d?.integrations?.pluggy || null))
-      .catch(() => setPluggyStatus({ configured: false, healthy: false }));
-  }, []);
+    loadConnections();
+  }, [loadConnections]);
 
-  const handleManualSave = async () => {
-    setSaving(true);
-    setConnectError('');
-    const bankName = selectedBank === 'Outro' ? (customBank || 'Outro') : selectedBank;
-    const bank = BRAZILIAN_BANKS.find(b => b.name === bankName);
-    try {
-      const res = await apiFetch('/api/banks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bankName,
-          bankLogo: bank?.logo || null,
-          accountType: selectedAccountType,
-          agency: agency || null,
-          accountNumber: accountNumber || null,
-          openingBalance: openingBalance ? parseFloat(openingBalance.replace(',', '.')) : 0,
-        }),
-      });
-      if (res.ok) { resetForm(); fetchData(); refreshBalance(); }
-      else { const d = await res.json(); setConnectError(d.error || 'Erro ao cadastrar'); }
-    } catch { setConnectError('Erro de rede'); }
-    setSaving(false);
-  };
+  useEffect(() => {
+    setPersonType(scope);
+  }, [scope]);
 
-  const handleOpenFinanceConnect = async () => {
-    setSaving(true);
-    setConnectError('');
-    try {
-      const res = await apiFetch('/api/pluggy/connect-token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-      const d = await res.json();
-      if (!res.ok) {
-        setConnectError(d.error || 'Não foi possível iniciar a conexão');
-        setSaving(false);
-        return;
-      }
-      // Load Pluggy Connect Widget via script tag and open it
-      await loadPluggyWidget(d.accessToken, async (itemId) => {
-        const cb = await apiFetch('/api/pluggy/callback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId }) });
-        if (cb.ok) { resetForm(); fetchData(); }
-        else { const err = await cb.json(); setConnectError(err.error || 'Erro ao salvar conexão'); }
-      }, (error: any) => {
-        setConnectError(error?.message || 'Conexão cancelada ou com erro');
-      });
-    } catch (e: any) {
-      setConnectError(e?.message || 'Erro de rede');
-    }
-    setSaving(false);
-  };
+  useEffect(() => {
+    const firstAvailable = getMethods(bankCode, personType)[0];
+    setConnectionMode(firstAvailable.mode);
+    setPreview(null);
+    setCreatedConnectionId(null);
+  }, [bankCode, personType]);
 
-  const handleAction = async (id: string, action: string) => {
-    setSyncing(id);
-    setConnectError('');
-    try {
-      const res = await apiFetch(`/api/banks/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      if (!res.ok) {
-        const d = await res.json();
-        setConnectError(d.error || 'Erro ao executar ação');
-      }
-      fetchData();
-    } catch { /* noop */ }
-    setSyncing(null);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Remover esta conta bancária? Esta ação não pode ser desfeita.')) return;
-    await apiFetch(`/api/banks/${id}`, { method: 'DELETE' });
-    fetchData();
-    refreshBalance();
-  };
-
-  const handleUpdate = async () => {
-    if (!editConn) return;
-    setSaving(true);
-    try {
-      await apiFetch(`/api/banks/${editConn.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update',
-          bankName: editConn.bankName,
-          accountType: editConn.accountType,
-          agency: editConn.agency,
-          accountNumber: editConn.accountNumber,
-          openingBalance: editConn.openingBalance,
-        }),
-      });
-      setEditConn(null);
-      fetchData();
-      refreshBalance();
-    } catch { /* noop */ }
-    setSaving(false);
-  };
+  const stats = useMemo(() => {
+    const active = connections.filter((item) => item.status === 'ACTIVE' || item.status === 'active').length;
+    const api = connections.filter((item) => item.connectionMode === 'API').length;
+    const ofx = connections.filter((item) => item.connectionMode === 'OFX' || item.connectionMode === 'CSV').length;
+    return { total: connections.length, active, api, ofx };
+  }, [connections]);
 
   const resetForm = () => {
     setShowAdd(false);
-    setAddTab('manual');
-    setAddStep(1);
-    setSelectedBank('');
-    setSelectedBankLogo('');
-    setSelectedAccountType('checking');
+    setStep(1);
+    setBankCode('INTER');
+    setPersonType(scope);
+    setConnectionMode('OFX');
+    setConnectionName('');
+    setOwnerTaxId('');
     setAgency('');
-    setAccountNumber('');
-    setOpeningBalance('');
-    setCustomBank('');
-    setConnectError('');
+    setAccount('');
+    setAccountDigit('');
+    setClientId('');
+    setClientSecret('');
+    setCertificatePassword('');
+    setCertificateFile(null);
+    setPrivateKeyFile(null);
+    setStatementFile(null);
+    setCreatedConnectionId(null);
+    setPreview(null);
+    setMessage('');
+    setError('');
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active': return <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded-full"><CheckCircle className="w-3 h-3" /> Ativa</span>;
-      case 'syncing': return <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-full"><Loader2 className="w-3 h-3 animate-spin" /> Sincronizando</span>;
-      case 'error': return <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-100 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded-full"><AlertCircle className="w-3 h-3" /> Erro</span>;
-      case 'disconnected': return <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 bg-gray-100 dark:bg-gray-800 dark:text-gray-300 px-2 py-1 rounded-full"><WifiOff className="w-3 h-3" /> Desconectada</span>;
-      default: return null;
+  const saveConnection = async (keepOpen = false) => {
+    setBusy('save');
+    setError('');
+    setMessage('');
+
+    try {
+      const payload = {
+        name: connectionName || selectedBank().name,
+        bankCode,
+        personType,
+        connectionMode,
+        agency: agency || null,
+        account: account || null,
+        accountDigit: accountDigit || null,
+        ownerTaxId: ownerTaxId || null,
+        clientId: clientId || null,
+        clientSecret: clientSecret || null,
+        certificate: certificateFile ? await certificateFile.text() : null,
+        privateKey: privateKeyFile ? await privateKeyFile.text() : null,
+        certificatePassword: certificatePassword || null,
+      };
+
+      const res = await apiFetch('/api/banking/connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar conexão');
+
+      setCreatedConnectionId(data.connection.id);
+      setMessage('Conexão salva com credenciais criptografadas.');
+      await loadConnections();
+      if (!keepOpen) resetForm();
+      return data.connection as BankConnection;
+    } catch (err: any) {
+      setError(err.message || 'Erro ao salvar conexão');
+      return null;
+    } finally {
+      setBusy(null);
     }
   };
 
-  const getProviderBadge = (provider: string) => {
-    if (provider === 'pluggy') return <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-full"><Shield className="w-3 h-3" /> Open Finance</span>;
-    if (provider === 'manual') return <span className="inline-flex items-center gap-1 text-xs font-medium text-purple-700 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400 px-2 py-1 rounded-full"><PencilLine className="w-3 h-3" /> Manual</span>;
-    return <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-full">{provider}</span>;
+  const ensureConnection = async () => {
+    if (createdConnectionId) return createdConnectionId;
+    const connection = await saveConnection(true);
+    return connection?.id || null;
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
+  const testConnection = async () => {
+    const id = await ensureConnection();
+    if (!id) return;
+    setBusy('test');
+    setError('');
+    setMessage('');
+    try {
+      const res = await apiFetch(`/api/banking/connections/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test', personType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao testar conexão');
+      setMessage(data.message || 'Teste concluído.');
+      await loadConnections();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao testar conexão');
+    } finally {
+      setBusy(null);
+    }
+  };
 
-  const connections = data?.connections || [];
-  const stats = data?.stats || {};
-  const hasOpenFinance = pluggyStatus?.configured && pluggyStatus?.healthy;
+  const previewImport = async () => {
+    if (!statementFile) {
+      setError('Selecione um arquivo OFX ou CSV.');
+      return;
+    }
+    const id = await ensureConnection();
+    if (!id) return;
+    setBusy('preview');
+    setError('');
+    setMessage('');
+    const formData = new FormData();
+    formData.append('file', statementFile);
+    formData.append('connectionId', id);
+    formData.append('personType', personType);
+    formData.append('bankCode', bankCode);
+    try {
+      const res = await apiFetch('/api/banking/import/preview', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao pré-visualizar');
+      setPreview(data);
+      setMessage(`${data.total} transações encontradas; ${data.duplicates} duplicadas.`);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao pré-visualizar');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!preview) return;
+    const id = await ensureConnection();
+    if (!id) return;
+    setBusy('import');
+    setError('');
+    setMessage('');
+    try {
+      const res = await apiFetch('/api/banking/import/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          connectionId: id,
+          personType,
+          transactions: preview.transactions,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao importar');
+      setMessage(`Importadas: ${data.imported}. Duplicadas ignoradas: ${data.skipped}.`);
+      setPreview(null);
+      setStatementFile(null);
+      await loadConnections();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao importar');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const syncNow = async (connection: BankConnection) => {
+    setBusy(`sync:${connection.id}`);
+    setError('');
+    setMessage('');
+    try {
+      const res = await apiFetch(`/api/banking/connections/${connection.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync', personType: connection.personType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao sincronizar');
+      setMessage(`Sincronização concluída. Importadas: ${data.imported || 0}.`);
+      await loadConnections();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao sincronizar');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeConnection = async (connection: BankConnection) => {
+    if (!confirm('Remover conexão bancária?')) return;
+    setBusy(`delete:${connection.id}`);
+    await apiFetch(`/api/banking/connections/${connection.id}`, { method: 'DELETE' });
+    await loadConnections();
+    setBusy(null);
+  };
+
+  const selectedBank = () => BANKS.find((item) => item.code === bankCode) || BANKS[0];
+  const methods = getMethods(bankCode, personType);
+  const isApiMode = connectionMode === 'API';
+  const isManualImportMode = connectionMode === 'OFX' || connectionMode === 'CSV';
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-7 w-7 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-          <p className="text-muted-foreground mt-1">{subtitle}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        <Dialog open={showAdd} onOpenChange={(open) => { if (!open) resetForm(); else setShowAdd(true); }}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-              <Plus className="w-4 h-4" /> Adicionar Banco
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Adicionar Conta Bancária</DialogTitle>
-            </DialogHeader>
-
-            {/* Tabs */}
-            <div className="flex gap-2 border-b">
-              <button
-                onClick={() => { setAddTab('manual'); setAddStep(1); setConnectError(''); }}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${addTab === 'manual' ? 'border-blue-600 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-              >
-                <PencilLine className="w-4 h-4 inline mr-1" /> Cadastro Manual
-              </button>
-              <button
-                onClick={() => { setAddTab('open-finance'); setConnectError(''); }}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${addTab === 'open-finance' ? 'border-blue-600 text-blue-600' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
-              >
-                <Shield className="w-4 h-4 inline mr-1" /> Open Finance
-              </button>
-            </div>
-
-            {connectError && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-xs text-red-800 dark:text-red-300">{connectError}</p>
-              </div>
-            )}
-
-            {addTab === 'manual' && (
-              <>
-                <div className="p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
-                  <p className="text-xs text-purple-800 dark:text-purple-300">
-                    <strong><PencilLine className="w-3 h-3 inline" /> Cadastro manual:</strong> você adiciona seus dados bancários apenas para organização interna. <strong>Não há sincronização</strong> com o banco — lançamentos serão inseridos manualmente.
-                  </p>
-                </div>
-
-                {addStep === 1 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-                    {[...BRAZILIAN_BANKS, { name: 'Outro', logo: '' }].map(b => (
-                      <button
-                        key={b.name}
-                        onClick={() => { setSelectedBank(b.name); setSelectedBankLogo(b.logo); setAddStep(2); }}
-                        className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all text-center"
-                      >
-                        {b.logo ? (
-                          <div className="relative w-10 h-10 rounded-lg overflow-hidden">
-                            <NextImage src={b.logo} alt={b.name} fill className="object-contain" />
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-muted-foreground" />
-                          </div>
-                        )}
-                        <span className="text-xs font-medium text-foreground">{b.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {addStep === 2 && (
-                  <div className="space-y-4 mt-2">
-                    <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                      {selectedBankLogo ? (
-                        <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                          <NextImage src={selectedBankLogo} alt={selectedBank} fill className="object-contain" />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center flex-shrink-0"><Building2 className="w-5 h-5 text-muted-foreground" /></div>
-                      )}
-                      <p className="font-medium text-foreground">{selectedBank}</p>
-                    </div>
-
-                    {selectedBank === 'Outro' && (
-                      <div>
-                        <label className="text-sm font-medium text-foreground">Nome do Banco</label>
-                        <Input value={customBank} onChange={e => setCustomBank(e.target.value)} placeholder="Nome da instituição" className="mt-1" />
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Tipo de Conta</label>
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        {ACCOUNT_TYPES.map(t => (
-                          <button
-                            key={t.id}
-                            onClick={() => setSelectedAccountType(t.id)}
-                            className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all text-sm ${selectedAccountType === t.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : 'border-gray-200 dark:border-gray-700 text-muted-foreground hover:border-gray-300'}`}
-                          >
-                            <t.icon className="w-4 h-4" />
-                            {t.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-sm font-medium text-foreground">Agência</label>
-                        <Input value={agency} onChange={e => setAgency(e.target.value)} placeholder="0001" className="mt-1" />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-foreground">Conta</label>
-                        <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="12345-6" className="mt-1" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Saldo Inicial (R$)</label>
-                      <Input value={openingBalance} onChange={e => setOpeningBalance(e.target.value)} placeholder="0,00" className="mt-1" />
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setAddStep(1)} className="flex-1">Voltar</Button>
-                      <Button onClick={handleManualSave} disabled={saving || (selectedBank === 'Outro' && !customBank)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
-                        {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PencilLine className="w-4 h-4 mr-2" />}
-                        Cadastrar
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {addTab === 'open-finance' && (
-              <div className="space-y-4">
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <p className="text-xs text-blue-800 dark:text-blue-300">
-                    <strong><Shield className="w-3 h-3 inline" /> Open Finance (Pluggy):</strong> conexão real e regulamentada pelo Banco Central. Você será redirecionado ao app/internet banking do banco para autorizar. Após conectar, extratos, cartões e investimentos serão sincronizados automaticamente.
-                  </p>
-                </div>
-
-                {hasOpenFinance ? (
-                  <>
-                    <ol className="text-sm space-y-2 text-foreground">
-                      <li className="flex gap-2"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">1</span> Clique em “Conectar via Open Finance” abaixo.</li>
-                      <li className="flex gap-2"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">2</span> Selecione seu banco e autorize no app do banco.</li>
-                      <li className="flex gap-2"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">3</span> Aguarde o status mudar para “Ativa” — pode levar alguns segundos.</li>
-                    </ol>
-                    <Button onClick={handleOpenFinanceConnect} disabled={saving} className="w-full bg-blue-600 hover:bg-blue-700 text-white gap-2">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                      Conectar via Open Finance
-                    </Button>
-                  </>
-                ) : (
-                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
-                    <div className="flex gap-3">
-                      <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm text-amber-900 dark:text-amber-200">
-                        <p className="font-semibold mb-1">Integração ainda não configurada</p>
-                        <p>Para ativar Open Finance real, configure as credenciais Pluggy em <Link href="/configuracoes/integracoes" className="text-blue-600 hover:underline font-medium">Configurações &rsaquo; Integrações</Link>.</p>
-                        <p className="mt-2 text-xs">Enquanto isso, use o cadastro manual na aba ao lado.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setShowAdd(true)} className="gap-2 bg-blue-600 text-white hover:bg-blue-700">
+          <Plus className="h-4 w-4" />
+          Nova conexão
+        </Button>
       </div>
 
-      {/* Transparency banner when OF not active */}
-      {!hasOpenFinance && (
-        <div className="p-4 rounded-xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
-          <div className="flex gap-3">
-            <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-900 dark:text-amber-200 flex-1">
-              <p className="font-semibold mb-1">Modo Cadastro Manual</p>
-              <p>Open Finance (conexão automática com o banco) ainda não está ativado. As contas cadastradas aqui são <strong>apenas registros manuais</strong> — o sistema não acessa dados do banco e não importa extratos automaticamente.</p>
-              <Link href="/configuracoes/integracoes" className="inline-flex items-center gap-1 mt-2 text-amber-900 dark:text-amber-100 underline hover:no-underline text-xs font-medium">
-                <Settings className="w-3 h-3" /> Configurar Open Finance
-              </Link>
-            </div>
-          </div>
+      {(message || error) && (
+        <div className={`rounded-lg border p-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
+          {error || message}
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><Building2 className="w-5 h-5 text-blue-600" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">Contas Cadastradas</p>
-                <p className="text-xl font-bold text-foreground">{stats.totalConnections || 0}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><CheckCircle className="w-5 h-5 text-emerald-600" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">Contas Ativas</p>
-                <p className="text-xl font-bold text-foreground">{stats.activeConnections || 0}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        {scope === 'PF' ? (
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"><ArrowRightLeft className="w-5 h-5 text-amber-600" /></div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Transações</p>
-                  <p className="text-xl font-bold text-foreground">{stats.totalTransactions || 0}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center"><Clock className="w-5 h-5 text-purple-600" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">Última Sincronização</p>
-                <p className="text-sm font-bold text-foreground">{stats.lastSync ? new Date(stats.lastSync).toLocaleDateString('pt-BR') : '—'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric label="Conexões" value={stats.total} icon={Building2} />
+        <Metric label="Ativas" value={stats.active} icon={CheckCircle2} />
+        <Metric label="API PJ" value={stats.api} icon={Wifi} />
+        <Metric label="OFX/CSV" value={stats.ofx} icon={FileText} />
       </div>
 
-      {/* Balance Overview */}
-      <BalanceOverview refreshKey={balanceRefreshKey} />
-
-      {/* Connections list */}
       {connections.length === 0 ? (
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <Building2 className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">Nenhuma conta bancária cadastrada</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Cadastre contas bancárias manualmente para organização ou conecte via Open Finance (quando ativado) para sincronização automática.
-            </p>
-            <Button onClick={() => setShowAdd(true)} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-              <Plus className="w-4 h-4" /> Adicionar Primeira Conta
-            </Button>
+        <Card>
+          <CardContent className="p-10 text-center">
+            <Banknote className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">Nenhuma conexão bancária</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Crie uma conexão Inter/Itaú por API PJ ou importação OFX/CSV.</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {connections.map((conn, i) => {
-            const logoUrl = conn.bankLogo || getBankLogo(conn.bankName);
-            return (
-              <motion.div key={conn.id} initial={{ y: 5 }} animate={{ y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-5">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        {logoUrl ? (
-                          <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
-                            <NextImage src={logoUrl} alt={conn.bankName} fill className="object-contain p-1" />
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center flex-shrink-0">
-                            <Building2 className="w-6 h-6 text-blue-600" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-foreground">{conn.bankName}</h3>
-                            {getProviderBadge(conn.provider)}
-                            {getStatusBadge(conn.status)}
-                          </div>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                            <span>{ACCOUNT_TYPES.find(t => t.id === conn.accountType)?.label || 'Conta'}</span>
-                            {conn.agency && <><span>•</span><span>Ag. {conn.agency}</span></>}
-                            {conn.accountNumber && <><span>•</span><span>CC {conn.accountNumber}</span></>}
-                          </div>
-                          {conn.lastSyncAt && conn.provider !== 'manual' && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Última sync: {new Date(conn.lastSyncAt).toLocaleString('pt-BR')}
-                            </p>
-                          )}
-                          {conn.provider === 'manual' && (
-                            <p className="text-xs text-muted-foreground mt-1">Cadastro manual — sem sincronização automática</p>
-                          )}
-                          {conn.syncError && <p className="text-xs text-red-500 mt-1">{conn.syncError}</p>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {conn.provider === 'pluggy' && conn.status === 'active' && (
-                          <Button variant="outline" size="sm" onClick={() => handleAction(conn.id, 'sync')} disabled={syncing === conn.id} className="gap-1 text-blue-600 border-blue-200 hover:bg-blue-50">
-                            <RefreshCw className={`w-3.5 h-3.5 ${syncing === conn.id ? 'animate-spin' : ''}`} /> Sincronizar
-                          </Button>
-                        )}
-                        {conn.provider === 'manual' && (
-                          <Button variant="outline" size="sm" onClick={() => setEditConn(conn)} className="gap-1">
-                            <PencilLine className="w-3.5 h-3.5" /> Editar
-                          </Button>
-                        )}
-                        {conn.status === 'disconnected' && (
-                          <Button variant="outline" size="sm" onClick={() => handleAction(conn.id, 'reconnect')} className="gap-1 text-blue-600 border-blue-200 hover:bg-blue-50">
-                            <Link2 className="w-3.5 h-3.5" /> Reconectar
-                          </Button>
-                        )}
-                        {conn.status === 'active' && conn.provider === 'pluggy' && (
-                          <Button variant="outline" size="sm" onClick={() => handleAction(conn.id, 'disconnect')} className="gap-1 text-muted-foreground border-gray-200 hover:bg-gray-50">
-                            <Unplug className="w-3.5 h-3.5" /> Desconectar
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(conn.id)} className="text-red-500 hover:bg-red-50 hover:text-red-600">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
+        <div className="grid gap-3">
+          {connections.map((connection) => (
+            <Card key={connection.id}>
+              <CardContent className="p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-foreground">{connection.bankName}</h3>
+                      <StatusBadge status={connection.status} mode={connection.connectionMode} />
+                      <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                        {connection.personType} · {connection.connectionMode}
+                      </span>
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {connection.agency ? `Ag. ${connection.agency}` : 'Agência não informada'}
+                      {' · '}
+                      {connection.accountNumber ? `Conta ${connection.accountNumber}${connection.accountDigit ? `-${connection.accountDigit}` : ''}` : 'Conta não informada'}
+                    </p>
+                    {connection.syncError && <p className="mt-1 text-xs text-red-600">{connection.syncError}</p>}
+                    {connection.lastSyncAt && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Última sincronização: {new Date(connection.lastSyncAt).toLocaleString('pt-BR')}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {connection.connectionMode === 'API' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => syncNow(connection)}
+                        disabled={busy === `sync:${connection.id}`}
+                        className="gap-2"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${busy === `sync:${connection.id}` ? 'animate-spin' : ''}`} />
+                        Sincronizar agora
+                      </Button>
+                    )}
+                    {(connection.connectionMode === 'OFX' || connection.connectionMode === 'CSV') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAdd(true);
+                          setStep(3);
+                          setBankCode((connection.bankCode as BankCode) || 'INTER');
+                          setPersonType(connection.personType);
+                          setConnectionMode(connection.connectionMode);
+                          setCreatedConnectionId(connection.id);
+                        }}
+                        className="gap-2"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Importar OFX/CSV
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => setMessage('Logs disponíveis em Auditoria.')} className="gap-2">
+                      <History className="h-4 w-4" />
+                      Ver logs
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeConnection(connection)}
+                      disabled={busy === `delete:${connection.id}`}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
-      {/* Edit dialog (manual accounts) */}
-      <Dialog open={!!editConn} onOpenChange={(o) => { if (!o) setEditConn(null); }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Editar Conta Manual</DialogTitle></DialogHeader>
-          {editConn && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-foreground">Banco</label>
-                <Input value={editConn.bankName} onChange={e => setEditConn({ ...editConn, bankName: e.target.value })} className="mt-1" />
+      <Dialog open={showAdd} onOpenChange={(open) => { if (!open) resetForm(); else setShowAdd(true); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Financeiro · Bancos · Nova conexão</DialogTitle>
+          </DialogHeader>
+
+          <StepHeader step={step} />
+
+          {step === 1 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {BANKS.map((bank) => (
+                <button
+                  key={bank.code}
+                  onClick={() => { setBankCode(bank.code); setStep(2); }}
+                  className={`rounded-lg border p-4 text-left transition-colors ${bankCode === bank.code ? 'border-blue-500 bg-blue-50' : 'hover:bg-muted'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="relative h-9 w-9 overflow-hidden rounded-md bg-white">
+                      <NextImage src={bank.logo} alt={bank.name} fill className="object-contain" />
+                    </span>
+                    <div>
+                      <p className="font-semibold">{bank.name}</p>
+                      <p className="text-xs text-muted-foreground">Saldo, extrato, OFX/CSV</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(['PJ', 'PF'] as PersonType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => { setPersonType(type); setStep(3); }}
+                  className={`rounded-lg border p-4 text-left transition-colors ${personType === type ? 'border-blue-500 bg-blue-50' : 'hover:bg-muted'}`}
+                >
+                  <p className="font-semibold">{type === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {type === 'PJ' ? 'API empresarial quando disponível, com fallback OFX.' : 'OFX/CSV sem senha bancária.'}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-5">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {methods.map((method) => (
+                  <button
+                    key={method.mode}
+                    disabled={method.disabled}
+                    onClick={() => !method.disabled && setConnectionMode(method.mode)}
+                    className={`rounded-lg border p-3 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${connectionMode === method.mode ? 'border-blue-500 bg-blue-50' : 'hover:bg-muted'}`}
+                  >
+                    <p className="font-semibold">{method.label}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{method.description}</p>
+                  </button>
+                ))}
               </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Tipo</label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {ACCOUNT_TYPES.map(t => (
-                    <button key={t.id} onClick={() => setEditConn({ ...editConn, accountType: t.id })}
-                      className={`flex items-center gap-2 p-2 rounded-lg border-2 text-sm ${editConn.accountType === t.id ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-muted-foreground'}`}>
-                      <t.icon className="w-4 h-4" /> {t.label}
-                    </button>
-                  ))}
+
+              {personType === 'PF' && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                  Por segurança, o sistema não solicita senha bancária nem acessa seu Internet Banking. Para conta PF, utilize OFX/CSV ou futuramente Open Finance.
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-sm font-medium text-foreground">Agência</label>
-                  <Input value={editConn.agency || ''} onChange={e => setEditConn({ ...editConn, agency: e.target.value })} className="mt-1" />
+              )}
+
+              {bankCode === 'ITAU' && personType === 'PJ' && connectionMode === 'API' && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  A integração automática Itaú PJ depende de habilitação junto ao Itaú. Enquanto isso, use OFX para importar extratos.
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground">Conta</label>
-                  <Input value={editConn.accountNumber || ''} onChange={e => setEditConn({ ...editConn, accountNumber: e.target.value })} className="mt-1" />
+              )}
+
+              <ConnectionFields
+                isApiMode={isApiMode}
+                bankCode={bankCode}
+                personType={personType}
+                connectionName={connectionName}
+                ownerTaxId={ownerTaxId}
+                agency={agency}
+                account={account}
+                accountDigit={accountDigit}
+                clientId={clientId}
+                clientSecret={clientSecret}
+                certificatePassword={certificatePassword}
+                setConnectionName={setConnectionName}
+                setOwnerTaxId={setOwnerTaxId}
+                setAgency={setAgency}
+                setAccount={setAccount}
+                setAccountDigit={setAccountDigit}
+                setClientId={setClientId}
+                setClientSecret={setClientSecret}
+                setCertificatePassword={setCertificatePassword}
+                setCertificateFile={setCertificateFile}
+                setPrivateKeyFile={setPrivateKeyFile}
+              />
+
+              {isManualImportMode && (
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div>
+                    <Label>Upload OFX</Label>
+                    <Input type="file" accept=".ofx,.qfx,.csv" onChange={(event) => setStatementFile(event.target.files?.[0] || null)} className="mt-1" />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={previewImport} disabled={busy === 'preview'} className="gap-2">
+                      {busy === 'preview' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
+                      Pré-visualizar
+                    </Button>
+                    <Button onClick={confirmImport} disabled={!preview || busy === 'import'} className="gap-2 bg-blue-600 text-white hover:bg-blue-700">
+                      {busy === 'import' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      Importar
+                    </Button>
+                    <Button variant="outline" onClick={() => setMessage(`${preview?.duplicates || 0} duplicadas detectadas.`)} disabled={!preview}>
+                      Ver duplicados
+                    </Button>
+                    <Button variant="outline" onClick={() => setMessage('Transações importadas são enviadas automaticamente para conciliação.')} disabled={!preview}>
+                      Enviar para conciliação
+                    </Button>
+                  </div>
+                  {preview && (
+                    <div className="max-h-44 overflow-y-auto rounded-lg border">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted">
+                          <tr>
+                            <th className="px-2 py-2 text-left">Data</th>
+                            <th className="px-2 py-2 text-left">Descrição</th>
+                            <th className="px-2 py-2 text-right">Valor</th>
+                            <th className="px-2 py-2 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.transactions.slice(0, 50).map((tx, index) => (
+                            <tr key={`${tx.checksum}-${index}`} className="border-t">
+                              <td className="px-2 py-1">{new Date(tx.date).toLocaleDateString('pt-BR')}</td>
+                              <td className="px-2 py-1">{tx.description}</td>
+                              <td className="px-2 py-1 text-right">{tx.direction === 'DEBIT' ? '-' : '+'}{Number(tx.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                              <td className="px-2 py-1 text-center">{tx.duplicate ? 'Duplicada' : 'Nova'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Saldo Inicial (R$)</label>
-                <Input type="number" step="0.01" value={editConn.openingBalance ?? 0} onChange={e => setEditConn({ ...editConn, openingBalance: parseFloat(e.target.value) || 0 })} className="mt-1" />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" onClick={() => setEditConn(null)} className="flex-1">Cancelar</Button>
-                <Button onClick={handleUpdate} disabled={saving} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Salvar
-                </Button>
+              )}
+
+              <div className="flex flex-wrap justify-between gap-2 border-t pt-4">
+                <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
+                <div className="flex flex-wrap gap-2">
+                  {isApiMode && (
+                    <Button variant="outline" onClick={testConnection} disabled={busy === 'test'} className="gap-2">
+                      {busy === 'test' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                      Testar conexão
+                    </Button>
+                  )}
+                  <Button onClick={() => saveConnection(false)} disabled={busy === 'save'} className="gap-2 bg-blue-600 text-white hover:bg-blue-700">
+                    {busy === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                    Salvar
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -601,33 +600,146 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
   );
 }
 
-// ---- Pluggy Connect Widget loader (idempotent)
-async function loadPluggyWidget(accessToken: string, onSuccess: (itemId: string) => void, onError: (err: any) => void) {
-  if (typeof window === 'undefined') return;
-  const w = window as any;
-  if (!w.PluggyConnect) {
-    await new Promise<void>((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.pluggy.ai/pluggy-connect/v2.9.2/pluggy-connect.js';
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error('Não foi possível carregar o widget Pluggy'));
-      document.head.appendChild(s);
-    });
+function getMethods(bankCode: BankCode, personType: PersonType) {
+  if (bankCode === 'INTER' && personType === 'PJ') {
+    return [
+      { mode: 'API' as ConnectionMode, label: 'API Banco Inter PJ', description: 'OAuth2 client_credentials com mTLS.' },
+      { mode: 'OFX' as ConnectionMode, label: 'Importação OFX', description: 'Fallback manual de extrato.' },
+    ];
   }
-  const PluggyConnect = (window as any).PluggyConnect;
-  if (!PluggyConnect) { onError(new Error('Widget Pluggy indisponível')); return; }
+  if (bankCode === 'ITAU' && personType === 'PJ') {
+    return [
+      { mode: 'API' as ConnectionMode, label: 'API Itaú PJ', description: 'Preparada; depende de habilitação Itaú.' },
+      { mode: 'OFX' as ConnectionMode, label: 'Importação OFX', description: 'Contingência obrigatória.' },
+    ];
+  }
+  return [
+    { mode: 'OFX' as ConnectionMode, label: 'Importação OFX/CSV', description: 'Disponível agora.' },
+    { mode: 'OPEN_FINANCE_FUTURE' as ConnectionMode, label: 'Open Finance futuro', description: 'Desabilitado neste MVP.', disabled: true },
+  ];
+}
 
-  const instance = new PluggyConnect({
-    connectToken: accessToken,
-    includeSandbox: true,
-    onSuccess: (data: any) => {
-      const itemId = data?.item?.id;
-      if (itemId) onSuccess(itemId);
-      else onError(new Error('Conexão concluída sem itemId'));
-    },
-    onError: (err: any) => onError(err),
-    onClose: () => { /* dismissed */ },
-  });
-  instance.init();
+function StepHeader({ step }: { step: number }) {
+  return (
+    <div className="mb-2 grid grid-cols-3 gap-2 text-xs">
+      {['Banco', 'Tipo', 'Método'].map((label, index) => (
+        <div key={label} className={`rounded-md px-3 py-2 text-center ${step === index + 1 ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>
+          {label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Metric({ label, value, icon: Icon }: { label: string; value: number; icon: any }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className="rounded-lg bg-blue-50 p-2 text-blue-700">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-xl font-bold">{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusBadge({ status, mode }: { status: string; mode: ConnectionMode }) {
+  const normalized = status?.toUpperCase();
+  if (mode === 'OFX' || mode === 'CSV') {
+    return <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">OFX_ONLY</span>;
+  }
+  if (normalized === 'ACTIVE') return <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs text-emerald-700">CONNECTED</span>;
+  if (normalized === 'ERROR') return <span className="rounded-md bg-red-100 px-2 py-1 text-xs text-red-700">ERROR</span>;
+  if (normalized === 'DISABLED') return <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">DISABLED</span>;
+  return <span className="rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-700">PENDING_CONFIG</span>;
+}
+
+function ConnectionFields(props: {
+  isApiMode: boolean;
+  bankCode: BankCode;
+  personType: PersonType;
+  connectionName: string;
+  ownerTaxId: string;
+  agency: string;
+  account: string;
+  accountDigit: string;
+  clientId: string;
+  clientSecret: string;
+  certificatePassword: string;
+  setConnectionName: (value: string) => void;
+  setOwnerTaxId: (value: string) => void;
+  setAgency: (value: string) => void;
+  setAccount: (value: string) => void;
+  setAccountDigit: (value: string) => void;
+  setClientId: (value: string) => void;
+  setClientSecret: (value: string) => void;
+  setCertificatePassword: (value: string) => void;
+  setCertificateFile: (file: File | null) => void;
+  setPrivateKeyFile: (file: File | null) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div>
+        <Label>Nome da conexão</Label>
+        <Input value={props.connectionName} onChange={(event) => props.setConnectionName(event.target.value)} placeholder="Conta principal" className="mt-1" />
+      </div>
+      <div>
+        <Label>{props.personType === 'PJ' ? 'CNPJ' : 'CPF/CNPJ do titular'}</Label>
+        <Input value={props.ownerTaxId} onChange={(event) => props.setOwnerTaxId(event.target.value)} placeholder="00.000.000/0000-00" className="mt-1" />
+      </div>
+      <div>
+        <Label>Agência</Label>
+        <Input value={props.agency} onChange={(event) => props.setAgency(event.target.value)} placeholder="0001" className="mt-1" />
+      </div>
+      <div className="grid grid-cols-[1fr_96px] gap-2">
+        <div>
+          <Label>Conta</Label>
+          <Input value={props.account} onChange={(event) => props.setAccount(event.target.value)} placeholder="123456" className="mt-1" />
+        </div>
+        <div>
+          <Label>Dígito</Label>
+          <Input value={props.accountDigit} onChange={(event) => props.setAccountDigit(event.target.value)} placeholder="0" className="mt-1" />
+        </div>
+      </div>
+
+      {props.isApiMode && (
+        <>
+          <div>
+            <Label>Client ID</Label>
+            <Input value={props.clientId} onChange={(event) => props.setClientId(event.target.value)} autoComplete="off" className="mt-1" />
+          </div>
+          <div>
+            <Label>Client Secret</Label>
+            <Input type="password" value={props.clientSecret} onChange={(event) => props.setClientSecret(event.target.value)} autoComplete="new-password" className="mt-1" />
+          </div>
+          <div>
+            <Label>{props.bankCode === 'INTER' ? 'Upload certificado .crt' : 'Upload certificado'}</Label>
+            <Input type="file" accept=".crt,.cer,.pem,.pfx" onChange={(event) => props.setCertificateFile(event.target.files?.[0] || null)} className="mt-1" />
+          </div>
+          {props.bankCode === 'INTER' ? (
+            <div>
+              <Label>Upload chave privada .key</Label>
+              <Input type="file" accept=".key,.pem" onChange={(event) => props.setPrivateKeyFile(event.target.files?.[0] || null)} className="mt-1" />
+            </div>
+          ) : (
+            <div>
+              <Label>Senha certificado, se aplicável</Label>
+              <Input type="password" value={props.certificatePassword} onChange={(event) => props.setCertificatePassword(event.target.value)} className="mt-1" />
+            </div>
+          )}
+        </>
+      )}
+
+      {!props.isApiMode && (
+        <div className="sm:col-span-2 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <span>Esta conta está configurada para importação manual de extrato.</span>
+        </div>
+      )}
+    </div>
+  );
 }

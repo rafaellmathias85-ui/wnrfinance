@@ -5,19 +5,20 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-// GET: list overdue receivables grouped by customer with negotiation counts
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
-    const companyId = session.user.activeCompanyId;
+    const companyId = (session.user as any).activeCompanyId;
     if (!companyId) return NextResponse.json({ customers: [], summary: { total: 0, count: 0 } });
+
+    const url = new URL(req.url);
+    const minRating = url.searchParams.get('minRating');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Find all overdue receivables (due date < today AND status != recebido/cancelado)
     const overdue = await prisma.accountsReceivable.findMany({
       where: {
         companyId,
@@ -27,22 +28,35 @@ export async function GET(req: NextRequest) {
       orderBy: { dueDate: 'asc' },
     });
 
-    // Also fetch all negotiations for this company
     const negotiations = await prisma.receivableNegotiation.findMany({
       where: { companyId },
       orderBy: { createdAt: 'desc' },
     });
 
-    // Group receivables by customer name
+    // Lookup clients by name for rating info
+    const clientNames = [...new Set(overdue.map((r: any) => r.customerName).filter(Boolean))];
+    const clients = await prisma.client.findMany({
+      where: { companyId, name: { in: clientNames as string[] } },
+      select: { id: true, name: true, rating: true, phone: true, email: true },
+    });
+    const clientByName = Object.fromEntries(clients.map((c: any) => [c.name, c]));
+
     const byCustomer: Record<string, any> = {};
     overdue.forEach((r: any) => {
       const key = r.customerName || 'Cliente não informado';
       if (!byCustomer[key]) {
+        const client = clientByName[key];
         byCustomer[key] = {
           customerName: key,
+          clientId: client?.id || null,
+          clientRating: client?.rating || null,
+          clientPhone: client?.phone || null,
+          clientEmail: client?.email || null,
           receivables: [],
           totalOverdue: 0,
           oldestDueDate: null as Date | null,
+          lastPaymentDate: null as Date | null,
+          forecastDate: null as Date | null,
           negotiationCount: 0,
           lostCount: 0,
           notNegotiatedCount: 0,
@@ -56,7 +70,6 @@ export async function GET(req: NextRequest) {
       if (!group.oldestDueDate || r.dueDate < group.oldestDueDate) group.oldestDueDate = r.dueDate;
     });
 
-    // Add negotiation stats to each customer
     negotiations.forEach((n: any) => {
       const key = n.customerName || '';
       if (byCustomer[key]) {
@@ -69,7 +82,14 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    const customers = Object.values(byCustomer).sort((a: any, b: any) => b.totalOverdue - a.totalOverdue);
+    let customers = Object.values(byCustomer).sort((a: any, b: any) => b.totalOverdue - a.totalOverdue);
+
+    // Rating filter
+    if (minRating) {
+      const min = parseInt(minRating);
+      customers = customers.filter((c: any) => c.clientRating == null || c.clientRating >= min);
+    }
+
     const summary = {
       total: customers.reduce((s: number, c: any) => s + c.totalOverdue, 0),
       count: customers.length,

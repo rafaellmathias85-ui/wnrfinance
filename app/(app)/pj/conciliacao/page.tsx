@@ -17,6 +17,7 @@ import {
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
   RECONCILED: { label: 'Conciliado', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: CheckCircle2 },
   DIVERGENT: { label: 'Divergente', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400', icon: AlertTriangle },
+  SUGGESTED: { label: 'Sugestão', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400', icon: FileText },
   BANK_ONLY: { label: 'Só no Banco', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: FileText },
   PENDING: { label: 'Pendente', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300', icon: RefreshCw },
   IGNORED: { label: 'Ignorado', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500', icon: EyeOff },
@@ -202,7 +203,7 @@ export default function ConciliacaoPJ() {
 
   const getBatchStatus = (batch: any) => {
     if (batch.stats.total === batch.stats.reconciled + batch.stats.ignored) return 'concluido';
-    if (batch.stats.pending > 0 || batch.stats.bankOnly > 0 || batch.stats.divergent > 0) return 'pendente';
+    if (batch.stats.pending > 0 || batch.stats.bankOnly > 0 || batch.stats.divergent > 0 || batch.stats.suggested > 0) return 'pendente';
     return 'em_andamento';
   };
   const getBatchStatusBadge = (status: string) => {
@@ -378,6 +379,7 @@ export default function ConciliacaoPJ() {
           { label: 'Total', value: s.total || 0, color: 'text-foreground' },
           { label: 'Conciliados', value: s.reconciled || 0, color: 'text-blue-600' },
           { label: 'Divergentes', value: s.divergent || 0, color: 'text-amber-600' },
+          { label: 'Sugestões', value: s.suggested || 0, color: 'text-indigo-600' },
           { label: 'Só no Banco', value: s.bankOnly || 0, color: 'text-blue-600' },
           { label: 'Pendentes', value: s.pending || 0, color: 'text-gray-600' },
           { label: 'Ignorados', value: s.ignored || 0, color: 'text-gray-400' },
@@ -394,7 +396,7 @@ export default function ConciliacaoPJ() {
       {/* Filters + View Toggle */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex gap-2 flex-wrap">
-          {['', 'RECONCILED', 'DIVERGENT', 'BANK_ONLY', 'PENDING', 'IGNORED'].map(st => (
+          {['', 'RECONCILED', 'DIVERGENT', 'SUGGESTED', 'BANK_ONLY', 'PENDING', 'IGNORED'].map(st => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -560,6 +562,7 @@ export default function ConciliacaoPJ() {
                     <div className="flex gap-2 items-center flex-shrink-0">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" title="Conciliados">✓ {batch.stats.reconciled}</span>
                       {batch.stats.divergent > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title="Divergentes">⚠ {batch.stats.divergent}</span>}
+                      {batch.stats.suggested > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" title="Sugestões">~ {batch.stats.suggested}</span>}
                       {batch.stats.bankOnly > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Só no Banco">? {batch.stats.bankOnly}</span>}
                       {batch.stats.pending > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" title="Pendentes">⏳ {batch.stats.pending}</span>}
                       <span className="text-xs font-medium text-muted-foreground">{batch.stats.total} total</span>

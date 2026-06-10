@@ -28,6 +28,7 @@ const ContaPagarSchema = z.object({
   transferDoc: z.string().max(30).optional().nullable(),
   transferAccountType: z.string().max(20).optional().nullable(),
   tagIds: z.array(z.string()).optional().default([]),
+  launchType: z.enum(['fornecedor', 'funcionario', 'impostos', 'transferencia', 'lucros']).optional().nullable(),
 });
 
 export async function GET(req: NextRequest) {
@@ -40,17 +41,48 @@ export async function GET(req: NextRequest) {
   const month = url.searchParams.get('month');
   const year = url.searchParams.get('year');
   const status = url.searchParams.get('status');
+  const statusMulti = url.searchParams.get('statusMulti'); // comma-separated
   const categoryId = url.searchParams.get('categoryId');
   const costCenterId = url.searchParams.get('costCenterId');
+  const dateFrom = url.searchParams.get('dateFrom');
+  const dateTo = url.searchParams.get('dateTo');
+  const dateType = url.searchParams.get('dateType') || 'vencimento'; // vencimento|competencia|pagamento
+  const counterpart = url.searchParams.get('counterpart');
+  const minValue = url.searchParams.get('minValue');
+  const maxValue = url.searchParams.get('maxValue');
+  const paymentMethod = url.searchParams.get('paymentMethod');
+  const tagIds = url.searchParams.get('tagIds'); // comma-separated
 
   const where: any = { companyId };
-  if (status) where.status = status;
+  if (statusMulti) {
+    where.status = { in: statusMulti.split(',') };
+  } else if (status) {
+    where.status = status;
+  }
   if (categoryId) where.categoryId = categoryId;
   if (costCenterId) where.costCenterId = costCenterId;
-  if (month && year) {
+  if (paymentMethod) where.paymentMethod = paymentMethod;
+  if (counterpart) where.supplierName = { contains: counterpart, mode: 'insensitive' };
+  if (minValue || maxValue) {
+    where.amount = {};
+    if (minValue) where.amount.gte = parseFloat(minValue);
+    if (maxValue) where.amount.lte = parseFloat(maxValue);
+  }
+
+  // Date filter (dateFrom/dateTo take priority over month/year)
+  if (dateFrom || dateTo) {
+    const dateField = dateType === 'pagamento' ? 'paidAt' : 'dueDate';
+    where[dateField] = {};
+    if (dateFrom) where[dateField].gte = new Date(dateFrom);
+    if (dateTo) where[dateField].lte = new Date(dateTo + 'T23:59:59');
+  } else if (month && year) {
     const start = new Date(Number(year), Number(month) - 1, 1);
     const end = new Date(Number(year), Number(month), 0, 23, 59, 59);
     where.dueDate = { gte: start, lte: end };
+  }
+
+  if (tagIds) {
+    where.tags = { some: { tagId: { in: tagIds.split(',') } } };
   }
 
   const items = await prisma.accountsPayable.findMany({
@@ -105,6 +137,7 @@ export async function POST(req: NextRequest) {
       transferName: body.transferName || null,
       transferDoc: body.transferDoc || null,
       transferAccountType: body.transferAccountType || null,
+      launchType: body.launchType || null,
       createdBy: session.user.id,
       ...(tagIds.length > 0 ? { tags: { create: tagIds.map((tagId: string) => ({ tagId })) } } : {}),
     },

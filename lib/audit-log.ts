@@ -6,12 +6,19 @@ export type AuditAction =
   | 'LOGIN' | 'LOGOUT' | 'LOGIN_FAILED'
   | 'EXPORT' | 'IMPORT'
   | 'VIEW' | 'APPROVE' | 'REJECT'
-  | 'SEND' | 'CANCEL' | 'PAY';
+  | 'SEND' | 'CANCEL' | 'PAY'
+  | 'BANK_CONNECTION_CREATE'
+  | 'BANK_CONNECTION_TEST'
+  | 'BANK_SYNC_MANUAL'
+  | 'BANK_SYNC_AUTO'
+  | 'BANK_CONNECTION_ERROR'
+  | 'BANK_CONNECTION_REVOKE';
 
 export type AuditEntity =
   | 'expense' | 'income' | 'credit_card' | 'investment' | 'savings'
   | 'payable' | 'receivable' | 'nfe' | 'boleto' | 'pix'
   | 'bank' | 'reconciliation' | 'tax_record' | 'carne_leao'
+  | 'bank_connection'
   | 'user' | 'company' | 'permission' | 'subscription'
   | 'category' | 'cost_center' | 'tag'
   | 'product' | 'stock' | 'sales_order'
@@ -35,7 +42,7 @@ export async function createAuditLog(opts: AuditOptions): Promise<void> {
     let userAgent: string | null = null;
 
     if (opts.request) {
-      const headersList = headers();
+      headers(); // ensure request context is active
       ipAddress =
         opts.request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
         opts.request.headers.get('x-real-ip') ||

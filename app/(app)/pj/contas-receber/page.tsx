@@ -5,7 +5,7 @@ import { useAiCategorize } from '@/hooks/use-ai-categorize';
 import { usePJ } from '@/lib/pj-context';
 import { ExportButton } from '@/components/export-button';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, ExternalLink, FileText, Pencil, Plus, PlusCircle, QrCode, Repeat, Search, Sparkles, Square, Trash2, X } from 'lucide-react';
+import { Check, ExternalLink, FileText, FileUp, Pencil, Plus, PlusCircle, QrCode, Repeat, Search, Sparkles, Square, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useFormatCurrency } from '@/hooks/use-format-currency';
+import { AdvancedFilters, EMPTY_FILTERS, type AdvancedFilterValues } from '@/components/pj/AdvancedFilters';
+import { ImportTransactionsModal } from '@/components/pj/ImportTransactionsModal';
 
 
 const statusLabels: Record<string, string> = { pendente: 'Pendente', recebido: 'Recebido', vencido: 'Vencido', cancelado: 'Cancelado' };
@@ -47,18 +49,40 @@ export default function ContasReceber() {
   const [automating, setAutomating] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilterValues>(EMPTY_FILTERS);
+  const [showImport, setShowImport] = useState(false);
   const { suggestion: aiSuggestion, loading: aiLoading, categorize: aiCategorize, clear: aiClear } = useAiCategorize();
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
 
+  const buildQueryString = (af: AdvancedFilterValues) => {
+    const p = new URLSearchParams();
+    if (af.dateFrom || af.dateTo) {
+      if (af.dateFrom) p.set('dateFrom', af.dateFrom);
+      if (af.dateTo) p.set('dateTo', af.dateTo);
+      p.set('dateType', af.dateType);
+    } else {
+      p.set('month', String(month));
+      p.set('year', String(year));
+    }
+    if (af.status.length > 0) p.set('statusMulti', af.status.join(','));
+    else if (filter.status) p.set('status', filter.status);
+    if (af.categoryId) p.set('categoryId', af.categoryId);
+    if (af.costCenterId) p.set('costCenterId', af.costCenterId);
+    if (af.counterpart) p.set('counterpart', af.counterpart);
+    if (af.minValue) p.set('minValue', af.minValue);
+    if (af.maxValue) p.set('maxValue', af.maxValue);
+    return p.toString();
+  };
+
   const fetchData = useCallback(async () => {
     if (!activeCompanyId) return;
     setLoading(true);
     try {
       const [itemsRes, catsRes, ccRes, tagsRes, clientsRes, rulesRes] = await Promise.all([
-        apiFetch(`/api/pj/accounts-receivable?month=${month}&year=${year}${filter.status ? `&status=${filter.status}` : ''}`),
+        apiFetch(`/api/pj/accounts-receivable?${buildQueryString(advancedFilters)}`),
         apiFetch('/api/pj/categories'),
         apiFetch('/api/pj/cost-centers'),
         apiFetch('/api/pj/tags'),
@@ -77,7 +101,8 @@ export default function ContasReceber() {
       setFiscalRules(rulesData.rules || []);
     } catch { /* ignore */ }
     setLoading(false);
-  }, [activeCompanyId, month, year, filter.status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompanyId, month, year, filter.status, advancedFilters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -175,6 +200,7 @@ export default function ContasReceber() {
       autoBoleto,
       chargeType: fd.get('chargeType') || 'boleto_pix',
       fiscalRuleId: fd.get('fiscalRuleId') || null,
+      launchType: fd.get('launchType') || null,
     };
     if (fd.get('receivedAt')) body.receivedAt = fd.get('receivedAt');
 
@@ -275,6 +301,7 @@ export default function ContasReceber() {
         </div>
         <div className="flex items-center gap-2">
           <ExportButton type="receivables" />
+          <Button variant="outline" onClick={() => setShowImport(true)}><FileUp className="w-4 h-4 mr-2" />Importar</Button>
           <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Nova Conta</Button>
         </div>
       </div>
@@ -315,6 +342,20 @@ export default function ContasReceber() {
           </div>
         </CardContent>
       </Card>
+
+      <AdvancedFilters
+        filters={advancedFilters}
+        onApply={(f) => { setAdvancedFilters(f); }}
+        categories={categories}
+        costCenters={costCenters}
+        tags={tags}
+        statusOptions={[
+          { value: 'pendente', label: 'Pendente' },
+          { value: 'recebido', label: 'Recebido' },
+          { value: 'vencido', label: 'Vencido' },
+          { value: 'cancelado', label: 'Cancelado' },
+        ]}
+      />
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
@@ -435,6 +476,16 @@ export default function ContasReceber() {
                   <select name="fiscalRuleId" defaultValue={editing?.fiscalRuleId || ''} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
                     <option value="">Usar regra padrao</option>
                     {fiscalRules.filter((r: any) => r.isActive).map((r: any) => <option key={r.id} value={r.id}>{r.name}{r.isDefault ? ' (padrao)' : ''}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label>Tipo de lançamento</Label>
+                  <select name="launchType" defaultValue={(editing as any)?.launchType || ''} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
+                    <option value="">— Não classificado</option>
+                    <option value="venda">Venda</option>
+                    <option value="contrato">Contrato</option>
+                    <option value="aporte">Aporte</option>
+                    <option value="outros">Outros</option>
                   </select>
                 </div>
                 <div>
@@ -607,6 +658,15 @@ export default function ContasReceber() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {showImport && (
+        <ImportTransactionsModal
+          importType="income"
+          categories={categories}
+          onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false); fetchData(); }}
+        />
+      )}
     </div>
   );
 }

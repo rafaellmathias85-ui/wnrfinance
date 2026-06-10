@@ -5,18 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { usePJ } from '@/lib/pj-context';
 import { apiFetch } from '@/lib/fetch';
 import { useFormatCurrency } from '@/hooks/use-format-currency';
+import { useToast } from '@/components/ui/use-toast';
 import {
   DollarSign, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle,
   BarChart3, PieChart as PieIcon, Users, Building2, Loader2,
   Eye, History, FileText, FileCheck, FileX, Mail, Banknote,
   Search, X, ChevronLeft, ChevronRight, ExternalLink, Calendar,
-  Receipt, AlertCircle,
+  Receipt, AlertCircle, Copy, Paperclip, ChevronDown,
+  XCircle, SendHorizonal, CheckSquare, Ban, RefreshCw, Zap, Filter,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -136,89 +140,43 @@ function DetailModal({ id, open, onClose }: { id: string | null; open: boolean; 
             <TabsList className="shrink-0">
               <TabsTrigger value="dados">Dados Básicos</TabsTrigger>
               <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
-              <TabsTrigger value="historico">Histórico {timeline.length > 0 && <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 text-xs">{timeline.length}</span>}</TabsTrigger>
+              <TabsTrigger value="historico">
+                Histórico {timeline.length > 0 && <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 text-xs">{timeline.length}</span>}
+              </TabsTrigger>
             </TabsList>
 
-            {/* ── Dados Básicos ── */}
             <TabsContent value="dados" className="flex-1 overflow-y-auto mt-4">
               <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Cliente</p>
-                  <p className="font-medium">{item.customerName || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">CNPJ / CPF</p>
-                  <p className="font-medium">{item.customerDoc || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">E-mail</p>
-                  <p className="font-medium">{item.customerEmail || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Valor</p>
-                  <p className="font-semibold text-primary">{fmt(item.amount)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Vencimento</p>
-                  <p className="font-medium">{fmtDate(item.dueDate)}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Competência</p>
-                  <p className="font-medium">{item.billingPeriod || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Situação</p>
-                  <Badge className={`${STATUS_COLORS[item.status] || 'bg-gray-100'} text-xs`}>{STATUS_LABELS[item.status] || item.status}</Badge>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Tipo</p>
-                  <p className="font-medium">{SOURCE_LABELS[item.sourceType] || 'Avulso'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Categoria</p>
-                  <p className="font-medium">{item.category?.name || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Centro de Custo</p>
-                  <p className="font-medium">{item.costCenter?.name || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Recebido em</p>
-                  <p className="font-medium">{item.receivedAt ? fmtDate(item.receivedAt) : '—'}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs mb-0.5">Criado em</p>
-                  <p className="font-medium">{fmtDate(item.createdAt)}</p>
-                </div>
-                {item.notes && (
-                  <div className="col-span-2">
-                    <p className="text-muted-foreground text-xs mb-0.5">Observações</p>
-                    <p className="font-medium whitespace-pre-wrap">{item.notes}</p>
-                  </div>
-                )}
-                <div className="col-span-2">
-                  <p className="text-muted-foreground text-xs mb-0.5">Descrição</p>
-                  <p className="font-medium">{item.description}</p>
-                </div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Cliente</p><p className="font-medium">{item.customerName || '—'}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">CNPJ / CPF</p><p className="font-medium">{item.customerDoc || '—'}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">E-mail</p><p className="font-medium">{item.customerEmail || '—'}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Valor</p><p className="font-semibold text-primary">{fmt(item.amount)}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Vencimento</p><p className="font-medium">{fmtDate(item.dueDate)}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Competência</p><p className="font-medium">{item.billingPeriod || '—'}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Situação</p><Badge className={`${STATUS_COLORS[item.status] || 'bg-gray-100'} text-xs`}>{STATUS_LABELS[item.status] || item.status}</Badge></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Tipo</p><p className="font-medium">{SOURCE_LABELS[item.sourceType] || 'Avulso'}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Categoria</p><p className="font-medium">{item.category?.name || '—'}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Centro de Custo</p><p className="font-medium">{item.costCenter?.name || '—'}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Recebido em</p><p className="font-medium">{item.receivedAt ? fmtDate(item.receivedAt) : '—'}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Criado em</p><p className="font-medium">{fmtDate(item.createdAt)}</p></div>
+                {item.notes && <div className="col-span-2"><p className="text-muted-foreground text-xs mb-0.5">Observações</p><p className="font-medium whitespace-pre-wrap">{item.notes}</p></div>}
+                <div className="col-span-2"><p className="text-muted-foreground text-xs mb-0.5">Descrição</p><p className="font-medium">{item.description}</p></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Gerar Boleto</p><Badge variant="outline" className={item.generateBoleto ? 'text-emerald-600' : 'text-gray-400'}>{item.generateBoleto ? 'Sim' : 'Não'}</Badge></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Gerar PIX</p><Badge variant="outline" className={item.generatePix ? 'text-emerald-600' : 'text-gray-400'}>{item.generatePix ? 'Sim' : 'Não'}</Badge></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Emitir NF</p><Badge variant="outline" className={item.generateNfe ? 'text-emerald-600' : 'text-gray-400'}>{item.generateNfe ? 'Sim' : 'Não'}</Badge></div>
               </div>
             </TabsContent>
 
-            {/* ── Faturamento ── */}
             <TabsContent value="faturamento" className="flex-1 overflow-y-auto mt-4 space-y-4">
-              {/* Status bar */}
               <div className="flex gap-2 flex-wrap">
                 <div className={`px-3 py-1.5 rounded text-sm font-medium ${item.status === 'recebido' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
                   {item.status === 'recebido' ? `Recebido em ${fmtDate(item.receivedAt)}` : 'Pendente de recebimento'}
                 </div>
               </div>
-
-              {/* NF-e section */}
               <div>
                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><FileText className="h-4 w-4" /> NFS-e / NF-e</h4>
                 {nfes.length === 0 ? (
-                  <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
-                    Nenhuma nota fiscal emitida para este lançamento.
-                  </div>
+                  <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">Nenhuma nota fiscal emitida para este lançamento.</div>
                 ) : (
                   <div className="space-y-2">
                     {nfes.map(n => (
@@ -227,9 +185,7 @@ function DetailModal({ id, open, onClose }: { id: string | null; open: boolean; 
                         <div className="flex-1 text-sm">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold">{n.type?.toUpperCase()} {n.number ? `#${n.number}` : ''}</span>
-                            <Badge className={`text-xs ${n.status === 'autorizada' ? 'bg-emerald-100 text-emerald-700' : n.status === 'rejeitada' || n.status === 'cancelada' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                              {NFE_STATUS_LABEL[n.status] || n.status}
-                            </Badge>
+                            <Badge className={`text-xs ${n.status === 'autorizada' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{NFE_STATUS_LABEL[n.status] || n.status}</Badge>
                           </div>
                           <p className="text-muted-foreground text-xs mt-0.5">Emissão: {fmtDate(n.issuedAt)}</p>
                           {n.errorMessage && <p className="text-red-500 text-xs mt-0.5">{n.errorMessage}</p>}
@@ -243,14 +199,10 @@ function DetailModal({ id, open, onClose }: { id: string | null; open: boolean; 
                   </div>
                 )}
               </div>
-
-              {/* Boleto/PIX section */}
               <div>
                 <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Banknote className="h-4 w-4" /> Boleto / PIX</h4>
                 {boletos.length === 0 ? (
-                  <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
-                    Nenhum boleto ou PIX gerado para este lançamento.
-                  </div>
+                  <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">Nenhum boleto ou PIX gerado para este lançamento.</div>
                 ) : (
                   <div className="space-y-2">
                     {boletos.map(b => (
@@ -259,9 +211,7 @@ function DetailModal({ id, open, onClose }: { id: string | null; open: boolean; 
                         <div className="flex-1 text-sm">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold">{b.type === 'pix' ? 'PIX' : 'Boleto'}</span>
-                            <Badge className={`text-xs ${b.status === 'pago' ? 'bg-emerald-100 text-emerald-700' : b.status === 'cancelado' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
-                              {STATUS_LABELS[b.status] || b.status}
-                            </Badge>
+                            <Badge className={`text-xs ${b.status === 'pago' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>{STATUS_LABELS[b.status] || b.status}</Badge>
                           </div>
                           {b.paidAt && <p className="text-muted-foreground text-xs mt-0.5">Pago em: {fmtDate(b.paidAt)}</p>}
                           <div className="flex gap-3 mt-1.5">
@@ -276,15 +226,10 @@ function DetailModal({ id, open, onClose }: { id: string | null; open: boolean; 
               </div>
             </TabsContent>
 
-            {/* ── Histórico ── */}
             <TabsContent value="historico" className="flex-1 overflow-y-auto mt-4">
-              {timeline.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">Nenhum evento registrado.</div>
-              ) : (
-                <div className="divide-y">
-                  {timeline.map(entry => <TimelineEntry key={entry.id} entry={entry} />)}
-                </div>
-              )}
+              {timeline.length === 0
+                ? <div className="text-center py-8 text-muted-foreground text-sm">Nenhum evento registrado.</div>
+                : <div className="divide-y">{timeline.map(entry => <TimelineEntry key={entry.id} entry={entry} />)}</div>}
             </TabsContent>
           </Tabs>
         )}
@@ -321,10 +266,210 @@ function HistoryModal({ id, customerName, open, onClose }: { id: string | null; 
           ? <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
           : timeline.length === 0
             ? <p className="text-center py-8 text-muted-foreground text-sm">Nenhum evento registrado.</p>
-            : <div className="overflow-y-auto flex-1 divide-y">{timeline.map(e => <TimelineEntry key={e.id} entry={e} />)}</div>
-        }
+            : <div className="overflow-y-auto flex-1 divide-y">{timeline.map(e => <TimelineEntry key={e.id} entry={e} />)}</div>}
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Quitar Modal ─────────────────────────────────────────────────────────────
+
+function QuitarModal({ item, open, onClose, onSaved }: { item: any; open: boolean; onClose: () => void; onSaved: () => void }) {
+  const fmt = useFormatCurrency();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [paymentDate, setPaymentDate] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [amountReceived, setAmountReceived] = useState('');
+  const [juros, setJuros] = useState('0');
+  const [multa, setMulta] = useState('0');
+  const [desconto, setDesconto] = useState('0');
+
+  useEffect(() => {
+    if (open && item) {
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setAmountReceived(String(item.amount));
+      setJuros('0'); setMulta('0'); setDesconto('0'); setPaymentMethod('');
+    }
+  }, [open, item]);
+
+  const total = (parseFloat(amountReceived) || 0) + parseFloat(multa || '0') + parseFloat(juros || '0') - parseFloat(desconto || '0');
+
+  const handleSave = async () => {
+    if (!paymentDate) { toast({ title: 'Data obrigatória', variant: 'destructive' }); return; }
+    setSaving(true);
+    const res = await apiFetch(`/api/pj/faturamento/${item.id}/quitar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentDate, paymentMethod, amountReceived, juros, multa, desconto }),
+    });
+    setSaving(false);
+    if (res.ok) { toast({ title: 'Fatura quitada com sucesso!' }); onSaved(); } else { toast({ title: 'Erro ao quitar', variant: 'destructive' }); }
+  };
+
+  if (!item) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-emerald-500" />Quitar Fatura</DialogTitle></DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="rounded-lg bg-muted/50 p-3 text-sm">
+            <p className="font-medium">{item.customerName || '—'}</p>
+            <p className="text-muted-foreground text-xs">{item.description} · Venc: {fmtDate(item.dueDate)}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><Label className="text-xs">Data de Pagamento *</Label><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="mt-1" /></div>
+            <div className="col-span-2">
+              <Label className="text-xs">Forma de Pagamento</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="boleto">Boleto</SelectItem>
+                  <SelectItem value="transferencia">Transferência</SelectItem>
+                  <SelectItem value="deposito">Depósito</SelectItem>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="cartao">Cartão</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs">Valor Recebido</Label><Input type="number" step="0.01" value={amountReceived} onChange={e => setAmountReceived(e.target.value)} className="mt-1" /></div>
+            <div><Label className="text-xs">Juros</Label><Input type="number" step="0.01" value={juros} onChange={e => setJuros(e.target.value)} className="mt-1" /></div>
+            <div><Label className="text-xs">Multa</Label><Input type="number" step="0.01" value={multa} onChange={e => setMulta(e.target.value)} className="mt-1" /></div>
+            <div><Label className="text-xs">Desconto</Label><Input type="number" step="0.01" value={desconto} onChange={e => setDesconto(e.target.value)} className="mt-1" /></div>
+          </div>
+          <div className="rounded-lg border p-3 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Total a receber</span>
+            <span className="font-bold text-emerald-600 text-lg">{fmt(total)}</span>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : 'Confirmar Quitação'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Email Modal ─────────────────────────────────────────────────────────────
+
+function EmailModal({ item, open, onClose }: { item: any; open: boolean; onClose: () => void }) {
+  const { toast } = useToast();
+  const [sending, setSending] = useState(false);
+  const [to, setTo] = useState('');
+  const [cc, setCc] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+
+  useEffect(() => {
+    if (open && item) {
+      setTo(item.customerEmail || '');
+      setSubject(`Sua fatura está disponível!`);
+      setBody(`Olá ${item.customerName || ''},\n\nEste é um aviso referente à sua fatura:\n\nVencimento: ${fmtDate(item.dueDate)}\nValor: R$ ${(item.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nDescrição: ${item.description}\n\nOs documentos referentes à sua fatura estão disponíveis.\n\nAtenciosamente.`);
+    }
+  }, [open, item]);
+
+  const handleSend = async () => {
+    if (!to) { toast({ title: 'Destinatário obrigatório', variant: 'destructive' }); return; }
+    setSending(true);
+    const res = await apiFetch(`/api/pj/faturamento/${item.id}/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: to.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean), cc: cc ? cc.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean) : [], subject, htmlBody: body.replace(/\n/g, '<br>') }),
+    });
+    setSending(false);
+    if (res.ok) { toast({ title: 'E-mail enfileirado com sucesso!' }); onClose(); } else { toast({ title: 'Erro ao enviar e-mail', variant: 'destructive' }); }
+  };
+
+  if (!item) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Mail className="h-4 w-4 text-blue-500" />Reenviar por E-mail</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div><Label className="text-xs">Para *</Label><Input value={to} onChange={e => setTo(e.target.value)} placeholder="email@cliente.com (separe por vírgula)" className="mt-1" /></div>
+          <div><Label className="text-xs">Cc</Label><Input value={cc} onChange={e => setCc(e.target.value)} placeholder="cc@dominio.com" className="mt-1" /></div>
+          <div><Label className="text-xs">Assunto</Label><Input value={subject} onChange={e => setSubject(e.target.value)} className="mt-1" /></div>
+          <div>
+            <Label className="text-xs">Mensagem</Label>
+            <textarea
+              className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              rows={8}
+              value={body}
+              onChange={e => setBody(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={sending}>Cancelar</Button>
+          <Button onClick={handleSend} disabled={sending} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {sending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</> : <><SendHorizonal className="h-4 w-4 mr-2" />Enviar</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Batch Action Bar ─────────────────────────────────────────────────────────
+
+function BatchActionBar({ selected, onAction, onClear }: { selected: string[]; onAction: (action: string) => void; onClear: () => void }) {
+  const [maisOpcoes, setMaisOpcoes] = useState(false);
+
+  if (selected.length === 0) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t shadow-2xl px-4 py-3 flex items-center gap-3 flex-wrap">
+      <span className="text-sm font-medium text-muted-foreground">{selected.length} selecionado{selected.length !== 1 ? 's' : ''}</span>
+      <div className="flex items-center gap-2 flex-wrap flex-1">
+        <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => onAction('cancel_nfe')}>
+          <XCircle className="h-3.5 w-3.5 mr-1.5" />Cancelar Nota Fiscal
+        </Button>
+        <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => onAction('cancel_boleto')}>
+          <Ban className="h-3.5 w-3.5 mr-1.5" />Cancelar Boleto/Pix
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => onAction('reenviar_fatura')}>
+          <Mail className="h-3.5 w-3.5 mr-1.5" />Reenviar Fatura
+        </Button>
+        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => onAction('faturar_agora')}>
+          <Zap className="h-3.5 w-3.5 mr-1.5" />Faturar Agora
+        </Button>
+
+        {/* Mais Opções dropdown */}
+        <div className="relative">
+          <Button size="sm" variant="outline" onClick={() => setMaisOpcoes(v => !v)}>
+            Mais Opções <ChevronDown className="h-3.5 w-3.5 ml-1" />
+          </Button>
+          {maisOpcoes && (
+            <div className="absolute bottom-full mb-1 left-0 bg-popover border rounded-md shadow-lg z-50 min-w-[240px] py-1">
+              {[
+                { action: 'no_boleto', label: 'Não gerar boleto' },
+                { action: 'no_pix', label: 'Não gerar QR Code Pix' },
+                { action: 'no_nfe', label: 'Não gerar Nota Fiscal' },
+                { action: 'no_all', label: 'Não gerar boleto/pix e NF' },
+                { action: 'update_nfse_status', label: 'Atualizar Status NFSE' },
+              ].map(opt => (
+                <button
+                  key={opt.action}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors"
+                  onClick={() => { onAction(opt.action); setMaisOpcoes(false); }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      <button onClick={onClear} className="p-1.5 rounded hover:bg-muted ml-auto" title="Limpar seleção">
+        <X className="h-4 w-4 text-muted-foreground" />
+      </button>
+    </div>
   );
 }
 
@@ -332,33 +477,41 @@ function HistoryModal({ id, customerName, open, onClose }: { id: string | null; 
 
 function FaturamentoLista({ companyName }: { companyName?: string }) {
   const fmt = useFormatCurrency();
+  const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Filters
+  // Filtros básicos
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [sourceType, setSourceType] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({ search: '', status: '', sourceType: '', from: '', to: '' });
+
+  // Filtros avançados
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [cliente, setCliente] = useState('');
+  const [situacaoParcela, setSituacaoParcela] = useState('');
+  const [tipoValor, setTipoValor] = useState('');
+  const [tipo, setTipo] = useState('');
+
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({ search: '', status: '', sourceType: '', from: '', to: '', cliente: '', situacaoParcela: '', tipoValor: '', tipo: '' });
 
   // Modals
   const [detailId, setDetailId] = useState<string | null>(null);
   const [historyId, setHistoryId] = useState<string | null>(null);
   const [historyName, setHistoryName] = useState('');
+  const [quitarItem, setQuitarItem] = useState<any>(null);
+  const [emailItem, setEmailItem] = useState<any>(null);
 
-  const fetchData = useCallback((p: number, f: typeof appliedFilters) => {
+  const fetchData = useCallback((p: number, f: Record<string, string>) => {
     setLoading(true);
     const params = new URLSearchParams({ page: String(p), pageSize: '20' });
-    if (f.status) params.set('status', f.status);
-    if (f.sourceType) params.set('sourceType', f.sourceType);
-    if (f.search) params.set('search', f.search);
-    if (f.from) params.set('from', f.from);
-    if (f.to) params.set('to', f.to);
+    Object.entries(f).forEach(([k, v]) => { if (v) params.set(k, v); });
     apiFetch(`/api/pj/faturamento/lista?${params}`)
       .then(r => r.json())
       .then(d => { setItems(d.items || []); setTotal(d.total || 0); setTotalPages(d.totalPages || 1); })
@@ -368,42 +521,75 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
 
   useEffect(() => { fetchData(page, appliedFilters); }, [page, appliedFilters, fetchData]);
 
-  function applyFilters() {
-    const f = { search, status, sourceType, from, to };
-    setAppliedFilters(f);
+  const applyFilters = () => {
+    setAppliedFilters({ search, status, sourceType, from, to, cliente, situacaoParcela, tipoValor, tipo });
     setPage(1);
-  }
+  };
 
-  function clearFilters() {
+  const clearFilters = () => {
     setSearch(''); setStatus(''); setSourceType(''); setFrom(''); setTo('');
-    setAppliedFilters({ search: '', status: '', sourceType: '', from: '', to: '' });
+    setCliente(''); setSituacaoParcela(''); setTipoValor(''); setTipo('');
+    setAppliedFilters({ search: '', status: '', sourceType: '', from: '', to: '', cliente: '', situacaoParcela: '', tipoValor: '', tipo: '' });
     setPage(1);
-  }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === items.length) setSelected(new Set());
+    else setSelected(new Set(items.map(i => i.id)));
+  };
+
+  const handleBatchAction = async (action: string) => {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    const res = await apiFetch('/api/pj/faturamento/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, action }),
+    });
+    if (res.ok) {
+      toast({ title: 'Operação realizada com sucesso!' });
+      setSelected(new Set());
+      fetchData(page, appliedFilters);
+    } else {
+      toast({ title: 'Erro na operação', variant: 'destructive' });
+    }
+  };
+
+  const handleDuplicate = async (id: string) => {
+    const res = await apiFetch(`/api/pj/faturamento/${id}/duplicate`, { method: 'POST' });
+    if (res.ok) {
+      toast({ title: 'Fatura duplicada!' });
+      fetchData(page, appliedFilters);
+    } else {
+      toast({ title: 'Erro ao duplicar', variant: 'destructive' });
+    }
+  };
 
   const isOverdue = (item: any) => item.status === 'pendente' && new Date(item.dueDate) < new Date();
-
   const avatarLetter = companyName ? companyName[0].toUpperCase() : 'W';
 
   return (
-    <div className="space-y-4">
-      {/* Filter bar */}
+    <div className="space-y-4 pb-20">
+      {/* Advanced filter bar */}
       <Card className="shadow-sm">
-        <CardContent className="pt-4 pb-3">
+        <CardContent className="pt-4 pb-3 space-y-3">
+          {/* Linha 1: filtros básicos */}
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[180px]">
               <p className="text-xs text-muted-foreground mb-1">Pesquisar</p>
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && applyFilters()}
-                  placeholder="Nome, descrição..."
-                  className="pl-8 h-9 text-sm"
-                />
+                <Input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && applyFilters()} placeholder="Nome, descrição..." className="pl-8 h-9 text-sm" />
               </div>
             </div>
-
             <div className="w-[140px]">
               <p className="text-xs text-muted-foreground mb-1">Situação</p>
               <Select value={status || '_all'} onValueChange={v => setStatus(v === '_all' ? '' : v)}>
@@ -417,7 +603,6 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="w-[140px]">
               <p className="text-xs text-muted-foreground mb-1">Tipo</p>
               <Select value={sourceType || '_all'} onValueChange={v => setSourceType(v === '_all' ? '' : v)}>
@@ -430,30 +615,72 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="w-[130px]">
               <p className="text-xs text-muted-foreground mb-1">Venc. de</p>
               <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 text-sm" />
             </div>
-
             <div className="w-[130px]">
               <p className="text-xs text-muted-foreground mb-1">Venc. até</p>
               <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 text-sm" />
             </div>
-
             <div className="flex gap-1.5">
-              <Button size="sm" onClick={applyFilters} className="h-9">
-                <Search className="h-3.5 w-3.5 mr-1.5" />Buscar
-              </Button>
-              <Button size="sm" variant="ghost" onClick={clearFilters} className="h-9 px-2">
-                <X className="h-3.5 w-3.5" />
+              <Button size="sm" onClick={applyFilters} className="h-9"><Search className="h-3.5 w-3.5 mr-1.5" />Buscar</Button>
+              <Button size="sm" variant="ghost" onClick={clearFilters} className="h-9 px-2"><X className="h-3.5 w-3.5" /></Button>
+              <Button size="sm" variant="outline" onClick={() => setShowAdvanced(v => !v)} className="h-9">
+                <Filter className="h-3.5 w-3.5 mr-1" />{showAdvanced ? 'Menos' : 'Mais'}
               </Button>
             </div>
-
-            <div className="ml-auto text-sm text-muted-foreground self-end pb-0.5">
-              {total} registro{total !== 1 ? 's' : ''}
-            </div>
+            <div className="ml-auto text-sm text-muted-foreground self-end pb-0.5">{total} registro{total !== 1 ? 's' : ''}</div>
           </div>
+
+          {/* Linha 2: filtros avançados */}
+          {showAdvanced && (
+            <div className="flex flex-wrap gap-2 items-end pt-2 border-t">
+              <div className="flex-1 min-w-[160px]">
+                <p className="text-xs text-muted-foreground mb-1">Cliente</p>
+                <Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Buscar cliente..." className="h-9 text-sm" />
+              </div>
+              <div className="w-[160px]">
+                <p className="text-xs text-muted-foreground mb-1">Situação Parcela</p>
+                <Select value={situacaoParcela || '_all'} onValueChange={v => setSituacaoParcela(v === '_all' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">Todas</SelectItem>
+                    <SelectItem value="em_dia">Em dia</SelectItem>
+                    <SelectItem value="vencido">Vencido</SelectItem>
+                    <SelectItem value="pago">Pago</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-[160px]">
+                <p className="text-xs text-muted-foreground mb-1">Tipo Faturamento</p>
+                <Select value={tipo || '_all'} onValueChange={v => setTipo(v === '_all' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">Todos</SelectItem>
+                    <SelectItem value="faturamento">Faturamento</SelectItem>
+                    <SelectItem value="recorrente">Recorrente</SelectItem>
+                    <SelectItem value="unico">Único</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-[150px]">
+                <p className="text-xs text-muted-foreground mb-1">Tipo Valor</p>
+                <Select value={tipoValor || '_all'} onValueChange={v => setTipoValor(v === '_all' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">Todos</SelectItem>
+                    <SelectItem value="definitivo">Definitivo</SelectItem>
+                    <SelectItem value="previsao">Previsão</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button size="sm" onClick={applyFilters} className="h-9">Aplicar</Button>
+              <Button size="sm" variant="ghost" onClick={clearFilters} className="h-9 text-red-500 hover:text-red-600">
+                <X className="h-3.5 w-3.5 mr-1" />Limpar
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -463,6 +690,9 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40">
+                <th className="px-3 py-2.5 w-8">
+                  <Checkbox checked={items.length > 0 && selected.size === items.length} onCheckedChange={toggleAll} />
+                </th>
                 <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground w-8"></th>
                 <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground">Cliente</th>
                 <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap">Faturamento</th>
@@ -475,22 +705,21 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
             </thead>
             <tbody>
               {loading && (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto" />
-                  </td>
-                </tr>
+                <tr><td colSpan={9} className="py-12 text-center"><Loader2 className="h-5 w-5 animate-spin text-primary mx-auto" /></td></tr>
               )}
               {!loading && items.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
-                    <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    <p>Nenhum faturamento encontrado.</p>
-                  </td>
-                </tr>
+                <tr><td colSpan={9} className="py-12 text-center text-muted-foreground">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p>Nenhum faturamento encontrado.</p>
+                </td></tr>
               )}
               {!loading && items.map(item => (
-                <tr key={item.id} className="border-b hover:bg-muted/20 transition-colors">
+                <tr key={item.id} className={`border-b hover:bg-muted/20 transition-colors ${selected.has(item.id) ? 'bg-primary/5' : ''}`}>
+                  {/* Checkbox */}
+                  <td className="px-3 py-2.5">
+                    <Checkbox checked={selected.has(item.id)} onCheckedChange={() => toggleSelect(item.id)} />
+                  </td>
+
                   {/* Avatar */}
                   <td className="px-3 py-2.5">
                     <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
@@ -499,89 +728,65 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
                   </td>
 
                   {/* Cliente */}
-                  <td className="px-3 py-2.5 max-w-[220px]">
+                  <td className="px-3 py-2.5 max-w-[200px]">
                     <p className="font-medium truncate">{item.customerName || '—'}</p>
-                    {item.customerDoc && (
-                      <p className="text-xs text-muted-foreground truncate">{item.customerDoc}</p>
-                    )}
+                    {item.customerDoc && <p className="text-xs text-muted-foreground truncate">{item.customerDoc}</p>}
                   </td>
 
                   {/* Faturamento date */}
-                  <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground text-xs">
-                    {fmtDate(item.createdAt)}
-                  </td>
+                  <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground text-xs">{fmtDate(item.createdAt)}</td>
 
                   {/* Vencimento */}
                   <td className="px-3 py-2.5 whitespace-nowrap">
-                    <span className={`text-xs font-medium ${isOverdue(item) ? 'text-red-500' : 'text-foreground'}`}>
-                      {fmtDate(item.dueDate)}
-                    </span>
+                    <span className={`text-xs font-medium ${isOverdue(item) ? 'text-red-500' : 'text-foreground'}`}>{fmtDate(item.dueDate)}</span>
                   </td>
 
                   {/* Tipo */}
                   <td className="px-3 py-2.5">
-                    <Badge variant="outline" className="text-xs whitespace-nowrap">
-                      {SOURCE_LABELS[item.sourceType] || 'Avulso'}
-                    </Badge>
+                    <Badge variant="outline" className="text-xs whitespace-nowrap">{SOURCE_LABELS[item.sourceType] || 'Avulso'}</Badge>
                   </td>
 
                   {/* Situação */}
                   <td className="px-3 py-2.5">
-                    <Badge className={`${STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-500'} text-xs whitespace-nowrap`}>
-                      {STATUS_LABELS[item.status] || item.status}
-                    </Badge>
+                    <Badge className={`${STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-500'} text-xs whitespace-nowrap`}>{STATUS_LABELS[item.status] || item.status}</Badge>
                   </td>
 
                   {/* Valor */}
-                  <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
-                    {fmt(item.amount)}
-                  </td>
+                  <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{fmt(item.amount)}</td>
 
                   {/* Actions */}
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center justify-center gap-1.5">
-                      {/* View */}
-                      <button
-                        onClick={() => setDetailId(item.id)}
-                        className="p-1 rounded hover:bg-muted transition-colors"
-                        title="Ver detalhes"
-                      >
-                        <Eye className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+                    <div className="flex items-center justify-center gap-0.5">
+                      {/* Visualizar */}
+                      <button onClick={() => setDetailId(item.id)} className="p-1 rounded hover:bg-muted transition-colors" title="Visualizar">
+                        <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                       </button>
-
-                      {/* History */}
-                      <button
-                        onClick={() => { setHistoryId(item.id); setHistoryName(item.customerName || ''); }}
-                        className="p-1 rounded hover:bg-muted transition-colors"
-                        title="Histórico"
-                      >
-                        <History className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+                      {/* Histórico */}
+                      <button onClick={() => { setHistoryId(item.id); setHistoryName(item.customerName || ''); }} className="p-1 rounded hover:bg-muted transition-colors" title="Histórico">
+                        <History className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                       </button>
-
-                      {/* NF-e */}
-                      <span className="p-1">
+                      {/* Anexos (placeholder) */}
+                      <button className="p-1 rounded hover:bg-muted transition-colors" title="Anexos">
+                        <Paperclip className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                      </button>
+                      {/* PDF NF */}
+                      <span className="p-1" title={item.nfe ? `NF-e: ${NFE_STATUS_LABEL[item.nfe.status] || item.nfe.status}` : 'Sem NF-e'}>
                         <NFeIcon nfe={item.nfe} pdfUrl={item.nfe?.pdfUrl} />
                       </span>
-
+                      {/* Duplicar */}
+                      <button onClick={() => handleDuplicate(item.id)} className="p-1 rounded hover:bg-muted transition-colors" title="Duplicar">
+                        <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                      </button>
                       {/* Email */}
-                      <span className="p-1" title={item.emailSent ? 'E-mail enviado' : 'Nenhum e-mail enviado'}>
-                        <Mail className={`h-4 w-4 ${item.emailSent ? 'text-emerald-500' : 'text-muted-foreground/40'}`} />
-                      </span>
-
-                      {/* Boleto/PIX */}
-                      <span className="p-1" title={item.boleto ? `${item.boleto.type === 'pix' ? 'PIX' : 'Boleto'}: ${STATUS_LABELS[item.boleto.status] || item.boleto.status}` : 'Sem boleto'}>
-                        {item.boleto ? (
-                          item.boleto.boletoUrl || item.boleto.pixQrCodeUrl ? (
-                            <a href={item.boleto.boletoUrl || item.boleto.pixQrCodeUrl} target="_blank" rel="noopener noreferrer">
-                              <Banknote className={`h-4 w-4 ${item.boleto.status === 'pago' ? 'text-emerald-500' : 'text-blue-500'}`} />
-                            </a>
-                          ) : (
-                            <Banknote className={`h-4 w-4 ${item.boleto.status === 'pago' ? 'text-emerald-500' : 'text-blue-500'}`} />
-                          )
-                        ) : (
-                          <Banknote className="h-4 w-4 text-muted-foreground/40" />
-                        )}
-                      </span>
+                      <button onClick={() => setEmailItem(item)} className="p-1 rounded hover:bg-muted transition-colors" title="Reenviar por e-mail">
+                        <Mail className={`h-3.5 w-3.5 ${item.emailSent ? 'text-emerald-500' : 'text-muted-foreground hover:text-primary'}`} />
+                      </button>
+                      {/* Quitar */}
+                      {item.status !== 'recebido' && item.status !== 'cancelado' && (
+                        <button onClick={() => setQuitarItem(item)} className="p-1 rounded hover:bg-muted transition-colors" title="Quitar">
+                          <DollarSign className="h-3.5 w-3.5 text-muted-foreground hover:text-emerald-600" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -593,17 +798,11 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/10">
-            <p className="text-xs text-muted-foreground">
-              Página {page} de {totalPages} · {total} registros
-            </p>
+            <p className="text-xs text-muted-foreground">Página {page} de {totalPages} · {total} registros</p>
             <div className="flex gap-1">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(1)} className="h-7 px-2 text-xs">Primeiro</Button>
-              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-7 px-2">
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-7 px-2">
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-7 px-2"><ChevronLeft className="h-3.5 w-3.5" /></Button>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-7 px-2"><ChevronRight className="h-3.5 w-3.5" /></Button>
               <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(totalPages)} className="h-7 px-2 text-xs">Último</Button>
             </div>
           </div>
@@ -613,6 +812,11 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
       {/* Modals */}
       <DetailModal id={detailId} open={!!detailId} onClose={() => setDetailId(null)} />
       <HistoryModal id={historyId} customerName={historyName} open={!!historyId} onClose={() => setHistoryId(null)} />
+      <QuitarModal item={quitarItem} open={!!quitarItem} onClose={() => setQuitarItem(null)} onSaved={() => { setQuitarItem(null); fetchData(page, appliedFilters); }} />
+      <EmailModal item={emailItem} open={!!emailItem} onClose={() => setEmailItem(null)} />
+
+      {/* Batch bar */}
+      <BatchActionBar selected={Array.from(selected)} onAction={handleBatchAction} onClear={() => setSelected(new Set())} />
     </div>
   );
 }
@@ -684,22 +888,15 @@ export default function FaturamentoPJPage() {
 
       <Tabs value={mainTab} onValueChange={setMainTab}>
         <TabsList>
-          <TabsTrigger value="lista" className="flex items-center gap-1.5">
-            <Receipt className="h-4 w-4" />Faturamentos
-          </TabsTrigger>
-          <TabsTrigger value="dashboard" className="flex items-center gap-1.5">
-            <BarChart3 className="h-4 w-4" />Dashboard
-          </TabsTrigger>
+          <TabsTrigger value="lista" className="flex items-center gap-1.5"><Receipt className="h-4 w-4" />Faturamentos</TabsTrigger>
+          <TabsTrigger value="dashboard" className="flex items-center gap-1.5"><BarChart3 className="h-4 w-4" />Dashboard</TabsTrigger>
         </TabsList>
 
-        {/* ── Lista tab ── */}
         <TabsContent value="lista" className="mt-4">
           <FaturamentoLista companyName={(activeCompany as any)?.name} />
         </TabsContent>
 
-        {/* ── Dashboard tab ── */}
         <TabsContent value="dashboard" className="mt-4 space-y-6">
-          {/* Period controls */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex rounded-lg border overflow-hidden text-sm">
               {(['year', 'month', 'week'] as const).map(p => (
@@ -729,7 +926,6 @@ export default function FaturamentoPJPage() {
             <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : (
             <>
-              {/* KPI cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
                   <CardContent className="pt-6">
@@ -781,7 +977,6 @@ export default function FaturamentoPJPage() {
                 </Card>
               </div>
 
-              {/* Sub-tabs */}
               <Tabs defaultValue="visao-geral">
                 <TabsList className="bg-muted/50">
                   <TabsTrigger value="visao-geral"><BarChart3 className="h-4 w-4 mr-2" />Visão Geral</TabsTrigger>
@@ -859,7 +1054,7 @@ export default function FaturamentoPJPage() {
                         {topCustomers.length === 0 ? <p className="text-muted-foreground text-center py-8">Sem dados</p> : (
                           <div className="space-y-3">
                             {topCustomers.slice(0, 10).map((c: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition">
+                              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
                                 <div className="flex items-center gap-3">
                                   <span className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 text-sm font-bold">{i + 1}</span>
                                   <span className="font-medium text-sm">{c.name || 'Sem nome'}</span>
@@ -877,7 +1072,7 @@ export default function FaturamentoPJPage() {
                         {topSuppliers.length === 0 ? <p className="text-muted-foreground text-center py-8">Sem dados</p> : (
                           <div className="space-y-3">
                             {topSuppliers.slice(0, 10).map((s: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition">
+                              <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
                                 <div className="flex items-center gap-3">
                                   <span className="flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-700 text-sm font-bold">{i + 1}</span>
                                   <span className="font-medium text-sm">{s.name || 'Sem nome'}</span>
@@ -900,7 +1095,7 @@ export default function FaturamentoPJPage() {
                         {recent.receivables.length === 0 ? <p className="text-muted-foreground text-center py-8">Sem receitas recentes</p> : (
                           <div className="space-y-2">
                             {recent.receivables.map((r: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30 transition">
+                              <div key={i} className="flex items-center justify-between p-3 rounded-lg border">
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">{r.description}</p>
                                   <p className="text-xs text-muted-foreground">{new Date(r.dueDate).toLocaleDateString('pt-BR')} · {r.category}</p>
@@ -921,7 +1116,7 @@ export default function FaturamentoPJPage() {
                         {recent.payables.length === 0 ? <p className="text-muted-foreground text-center py-8">Sem despesas recentes</p> : (
                           <div className="space-y-2">
                             {recent.payables.map((p: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30 transition">
+                              <div key={i} className="flex items-center justify-between p-3 rounded-lg border">
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">{p.description}</p>
                                   <p className="text-xs text-muted-foreground">{new Date(p.dueDate).toLocaleDateString('pt-BR')} · {p.category}</p>

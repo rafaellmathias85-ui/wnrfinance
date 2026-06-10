@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
     reconciled: enrichedItems.filter(i => i.status === 'RECONCILED').length,
     divergent: enrichedItems.filter(i => i.status === 'DIVERGENT').length,
     bankOnly: enrichedItems.filter(i => i.status === 'BANK_ONLY').length,
+    suggested: enrichedItems.filter(i => i.status === 'SUGGESTED').length,
     pending: enrichedItems.filter(i => i.status === 'PENDING').length,
     ignored: enrichedItems.filter(i => i.status === 'IGNORED').length,
   };
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
         id: `batch_${batchKey}`,
         importedAt: item.createdAt,
         bankName: 'Extrato PJ',
-        stats: { total: 0, reconciled: 0, divergent: 0, bankOnly: 0, pending: 0, ignored: 0 },
+        stats: { total: 0, reconciled: 0, divergent: 0, bankOnly: 0, suggested: 0, pending: 0, ignored: 0 },
         items: [],
         dateRange: { min: item.bankDate, max: item.bankDate },
       });
@@ -75,6 +76,7 @@ export async function GET(req: NextRequest) {
     if (st === 'RECONCILED') batch.stats.reconciled++;
     else if (st === 'DIVERGENT') batch.stats.divergent++;
     else if (st === 'BANK_ONLY') batch.stats.bankOnly++;
+    else if (st === 'SUGGESTED') batch.stats.suggested++;
     else if (st === 'PENDING') batch.stats.pending++;
     else if (st === 'IGNORED') batch.stats.ignored++;
     if (item.bankDate) {

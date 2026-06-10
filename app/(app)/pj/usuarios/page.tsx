@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UserPlus, Users, Crown, Shield, Eye, Calculator, BookOpen } from 'lucide-react';
+import { UserPlus, Crown, Shield, Eye, Calculator, BookOpen, KeyRound } from 'lucide-react';
 import { usePJ } from '@/lib/pj-context';
 import { apiFetch } from '@/lib/fetch';
 import { useToast } from '@/hooks/use-toast';
+import { UserPermissionsModal } from '@/components/pj/UserPermissionsModal';
 
 const roleLabels: Record<string, string> = {
   OWNER: 'Proprietário', ADMIN: 'Administrador', FINANCE: 'Financeiro', ACCOUNTANT: 'Contador', VIEWER: 'Visualizador',
@@ -26,6 +27,7 @@ export default function UsuariosPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
+  const [permissionsUser, setPermissionsUser] = useState<{ id: string; name: string } | null>(null);
 
   const canManage = ['OWNER', 'ADMIN'].includes(activeCompanyRole || '');
 
@@ -118,11 +120,30 @@ export default function UsuariosPage() {
                       <span className="text-xs font-medium">{roleLabels[u.role] || u.role}</span>
                     </div>
                   </div>
+                  {canManage && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <button
+                        onClick={() => setPermissionsUser({ id: u.id, name: u.name || u.email })}
+                        className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                        Gerenciar Permissões
+                      </button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
           })}
         </div>
+      )}
+
+      {permissionsUser && (
+        <UserPermissionsModal
+          userId={permissionsUser.id}
+          userName={permissionsUser.name}
+          onClose={() => setPermissionsUser(null)}
+        />
       )}
     </div>
   );

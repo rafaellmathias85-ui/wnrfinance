@@ -134,6 +134,7 @@ export default function PJConfiguracoesPage() {
       {/* Financeiro PJ */}
       {navSection('Financeiro', [
         { href: '/pj/bancos', icon: Wallet, label: 'Contas Bancárias', desc: 'Conectar e gerenciar contas PJ' },
+        { href: '/pj/configuracoes/fiscal', icon: FileText, label: 'Configurações Fiscais', desc: 'Regime tributário, NF-e, NFC-e e SEFAZ' },
         { href: '/pj/conexoes', icon: Link2, label: 'Conexões e Integrações', desc: 'NF-e, boleto, Pix e outras integrações' },
         { href: '/configuracoes/chaves-api', icon: Key, label: 'Chaves API — IA', desc: 'Provedores de inteligência artificial' },
       ])}

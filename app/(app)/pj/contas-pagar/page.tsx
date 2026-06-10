@@ -5,7 +5,7 @@ import { useAiCategorize } from '@/hooks/use-ai-categorize';
 import { usePJ } from '@/lib/pj-context';
 import { ExportButton } from '@/components/export-button';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Pencil, Plus, PlusCircle, Repeat, Search, Sparkles, Square, Trash2, X } from 'lucide-react';
+import { Check, FileUp, Pencil, Plus, PlusCircle, Repeat, Search, Sparkles, Square, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { useFormatCurrency } from '@/hooks/use-format-currency';
+import { AdvancedFilters, EMPTY_FILTERS, type AdvancedFilterValues } from '@/components/pj/AdvancedFilters';
+import { ImportTransactionsModal } from '@/components/pj/ImportTransactionsModal';
 
 
 const statusLabels: Record<string, string> = { pendente: 'Pendente', pago: 'Pago', vencido: 'Vencido', cancelado: 'Cancelado' };
@@ -44,18 +46,42 @@ export default function ContasPagar() {
   const [recurrenceMonths, setRecurrenceMonths] = useState(2);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilterValues>(EMPTY_FILTERS);
+  const [showImport, setShowImport] = useState(false);
   const { suggestion: aiSuggestion, loading: aiLoading, categorize: aiCategorize, clear: aiClear } = useAiCategorize();
 
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
 
+  const buildQueryString = (af: AdvancedFilterValues) => {
+    const p = new URLSearchParams();
+    if (af.dateFrom || af.dateTo) {
+      if (af.dateFrom) p.set('dateFrom', af.dateFrom);
+      if (af.dateTo) p.set('dateTo', af.dateTo);
+      p.set('dateType', af.dateType);
+    } else {
+      p.set('month', String(month));
+      p.set('year', String(year));
+    }
+    if (af.status.length > 0) p.set('statusMulti', af.status.join(','));
+    else if (filter.status) p.set('status', filter.status);
+    if (af.categoryId) p.set('categoryId', af.categoryId);
+    if (af.costCenterId) p.set('costCenterId', af.costCenterId);
+    if (af.counterpart) p.set('counterpart', af.counterpart);
+    if (af.minValue) p.set('minValue', af.minValue);
+    if (af.maxValue) p.set('maxValue', af.maxValue);
+    if (af.paymentMethod) p.set('paymentMethod', af.paymentMethod);
+    if (af.tagIds.length > 0) p.set('tagIds', af.tagIds.join(','));
+    return p.toString();
+  };
+
   const fetchData = useCallback(async () => {
     if (!activeCompanyId) return;
     setLoading(true);
     try {
       const [itemsRes, catsRes, ccRes, tagsRes, suppRes] = await Promise.all([
-        apiFetch(`/api/pj/accounts-payable?month=${month}&year=${year}${filter.status ? `&status=${filter.status}` : ''}`),
+        apiFetch(`/api/pj/accounts-payable?${buildQueryString(advancedFilters)}`),
         apiFetch('/api/pj/categories'),
         apiFetch('/api/pj/cost-centers'),
         apiFetch('/api/pj/tags'),
@@ -71,7 +97,8 @@ export default function ContasPagar() {
       setSuppliers(Array.isArray(suppData) ? suppData : []);
     } catch { /* ignore */ }
     setLoading(false);
-  }, [activeCompanyId, month, year, filter.status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompanyId, month, year, filter.status, advancedFilters]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -158,6 +185,7 @@ export default function ContasPagar() {
       costCenterId: fd.get('costCenterId') || null,
       notes: fd.get('notes'),
       paymentMethod: paymentMethod || null,
+      launchType: fd.get('launchType') || null,
       tagIds: selectedTags,
       isRecurring,
       recurrenceType: isRecurring ? 'monthly' : null,
@@ -257,6 +285,7 @@ export default function ContasPagar() {
         </div>
         <div className="flex items-center gap-2">
           <ExportButton type="payables" />
+          <Button variant="outline" onClick={() => setShowImport(true)}><FileUp className="w-4 h-4 mr-2" />Importar</Button>
           <Button onClick={openNew}><Plus className="w-4 h-4 mr-2" />Nova Conta</Button>
         </div>
       </div>
@@ -298,6 +327,20 @@ export default function ContasPagar() {
           </div>
         </CardContent>
       </Card>
+
+      <AdvancedFilters
+        filters={advancedFilters}
+        onApply={(f) => { setAdvancedFilters(f); }}
+        categories={categories}
+        costCenters={costCenters}
+        tags={tags}
+        statusOptions={[
+          { value: 'pendente', label: 'Pendente' },
+          { value: 'pago', label: 'Pago' },
+          { value: 'vencido', label: 'Vencido' },
+          { value: 'cancelado', label: 'Cancelado' },
+        ]}
+      />
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
@@ -398,6 +441,17 @@ export default function ContasPagar() {
                     <option value="PIX">PIX</option>
                     <option value="BOLETO">Boleto</option>
                     <option value="TRANSFERENCIA">Transferencia</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>Tipo de lançamento</Label>
+                  <select name="launchType" defaultValue={(editing as any)?.launchType || ''} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
+                    <option value="">— Não classificado</option>
+                    <option value="fornecedor">Fornecedor</option>
+                    <option value="funcionario">Funcionário</option>
+                    <option value="impostos">Impostos</option>
+                    <option value="transferencia">Transferência</option>
+                    <option value="lucros">Divisão de Lucros</option>
                   </select>
                 </div>
               </div>
@@ -560,6 +614,15 @@ export default function ContasPagar() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {showImport && (
+        <ImportTransactionsModal
+          importType="expense"
+          categories={categories}
+          onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false); fetchData(); }}
+        />
+      )}
     </div>
   );
 }

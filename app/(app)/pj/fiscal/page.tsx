@@ -1,10 +1,9 @@
 'use client';
 import { apiFetch } from '@/lib/fetch';
-import { Calculator } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, Calendar, CheckCircle, Clock, FileText, Pencil, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, Calculator, Calendar, CheckCircle, Clock, FileText, Pencil, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 
 
 interface TaxRecord { id: string; type: string; period: string; year: number; month?: number; baseValue: number; taxValue: number; rate?: number; status: string; dueDate?: string; paidAt?: string; paidAmount?: number; notes?: string; metadata?: any; }
@@ -24,7 +23,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 type Tab = 'das' | 'icms' | 'regras';
 
-export default function FiscalPJPage() {
+function FiscalPJContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>(searchParams.get('type') === 'ICMS' ? 'icms' : 'das');
 
@@ -703,6 +702,14 @@ function NewIcmsDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         </div>
       </div>
     </div>
+  );
+}
+
+export default function FiscalPJPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-slate-400">Carregando...</div>}>
+      <FiscalPJContent />
+    </Suspense>
   );
 }
 

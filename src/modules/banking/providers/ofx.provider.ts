@@ -1,0 +1,227 @@
+import { prisma } from '@/lib/prisma';
+import { parseStatement, type ParsedStatement } from '@/lib/ofx-parser';
+import { normalizeParsedStatementTransaction } from '../bank-transaction-normalizer';
+import type {
+  BankBalance,
+  BankConnection,
+  BankConnectionTestResult,
+  BankProvider,
+  CanonicalTransaction,
+  PersonType,
+  StatementImportPreview,
+  StatementImportResult,
+} from '../bank-provider.interface';
+
+export interface StatementFileInput {
+  content: string;
+  filename: string;
+}
+
+export interface StatementImportContext {
+  userId: string;
+  companyId?: string | null;
+  connection?: BankConnection | null;
+  bankCode?: string;
+  bankName?: string;
+  accountId?: string;
+  personType?: PersonType;
+}
+
+export class OfxProvider implements BankProvider {
+  providerName = 'OFX/CSV manual';
+  bankCode = 'OFX';
+  personType: PersonType = 'PF';
+
+  constructor(private readonly connection?: BankConnection | null) {
+    if (connection?.bankCode) this.bankCode = connection.bankCode;
+    if (connection?.personType) this.personType = connection.personType;
+  }
+
+  async testConnection(): Promise<BankConnectionTestResult> {
+    return {
+      success: true,
+      message: 'Esta conta está configurada para importação manual de extrato.',
+      errorCode: 'API_NOT_AVAILABLE',
+    };
+  }
+
+  async getBalance(): Promise<BankBalance> {
+    throw new Error('OFX/CSV não suporta consulta automática de saldo.');
+  }
+
+  async getTransactions(_startDate: Date, _endDate: Date): Promise<CanonicalTransaction[]> {
+    throw new Error('Use previewImport() e confirmImport() para importar OFX/CSV.');
+  }
+
+  parseOfx(file: StatementFileInput): ParsedStatement {
+    return parseStatement(file.content, file.filename);
+  }
+
+  detectBank(statement: ParsedStatement, fallback?: { bankCode?: string; bankName?: string }) {
+    const raw = `${statement.bankId || ''} ${fallback?.bankCode || ''} ${fallback?.bankName || ''}`.toUpperCase();
+    if (raw.includes('077') || raw.includes('77') || raw.includes('INTER')) {
+      return { bankCode: 'INTER', bankName: 'Banco Inter' };
+    }
+    if (raw.includes('341') || raw.includes('ITAÚ') || raw.includes('ITAU')) {
+      return { bankCode: 'ITAU', bankName: 'Itaú' };
+    }
+    return {
+      bankCode: fallback?.bankCode || statement.bankId || 'UNKNOWN',
+      bankName: fallback?.bankName || 'Banco',
+    };
+  }
+
+  normalizeTransactions(
+    statement: ParsedStatement,
+    context: StatementImportContext,
+  ): CanonicalTransaction[] {
+    const detected = this.detectBank(statement, {
+      bankCode: context.connection?.bankCode || context.bankCode,
+      bankName: context.connection?.bankName || context.bankName,
+    });
+    const accountId =
+      context.accountId ||
+      context.connection?.accountId ||
+      context.connection?.accountNumber ||
+      statement.accountId ||
+      'UNKNOWN';
+    const personType = context.personType || context.connection?.personType || this.personType;
+
+    return statement.transactions.map((tx) =>
+      normalizeParsedStatementTransaction(tx, {
+        bank: detected.bankName,
+        bankCode: detected.bankCode,
+        accountId,
+        personType,
+      }),
+    );
+  }
+
+  async previewImport(
+    file: StatementFileInput,
+    context: StatementImportContext,
+  ): Promise<StatementImportPreview> {
+    const statement = this.parseOfx(file);
+    const transactions = this.normalizeTransactions(statement, context);
+    const duplicateHashes = await this.findDuplicateHashes(transactions, context);
+    const errors: Array<{ row: number; message: string }> = [];
+
+    const bank = this.detectBank(statement, {
+      bankCode: context.connection?.bankCode || context.bankCode,
+      bankName: context.connection?.bankName || context.bankName,
+    });
+
+    return {
+      importId: `preview_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      bankCode: bank.bankCode,
+      accountId:
+        context.accountId ||
+        context.connection?.accountId ||
+        context.connection?.accountNumber ||
+        statement.accountId ||
+        'UNKNOWN',
+      total: transactions.length,
+      duplicates: duplicateHashes.size,
+      errors,
+      transactions: transactions.map((tx) => ({
+        ...tx,
+        duplicate: duplicateHashes.has(tx.checksum),
+      })),
+    };
+  }
+
+  async confirmImport(
+    transactions: CanonicalTransaction[],
+    context: StatementImportContext,
+  ): Promise<StatementImportResult> {
+    let imported = 0;
+    let skipped = 0;
+    const batchId = `bank_import_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    for (const tx of transactions) {
+      const duplicate = await this.isDuplicate(tx, context);
+      if (duplicate) {
+        skipped++;
+        continue;
+      }
+
+      await prisma.bankTransaction.create({
+        data: {
+          userId: context.userId,
+          companyId: context.companyId || null,
+          bankConnectionId: context.connection?.id || null,
+          personType: tx.personType,
+          bankCode: tx.bankCode,
+          accountId: tx.accountId,
+          externalId: buildDatabaseExternalId(tx),
+          transactionHash: tx.checksum,
+          description: tx.description,
+          amount: tx.amount,
+          type: tx.direction === 'CREDIT' ? 'credit' : 'debit',
+          date: tx.date,
+          balanceAfter: tx.balanceAfter ?? null,
+          documentNumber: tx.documentNumber ?? null,
+          payerName: tx.counterpartyName ?? null,
+          payerDocument: tx.counterpartyTaxId ?? null,
+          rawData: tx.rawData as any,
+          status: 'PENDING',
+          importBatchId: batchId,
+        },
+      });
+      imported++;
+    }
+
+    return {
+      imported,
+      skipped,
+      total: transactions.length,
+      reconciliation: {
+        processed: imported,
+        reconciled: 0,
+        suggested: 0,
+        pending: imported,
+      },
+    };
+  }
+
+  private async findDuplicateHashes(
+    transactions: CanonicalTransaction[],
+    context: StatementImportContext,
+  ): Promise<Set<string>> {
+    const hashes = transactions.map((tx) => tx.checksum);
+    if (!hashes.length) return new Set();
+
+    const existing = await prisma.bankTransaction.findMany({
+      where: {
+        userId: context.userId,
+        transactionHash: { in: hashes },
+        ...(context.connection?.id ? { bankConnectionId: context.connection.id } : {}),
+      },
+      select: { transactionHash: true },
+    });
+
+    return new Set(existing.map((item) => item.transactionHash).filter(Boolean) as string[]);
+  }
+
+  private async isDuplicate(
+    tx: CanonicalTransaction,
+    context: StatementImportContext,
+  ): Promise<boolean> {
+    const existing = await prisma.bankTransaction.findFirst({
+      where: {
+        userId: context.userId,
+        transactionHash: tx.checksum,
+        ...(context.connection?.id ? { bankConnectionId: context.connection.id } : {}),
+      },
+      select: { id: true },
+    });
+
+    return Boolean(existing);
+  }
+}
+
+function buildDatabaseExternalId(tx: CanonicalTransaction): string {
+  return [tx.bankCode, tx.accountId, tx.externalId || tx.id].filter(Boolean).join(':');
+}
+
+export const ofxProvider = new OfxProvider();

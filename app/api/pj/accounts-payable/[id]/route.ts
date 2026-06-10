@@ -35,6 +35,7 @@ export async function PUT(req: NextRequest, { params }: any) {
   if (body.transferName !== undefined) data.transferName = body.transferName || null;
   if (body.transferDoc !== undefined) data.transferDoc = body.transferDoc || null;
   if (body.transferAccountType !== undefined) data.transferAccountType = body.transferAccountType || null;
+  if (body.launchType !== undefined) data.launchType = body.launchType || null;
 
   // Handle tags update
   if (body.tagIds !== undefined) {

@@ -28,6 +28,7 @@ const ContaReceberSchema = z.object({
   chargeType: z.enum(['boleto', 'pix', 'boleto_pix', 'link']).optional().default('boleto_pix'),
   fiscalRuleId: z.string().optional().nullable(),
   billingPeriod: z.string().max(7).optional().nullable(),
+  launchType: z.enum(['venda', 'contrato', 'aporte', 'outros']).optional().nullable(),
 });
 
 export async function GET(req: NextRequest) {
@@ -40,12 +41,37 @@ export async function GET(req: NextRequest) {
   const month = url.searchParams.get('month');
   const year = url.searchParams.get('year');
   const status = url.searchParams.get('status');
+  const statusMulti = url.searchParams.get('statusMulti');
   const categoryId = url.searchParams.get('categoryId');
+  const costCenterId = url.searchParams.get('costCenterId');
+  const dateFrom = url.searchParams.get('dateFrom');
+  const dateTo = url.searchParams.get('dateTo');
+  const dateType = url.searchParams.get('dateType') || 'vencimento';
+  const counterpart = url.searchParams.get('counterpart');
+  const minValue = url.searchParams.get('minValue');
+  const maxValue = url.searchParams.get('maxValue');
 
   const where: any = { companyId };
-  if (status) where.status = status;
+  if (statusMulti) {
+    where.status = { in: statusMulti.split(',') };
+  } else if (status) {
+    where.status = status;
+  }
   if (categoryId) where.categoryId = categoryId;
-  if (month && year) {
+  if (costCenterId) where.costCenterId = costCenterId;
+  if (counterpart) where.customerName = { contains: counterpart, mode: 'insensitive' };
+  if (minValue || maxValue) {
+    where.amount = {};
+    if (minValue) where.amount.gte = parseFloat(minValue);
+    if (maxValue) where.amount.lte = parseFloat(maxValue);
+  }
+
+  if (dateFrom || dateTo) {
+    const dateField = dateType === 'pagamento' ? 'receivedAt' : 'dueDate';
+    where[dateField] = {};
+    if (dateFrom) where[dateField].gte = new Date(dateFrom);
+    if (dateTo) where[dateField].lte = new Date(dateTo + 'T23:59:59');
+  } else if (month && year) {
     const start = new Date(Number(year), Number(month) - 1, 1);
     const end = new Date(Number(year), Number(month), 0, 23, 59, 59);
     where.dueDate = { gte: start, lte: end };
@@ -125,6 +151,7 @@ export async function POST(req: NextRequest) {
       chargeType: body.chargeType || 'boleto_pix',
       fiscalRuleId: body.fiscalRuleId || null,
       billingPeriod: body.billingPeriod || null,
+      launchType: body.launchType || null,
       createdBy: session.user.id,
     },
   });

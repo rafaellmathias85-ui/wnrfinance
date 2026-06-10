@@ -13,7 +13,7 @@ import {
   Megaphone, Trophy, Frown, Calendar, Filter,
   Globe, Mail, TicketCheck, Cog, Briefcase, GitBranch,
   Building, MailOpen, ListChecks, PlayCircle, CheckCircle, Clock,
-  QrCode, Shield, Download, Scroll, Laptop, MessageCircle, Sun, Server,
+  QrCode, Shield, Download, Scroll, Laptop, MessageCircle, Sun, Server, CheckSquare, Zap,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -169,8 +169,15 @@ const PJ_MODULES: ModuleTab[] = [
     id: 'pj-dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    singleLink: '/pj/dashboard',
-    columns: [],
+    columns: [
+      {
+        title: 'Visão Geral',
+        items: [
+          { href: '/pj/dashboard', label: 'Dashboard PJ', icon: LayoutDashboard, description: 'Visão geral da empresa' },
+          { href: '/pj/dashboard-executivo', label: 'Dashboard Executivo', icon: BarChart3, description: 'KPIs consolidados com comparativo mensal' },
+        ],
+      },
+    ],
   },
   {
     id: 'pj-financeiro',
@@ -184,11 +191,16 @@ const PJ_MODULES: ModuleTab[] = [
           { href: '/pj/contas-receber', label: 'Contas a Receber', icon: ArrowUpCircle, description: 'Gerenciar cobranças' },
           { href: '/pj/faturamento', label: 'Faturamento', icon: DollarSign, description: 'Notas e faturamento' },
           { href: '/pj/inadimplencia', label: 'Inadimplência', icon: AlertTriangle, description: 'Cobranças em atraso' },
+          { href: '/pj/movimentacoes', label: 'Movimentação', icon: ArrowLeftRight, description: 'Entradas e saídas unificadas' },
+          { href: '/pj/aprovacao-financeira', label: 'Aprovação Financeira', icon: CheckSquare, description: 'Aprovar despesas e receitas' },
+          { href: '/pj/extrato', label: 'Extrato Bancário', icon: Scroll, description: 'Extrato por conta e período' },
+          { href: '/pj/calendario', label: 'Calendário Financeiro', icon: Calendar, description: 'Vencimentos em visão de calendário' },
         ],
       },
       {
         title: 'Cadastros',
         items: [
+          { href: '/pj/plano-contas', label: 'Plano de Contas', icon: FolderOpen, description: 'Hierarquia de categorias gerenciais' },
           { href: '/pj/bancos', label: 'Bancos', icon: Building2, description: 'Contas bancárias' },
           { href: '/pj/cartoes', label: 'Cartões', icon: CreditCard, description: 'Cartões corporativos' },
           { href: '/pj/clientes', label: 'Clientes', icon: UserCheck, description: 'Base de clientes' },
@@ -199,7 +211,11 @@ const PJ_MODULES: ModuleTab[] = [
         title: 'NFS-e & Cobranças',
         items: [
           { href: '/pj/nfe', label: 'NFS-e / NF-e', icon: FileText, description: 'Emitir Notas Fiscais' },
+          { href: '/pj/nfce', label: 'NFC-e', icon: Receipt, description: 'Nota Fiscal do Consumidor — Série 65' },
+          { href: '/pj/nfs-recebidas', label: 'NF-e Recebidas', icon: Download, description: 'Notas de fornecedores — SEFAZ' },
           { href: '/pj/cobrancas', label: 'Boletos & PIX', icon: QrCode, description: 'Gerar cobranças automaticamente' },
+          { href: '/pj/regua-cobranca', label: 'Régua de Cobrança', icon: Bell, description: 'Automação de lembretes e cobranças' },
+          { href: '/pj/remessa-bancaria', label: 'Remessa Bancária', icon: FileBarChart, description: 'CNAB 240 — remessa e retorno' },
           { href: '/pj/certificados', label: 'Certificado Digital', icon: ShieldCheck, description: 'Certificados A1/A3' },
         ],
       },
@@ -216,7 +232,13 @@ const PJ_MODULES: ModuleTab[] = [
           { href: '/pj/fluxo-caixa', label: 'Fluxo de Caixa', icon: Activity, description: 'Entradas e saídas' },
           { href: '/pj/dre', label: 'DRE', icon: FileSpreadsheet, description: 'Demonstrativo de resultados' },
           { href: '/pj/conciliacao', label: 'Conciliação', icon: FileCheck, description: 'Conferir extratos' },
+          { href: '/pj/orcamento', label: 'Previsão Orçamentária', icon: Target, description: 'Planejado vs. realizado por período' },
+          { href: '/pj/relatorios/comparativo', label: 'Comparativo de Períodos', icon: BarChart3, description: 'Compare dois períodos lado a lado' },
           { href: '/pj/relatorios', label: 'Relatórios Financeiros', icon: PieChart, description: 'Análise consolidada do período' },
+          { href: '/pj/metas', label: 'Metas & OKRs', icon: Trophy, description: 'Acompanhe as metas e objetivos da empresa' },
+          { href: '/pj/relatorios/aging', label: 'Aging de Vencimentos', icon: AlertTriangle, description: 'Títulos em aberto por faixa de atraso' },
+          { href: '/pj/exportacao', label: 'Exportação de Dados', icon: Download, description: 'Baixar relatórios em CSV' },
+          { href: '/pj/relatorios/comissoes', label: 'Relatório de Comissões', icon: DollarSign, description: 'Comissões agrupadas por vendedor' },
         ],
       },
       {
@@ -275,7 +297,7 @@ const PJ_MODULES: ModuleTab[] = [
           { href: '/pj/vendas', label: 'Dashboard', icon: LayoutDashboard, description: 'Visão geral de vendas' },
           { href: '/pj/vendas/orcamentos', label: 'Orçamentos', icon: FileText, description: 'Propostas e orçamentos' },
           { href: '/pj/vendas/ordens-servico', label: 'Ordens de Serviço', icon: ClipboardList, description: 'Gerenciar OS' },
-          { href: '/pj/vendas/comissoes', label: 'Comissões', icon: Percent, description: 'Controle de comissões' },
+          { href: '/pj/comissoes', label: 'Comissões', icon: Percent, description: 'Controle de comissões de vendedores' },
         ],
       },
       {
@@ -322,6 +344,7 @@ const PJ_MODULES: ModuleTab[] = [
         items: [
           { href: '/pj/crm/relatorios', label: 'Relatórios', icon: FileBarChart, description: 'Análises de CRM' },
           { href: '/pj/crm/metas', label: 'Metas', icon: Award, description: 'Metas comerciais' },
+          { href: '/pj/crm-automacoes', label: 'Automações CRM', icon: Zap, description: 'Regras automáticas por gatilho' },
         ],
       },
     ],
@@ -437,6 +460,18 @@ const PJ_MODULES: ModuleTab[] = [
           { href: '/configuracoes/smtp', label: 'E-mail SMTP', icon: Mail, description: 'Configurar servidor de e-mail' },
           { href: '/configuracoes/whatsapp', label: 'WhatsApp', icon: MessageCircle, description: 'Configurar WhatsApp Business' },
           { href: '/configuracoes/whatsapp-financeiro', label: 'WhatsApp Financeiro', icon: MessageCircle, description: 'Enviar NFS-e, boletos e PIX' },
+        ],
+      },
+      {
+        title: 'Personalização',
+        items: [
+          { href: '/pj/campos-customizados', label: 'Campos Customizados', icon: Layers, description: 'Campos extras para clientes, contas e produtos' },
+        ],
+      },
+      {
+        title: 'Segurança',
+        items: [
+          { href: '/pj/audit-log', label: 'Log de Auditoria', icon: Shield, description: 'Histórico de ações e alterações', adminOnly: true },
         ],
       },
     ],
