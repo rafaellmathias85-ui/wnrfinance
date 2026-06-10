@@ -173,6 +173,7 @@ export async function GET(req: NextRequest) {
       const bName = (item as any).bankName || 'Extrato PJ';
       batchMap.set(batchKey, {
         id: `batch_${batchKey}`,
+        importBatchId: (item as any).importBatchId || null,
         importedAt: item.createdAt,
         bankName: bName,
         bankConnectionId: (item as any).bankConnectionId || null,
