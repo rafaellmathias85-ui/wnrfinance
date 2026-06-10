@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useFormatCurrency } from '@/hooks/use-format-currency';
 import {
   AlertTriangle, Calendar, CheckCircle2, ChevronDown, ChevronRight, Eye, EyeOff,
-  FileText, Loader2, Package, RefreshCw, Sparkles, Square, SquareCheck, Upload,
+  FileText, Link, Loader2, Package, RefreshCw, Sparkles, Square, SquareCheck, Trash2, Upload,
   X, XCircle, Zap, Check, ListChecks, Building2, TrendingDown, TrendingUp,
 } from 'lucide-react';
 
@@ -43,6 +43,10 @@ export default function ConciliacaoPJ() {
   const [batchLoading, setBatchLoading] = useState(false);
   const [forceItem, setForceItem] = useState<any>(null);
   const [forceReason, setForceReason] = useState('');
+  const [vinculoItem, setVinculoItem] = useState<any>(null);
+  const [vinculoCandidates, setVinculoCandidates] = useState<any[]>([]);
+  const [vinculoLoading, setVinculoLoading] = useState(false);
+  const [vinculoSearch, setVinculoSearch] = useState('');
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'batches' | 'flat'>('batches');
 
@@ -130,6 +134,41 @@ export default function ConciliacaoPJ() {
 
   const toggleBatch = (batchId: string) => {
     setExpandedBatches(prev => { const next = new Set(prev); if (next.has(batchId)) next.delete(batchId); else next.add(batchId); return next; });
+  };
+
+  const handleDeleteBatch = async (importBatchId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Excluir este lote de importação? Esta ação não pode ser desfeita.')) return;
+    await apiFetch(`/api/pj/reconciliation?importBatchId=${importBatchId}`, { method: 'DELETE' });
+    await load();
+  };
+
+  const handleOpenVincular = async (item: any) => {
+    setVinculoItem(item);
+    setVinculoSearch('');
+    setVinculoLoading(true);
+    setVinculoCandidates([]);
+    const res = await apiFetch('/api/pj/reconciliation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fetch-candidates', type: item.type }),
+    });
+    const d = await res.json();
+    setVinculoCandidates(d.candidates || []);
+    setVinculoLoading(false);
+  };
+
+  const handleVincular = async (accountId: string) => {
+    if (!vinculoItem) return;
+    setActionLoading(vinculoItem.id);
+    await apiFetch('/api/pj/reconciliation', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'link', reconciliationId: vinculoItem.id, accountId }),
+    });
+    setVinculoItem(null);
+    setActionLoading('');
+    await load();
   };
 
   // Import handlers
@@ -365,9 +404,17 @@ export default function ConciliacaoPJ() {
                 {hasDiff && <span className="text-xs font-normal ml-1.5">Δ {formatCurrency(Math.abs(bankAmt - intAmt))}</span>}
               </p>
             </>
+          ) : item.status === 'IGNORED' ? (
+            <div className="flex items-center h-full text-xs text-muted-foreground italic">Ignorado</div>
           ) : (
-            <div className="flex items-center h-full text-xs text-muted-foreground italic">
-              {item.status === 'IGNORED' ? 'Ignorado' : 'Sem correspondência'}
+            <div className="flex flex-col justify-center gap-1.5 py-1">
+              <span className="text-xs text-muted-foreground italic">Sem correspondência</span>
+              <button
+                onClick={() => handleOpenVincular(item)}
+                className="self-start flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-colors"
+              >
+                <Link className="w-3 h-3" /> Vincular
+              </button>
             </div>
           )}
         </div>
@@ -667,6 +714,13 @@ export default function ConciliacaoPJ() {
                       {batch.stats.bankOnly > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Só no Banco">? {batch.stats.bankOnly}</span>}
                       {batch.stats.pending > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" title="Pendentes">⏳ {batch.stats.pending}</span>}
                       <span className="text-xs font-medium text-muted-foreground">{batch.stats.total} total</span>
+                      <button
+                        onClick={(e) => handleDeleteBatch(batch.id, e)}
+                        title="Excluir lote"
+                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                   <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -939,6 +993,83 @@ export default function ConciliacaoPJ() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Vincular Dialog */}
+      <Dialog open={!!vinculoItem} onOpenChange={(open) => { if (!open) setVinculoItem(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link className="w-5 h-5 text-blue-500" /> Vincular Lançamento Manualmente
+            </DialogTitle>
+          </DialogHeader>
+          {vinculoItem && (() => {
+            const filteredCandidates = vinculoCandidates.filter(c => {
+              if (!vinculoSearch) return true;
+              const q = vinculoSearch.toLowerCase();
+              return (c.description || '').toLowerCase().includes(q)
+                || (c.supplierName || '').toLowerCase().includes(q)
+                || (c.customerName || '').toLowerCase().includes(q)
+                || String(c.amount).includes(q);
+            });
+            const isDebit = vinculoItem.type === 'PAYABLE';
+            return (
+              <div className="space-y-4">
+                <div className="p-3 rounded-lg bg-muted/50 text-sm border">
+                  <p className="font-medium">{vinculoItem.bankReference || 'Sem referência'}</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    <span className={isDebit ? 'text-red-600 font-semibold' : 'text-blue-600 font-semibold'}>
+                      {isDebit ? '-' : '+'}{formatCurrency(vinculoItem.bankAmount || 0)}
+                    </span>
+                    {' • '}{vinculoItem.bankDate ? formatDate(vinculoItem.bankDate) : '-'}
+                    {' • '}{isDebit ? 'Débito (Conta a Pagar)' : 'Crédito (Conta a Receber)'}
+                  </p>
+                </div>
+                <input
+                  value={vinculoSearch}
+                  onChange={e => setVinculoSearch(e.target.value)}
+                  placeholder={`Buscar ${isDebit ? 'contas a pagar' : 'contas a receber'}...`}
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  autoFocus
+                />
+                <div className="max-h-72 overflow-y-auto border rounded-lg divide-y">
+                  {vinculoLoading ? (
+                    <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                  ) : filteredCandidates.length === 0 ? (
+                    <div className="p-6 text-center text-sm text-muted-foreground">
+                      {vinculoSearch ? 'Nenhum resultado para esta busca' : 'Nenhum lançamento disponível'}
+                    </div>
+                  ) : filteredCandidates.map((c: any) => (
+                    <div key={c.id} className="flex items-center gap-3 p-3 hover:bg-muted/30 transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{c.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(c.amount)}
+                          {' • '}{c.dueDate ? formatDate(c.dueDate) : '-'}
+                          {c.supplierName ? ` • ${c.supplierName}` : ''}
+                          {c.customerName ? ` • ${c.customerName}` : ''}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full ${c.status === 'pago' || c.status === 'recebido' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                        {c.status}
+                      </span>
+                      <button
+                        onClick={() => handleVincular(c.id)}
+                        disabled={actionLoading === vinculoItem.id}
+                        className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+                      >
+                        Vincular
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {filteredCandidates.length} lançamento{filteredCandidates.length !== 1 ? 's' : ''} disponível{filteredCandidates.length !== 1 ? 'is' : ''}
+                </p>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

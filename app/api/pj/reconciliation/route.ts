@@ -16,12 +16,18 @@ function scoreCandidate(
   bankAmount: number,
   bankDate: Date,
   bankRef: string,
-  record: { amount: number; dueDate: Date | string; description?: string; customerName?: string | null; supplierName?: string | null },
+  record: { amount: number; dueDate: Date | string; paidDate?: Date | string | null; description?: string; customerName?: string | null; supplierName?: string | null },
 ): ScoreResult {
   const recAmount = Number(record.amount);
-  const recDate = new Date(record.dueDate);
+  const dueMs = new Date(record.dueDate).getTime();
+  const paidMs = record.paidDate ? new Date(record.paidDate as any).getTime() : null;
+  const bankMs = bankDate.getTime();
+  // Use paidDate if it is closer to bankDate than dueDate
+  const recDate = paidMs !== null && Math.abs(paidMs - bankMs) < Math.abs(dueMs - bankMs)
+    ? new Date(record.paidDate as any)
+    : new Date(record.dueDate);
   const amountDiff = Math.abs(recAmount - bankAmount);
-  const dateDiffDays = Math.abs(recDate.getTime() - bankDate.getTime()) / 86400000;
+  const dateDiffDays = Math.abs(recDate.getTime() - bankMs) / 86400000;
 
   // Amount score — no score at all beyond 2%
   let amountScore = 0;
@@ -86,8 +92,9 @@ function findBestMatch(
   // Pre-filter: only records within 30 days of bank date
   const window = pool.filter(p => {
     if (usedIds.has(p.id)) return false;
-    const diff = Math.abs(new Date(p.dueDate).getTime() - bankDate.getTime()) / 86400000;
-    return diff <= 30;
+    const dueDiff = Math.abs(new Date(p.dueDate).getTime() - bankDate.getTime()) / 86400000;
+    const paidDiff = p.paidDate ? Math.abs(new Date(p.paidDate).getTime() - bankDate.getTime()) / 86400000 : Infinity;
+    return Math.min(dueDiff, paidDiff) <= 45;
   });
 
   if (window.length === 0) return null;
@@ -257,6 +264,32 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ updated: results.filter(Boolean).length });
   }
 
+  if (action === 'link') {
+    const { reconciliationId, accountId } = body;
+    if (!reconciliationId || !accountId) return NextResponse.json({ error: 'IDs obrigatórios' }, { status: 400 });
+    const existing = await prisma.pJReconciliation.findFirst({ where: { id: reconciliationId, companyId } });
+    if (!existing) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+    const updated = await prisma.pJReconciliation.update({
+      where: { id: reconciliationId },
+      data: {
+        accountId,
+        status: 'RECONCILED',
+        matchMethod: 'manual',
+        reconciledAt: new Date(),
+        reconciledBy: session.user.id,
+        divergenceNote: null,
+        logs: { create: { action: 'MANUAL_LINK', previousStatus: existing.status, newStatus: 'RECONCILED', details: { linkedAccountId: accountId }, performedBy: session.user.id } },
+      },
+      include: { logs: true },
+    });
+    if (existing.type === 'PAYABLE') {
+      await prisma.accountsPayable.update({ where: { id: accountId }, data: { status: 'pago', paidAt: existing.bankDate, amountPaid: existing.bankAmount } });
+    } else {
+      await prisma.accountsReceivable.update({ where: { id: accountId }, data: { status: 'recebido', receivedAt: existing.bankDate, amountReceived: existing.bankAmount } });
+    }
+    return NextResponse.json(updated);
+  }
+
   return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
 }
 
@@ -277,8 +310,16 @@ export async function POST(req: NextRequest) {
     });
     if (!pendingItems.length) return NextResponse.json({ summary: { total: 0, updated: 0 } });
 
-    const payables = await prisma.accountsPayable.findMany({ where: { companyId, status: { in: ['pendente', 'vencido'] } } });
-    const receivables = await prisma.accountsReceivable.findMany({ where: { companyId, status: { in: ['pendente', 'vencido'] } } });
+    const [reconP, reconR, allPay, allRec] = await Promise.all([
+      prisma.pJReconciliation.findMany({ where: { companyId, status: 'RECONCILED', type: 'PAYABLE' }, select: { accountId: true } }),
+      prisma.pJReconciliation.findMany({ where: { companyId, status: 'RECONCILED', type: 'RECEIVABLE' }, select: { accountId: true } }),
+      prisma.accountsPayable.findMany({ where: { companyId }, select: { id: true, description: true, amount: true, dueDate: true, supplierName: true, status: true, paidAt: true } }),
+      prisma.accountsReceivable.findMany({ where: { companyId }, select: { id: true, description: true, amount: true, dueDate: true, customerName: true, status: true, receivedAt: true } }),
+    ]);
+    const reconPayIds = new Set(reconP.map(i => i.accountId).filter(Boolean));
+    const reconRecIds = new Set(reconR.map(i => i.accountId).filter(Boolean));
+    const payables = allPay.filter(p => !reconPayIds.has(p.id)).map(p => ({ ...p, paidDate: p.paidAt }));
+    const receivables = allRec.filter(r => !reconRecIds.has(r.id)).map(r => ({ ...r, paidDate: r.receivedAt }));
 
     const usedPayableIds = new Set<string>();
     const usedReceivableIds = new Set<string>();
@@ -334,12 +375,16 @@ export async function POST(req: NextRequest) {
     const bankName: string = body.bankName || 'Extrato PJ';
     const importBatchId = randomUUID();
 
-    const payables = await prisma.accountsPayable.findMany({
-      where: { companyId, status: { in: ['pendente', 'vencido'] } },
-    });
-    const receivables = await prisma.accountsReceivable.findMany({
-      where: { companyId, status: { in: ['pendente', 'vencido'] } },
-    });
+    const [reconP2, reconR2, allPay2, allRec2] = await Promise.all([
+      prisma.pJReconciliation.findMany({ where: { companyId, status: 'RECONCILED', type: 'PAYABLE' }, select: { accountId: true } }),
+      prisma.pJReconciliation.findMany({ where: { companyId, status: 'RECONCILED', type: 'RECEIVABLE' }, select: { accountId: true } }),
+      prisma.accountsPayable.findMany({ where: { companyId }, select: { id: true, description: true, amount: true, dueDate: true, supplierName: true, status: true, paidAt: true } }),
+      prisma.accountsReceivable.findMany({ where: { companyId }, select: { id: true, description: true, amount: true, dueDate: true, customerName: true, status: true, receivedAt: true } }),
+    ]);
+    const reconPayIds2 = new Set(reconP2.map(i => i.accountId).filter(Boolean));
+    const reconRecIds2 = new Set(reconR2.map(i => i.accountId).filter(Boolean));
+    const payables = allPay2.filter(p => !reconPayIds2.has(p.id)).map(p => ({ ...p, paidDate: p.paidAt }));
+    const receivables = allRec2.filter(r => !reconRecIds2.has(r.id)).map(r => ({ ...r, paidDate: r.receivedAt }));
 
     const usedPayableIds = new Set<string>();
     const usedReceivableIds = new Set<string>();
@@ -432,5 +477,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(updated);
   }
 
+  if (action === 'fetch-candidates') {
+    const { type } = body;
+    if (!type) return NextResponse.json({ error: 'Tipo obrigatório' }, { status: 400 });
+    const reconciledIds = (await prisma.pJReconciliation.findMany({
+      where: { companyId, status: 'RECONCILED', type },
+      select: { accountId: true },
+    })).map(i => i.accountId).filter((id): id is string => !!id && id !== 'N/A');
+
+    const where: any = { companyId };
+    if (reconciledIds.length) where.NOT = { id: { in: reconciledIds } };
+
+    if (type === 'PAYABLE') {
+      const candidates = await prisma.accountsPayable.findMany({
+        where,
+        select: { id: true, description: true, amount: true, dueDate: true, supplierName: true, status: true },
+        orderBy: { dueDate: 'desc' },
+        take: 300,
+      });
+      return NextResponse.json({ candidates });
+    } else {
+      const candidates = await prisma.accountsReceivable.findMany({
+        where,
+        select: { id: true, description: true, amount: true, dueDate: true, customerName: true, status: true },
+        orderBy: { dueDate: 'desc' },
+        take: 300,
+      });
+      return NextResponse.json({ candidates });
+    }
+  }
+
   return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
+}
+
+// ── DELETE (excluir lote de importação) ───────────────────────────────────────
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+  const companyId = (session.user as any).activeCompanyId;
+  if (!companyId) return NextResponse.json({ error: 'Nenhuma empresa ativa' }, { status: 400 });
+
+  const { searchParams } = new URL(req.url);
+  const importBatchId = searchParams.get('importBatchId');
+  if (!importBatchId) return NextResponse.json({ error: 'importBatchId obrigatório' }, { status: 400 });
+
+  const { count } = await prisma.pJReconciliation.deleteMany({
+    where: { importBatchId, companyId },
+  });
+
+  return NextResponse.json({ deleted: count });
 }
