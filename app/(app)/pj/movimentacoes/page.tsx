@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/fetch';
 import {
   ArrowDownCircle,
@@ -94,6 +95,7 @@ const LAUNCH_TYPE_LABELS: Record<string, string> = {
 
 // ─── Criar Dropdown ───────────────────────────────────────────────────────────
 function CriarDropdown() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -104,6 +106,11 @@ function CriarDropdown() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const navigate = (path: string, launchType: string) => {
+    setOpen(false);
+    router.push(`${path}?novo=true&launchType=${launchType}`);
+  };
 
   const entradas = [
     { key: 'venda', label: 'Venda' },
@@ -137,7 +144,7 @@ function CriarDropdown() {
           {entradas.map((e) => (
             <button
               key={e.key}
-              onClick={() => setOpen(false)}
+              onClick={() => navigate('/pj/contas-receber', e.key)}
               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-700 text-left"
             >
               <ArrowUpCircle className="w-4 h-4 text-green-400" />
@@ -150,7 +157,7 @@ function CriarDropdown() {
           {saidas.map((s) => (
             <button
               key={s.key}
-              onClick={() => setOpen(false)}
+              onClick={() => navigate('/pj/contas-pagar', s.key)}
               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-200 hover:bg-slate-700 text-left"
             >
               <ArrowDownCircle className="w-4 h-4 text-red-400" />

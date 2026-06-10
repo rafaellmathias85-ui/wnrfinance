@@ -5,6 +5,7 @@ import { useAiCategorize } from '@/hooks/use-ai-categorize';
 import { usePJ } from '@/lib/pj-context';
 import { ExportButton } from '@/components/export-button';
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Check, FileUp, Pencil, Plus, PlusCircle, Repeat, Search, Sparkles, Square, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,8 @@ export default function ContasPagar() {
   const fmt = useFormatCurrency();
   const { activeCompanyId } = usePJ();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const [defaultLaunchType, setDefaultLaunchType] = useState('');
   const [items, setItems] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [costCenters, setCostCenters] = useState<any[]>([]);
@@ -102,7 +105,22 @@ export default function ContasPagar() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  useEffect(() => {
+    if (searchParams.get('novo') === 'true') {
+      setDefaultLaunchType(searchParams.get('launchType') || '');
+      setEditing(null);
+      setPaymentMethod('');
+      setSelectedTags([]);
+      setIsRecurring(false);
+      setRecurrenceMonths(2);
+      aiClear();
+      setShowForm(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const openNew = () => {
+    setDefaultLaunchType('');
     setEditing(null);
     setPaymentMethod('');
     setSelectedTags([]);
@@ -445,7 +463,7 @@ export default function ContasPagar() {
                 </div>
                 <div>
                   <Label>Tipo de lançamento</Label>
-                  <select name="launchType" defaultValue={(editing as any)?.launchType || ''} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
+                  <select name="launchType" defaultValue={(editing as any)?.launchType || defaultLaunchType} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
                     <option value="">— Não classificado</option>
                     <option value="fornecedor">Fornecedor</option>
                     <option value="funcionario">Funcionário</option>
