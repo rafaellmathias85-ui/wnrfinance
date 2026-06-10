@@ -248,7 +248,15 @@ export async function PATCH(req: NextRequest) {
     return updated ? NextResponse.json(updated) : NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
   if (action === 'force') {
+    const rec = await prisma.pJReconciliation.findFirst({ where: { id: body.reconciliationId, companyId } });
+    if (!rec) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
     const updated = await doUpdate(body.reconciliationId, 'RECONCILED', { notes: body.notes, logAction: 'FORCE' });
+    if (body.updateAmount && rec.accountId && rec.type === 'PAYABLE' && rec.bankAmount) {
+      await prisma.accountsPayable.update({
+        where: { id: rec.accountId },
+        data: { amountPaid: rec.bankAmount, amount: rec.bankAmount, status: 'pago', paidAt: rec.bankDate },
+      }).catch(() => {});
+    }
     return updated ? NextResponse.json(updated) : NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
   }
   if (action === 'unlink') {
@@ -288,6 +296,20 @@ export async function PATCH(req: NextRequest) {
     } else {
       await prisma.accountsReceivable.update({ where: { id: accountId }, data: { status: 'recebido', receivedAt: existing.bankDate, amountReceived: existing.bankAmount } });
     }
+    return NextResponse.json(updated);
+  }
+
+  if (action === 'clear-match') {
+    const rec = await prisma.pJReconciliation.findFirst({ where: { id: body.reconciliationId, companyId } });
+    if (!rec) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+    const updated = await prisma.pJReconciliation.update({
+      where: { id: body.reconciliationId },
+      data: {
+        accountId: 'N/A', status: 'BANK_ONLY', divergenceNote: null, reconciledAt: null, reconciledBy: null,
+        logs: { create: { action: 'CLEAR_MATCH', previousStatus: rec.status, newStatus: 'BANK_ONLY', details: {}, performedBy: session.user.id } },
+      },
+      include: { logs: { take: 5, orderBy: { createdAt: 'desc' } } },
+    });
     return NextResponse.json(updated);
   }
 
@@ -506,6 +528,32 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json({ candidates });
     }
+  }
+
+  if (action === 'create-and-link') {
+    const { reconciliationId, description, amount, dueDate } = body;
+    if (!reconciliationId || !description || !amount || !dueDate) return NextResponse.json({ error: 'Campos obrigatórios faltando' }, { status: 400 });
+    const rec = await prisma.pJReconciliation.findFirst({ where: { id: reconciliationId, companyId } });
+    if (!rec) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 });
+    let accountId: string;
+    if (rec.type === 'PAYABLE') {
+      const newAcc = await prisma.accountsPayable.create({
+        data: { companyId, description, amount: parseFloat(amount), dueDate: new Date(dueDate), status: 'pago', paidAt: rec.bankDate, amountPaid: rec.bankAmount || parseFloat(amount) },
+      });
+      accountId = newAcc.id;
+    } else {
+      const newAcc = await prisma.accountsReceivable.create({
+        data: { companyId, description, amount: parseFloat(amount), dueDate: new Date(dueDate), status: 'recebido', receivedAt: rec.bankDate, amountReceived: rec.bankAmount || parseFloat(amount) },
+      });
+      accountId = newAcc.id;
+    }
+    const updated = await prisma.pJReconciliation.update({
+      where: { id: reconciliationId },
+      data: { accountId, status: 'RECONCILED', matchMethod: 'manual', reconciledAt: new Date(), reconciledBy: session.user.id,
+        logs: { create: { action: 'CREATE_AND_LINK', previousStatus: rec.status, newStatus: 'RECONCILED', details: { createdAccountId: accountId }, performedBy: session.user.id } } },
+      include: { logs: true },
+    });
+    return NextResponse.json(updated);
   }
 
   return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });

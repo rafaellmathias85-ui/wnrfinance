@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useFormatCurrency } from '@/hooks/use-format-currency';
 import {
   AlertTriangle, Calendar, CheckCircle2, ChevronDown, ChevronRight, Eye, EyeOff,
-  FileText, Link, Loader2, Package, RefreshCw, Sparkles, Square, SquareCheck, Trash2, Upload,
+  FileText, Link, Loader2, Package, PlusCircle, RefreshCw, Sparkles, Square, SquareCheck, Trash2, Upload,
   X, XCircle, Zap, Check, ListChecks, Building2, TrendingDown, TrendingUp,
 } from 'lucide-react';
 
@@ -43,12 +43,18 @@ export default function ConciliacaoPJ() {
   const [batchLoading, setBatchLoading] = useState(false);
   const [forceItem, setForceItem] = useState<any>(null);
   const [forceReason, setForceReason] = useState('');
+  const [forceUpdateAmount, setForceUpdateAmount] = useState(false);
   const [vinculoItem, setVinculoItem] = useState<any>(null);
   const [vinculoCandidates, setVinculoCandidates] = useState<any[]>([]);
   const [vinculoLoading, setVinculoLoading] = useState(false);
   const [vinculoSearch, setVinculoSearch] = useState('');
   const [vinculoDateStart, setVinculoDateStart] = useState('');
   const [vinculoDateEnd, setVinculoDateEnd] = useState('');
+  const [lancamentoItem, setLancamentoItem] = useState<any>(null);
+  const [lancamentoDesc, setLancamentoDesc] = useState('');
+  const [lancamentoAmount, setLancamentoAmount] = useState('');
+  const [lancamentoDate, setLancamentoDate] = useState('');
+  const [lancamentoLoading, setLancamentoLoading] = useState(false);
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'batches' | 'flat'>('batches');
 
@@ -67,15 +73,15 @@ export default function ConciliacaoPJ() {
   const [bankConnections, setBankConnections] = useState<any[]>([]);
   const [selectedBankId, setSelectedBankId] = useState('');
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!activeCompanyId) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     const params = new URLSearchParams();
     if (statusFilter) params.set('status', statusFilter);
     if (typeFilter) params.set('type', typeFilter);
     const res = await apiFetch(`/api/pj/reconciliation?${params}`).then(r => r.json());
     setData(res);
-    setLoading(false);
+    if (!silent) setLoading(false);
     setSelected(new Set());
   }, [activeCompanyId, statusFilter, typeFilter]);
 
@@ -109,7 +115,7 @@ export default function ConciliacaoPJ() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reconciliationId: reconId, action, ...extra }),
     });
-    await load();
+    await load(true);
     setActionLoading('');
     setShowDetail(null);
   };
@@ -131,7 +137,7 @@ export default function ConciliacaoPJ() {
       body: JSON.stringify({ action: 'batch', ids: Array.from(selected), batchAction }),
     });
     setBatchLoading(false);
-    await load();
+    await load(true);
   };
 
   const toggleBatch = (batchId: string) => {
@@ -145,7 +151,7 @@ export default function ConciliacaoPJ() {
       ? `importBatchId=${encodeURIComponent(batch.importBatchId)}`
       : `createdAtMinute=${encodeURIComponent(batch.importedAt)}`;
     await apiFetch(`/api/pj/reconciliation?${params}`, { method: 'DELETE' });
-    await load();
+    await load(true);
   };
 
   const handleOpenVincular = async (item: any) => {
@@ -175,7 +181,20 @@ export default function ConciliacaoPJ() {
     });
     setVinculoItem(null);
     setActionLoading('');
-    await load();
+    await load(true);
+  };
+
+  const handleLancar = async () => {
+    if (!lancamentoItem || !lancamentoDesc || !lancamentoAmount || !lancamentoDate) return;
+    setLancamentoLoading(true);
+    await apiFetch('/api/pj/reconciliation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'create-and-link', reconciliationId: lancamentoItem.id, description: lancamentoDesc, amount: lancamentoAmount, dueDate: lancamentoDate }),
+    });
+    setLancamentoItem(null);
+    setLancamentoLoading(false);
+    await load(true);
   };
 
   // Import handlers
@@ -302,7 +321,7 @@ export default function ConciliacaoPJ() {
               <CheckCircle2 className="w-4 h-4 text-blue-600" />
             </button>
             <button
-              onClick={() => { setForceItem(item); setForceReason(''); }}
+              onClick={() => { setForceItem(item); setForceReason(''); setForceUpdateAmount(false); }}
               disabled={actionLoading === item.id}
               className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20" title="Forçar"
             >
@@ -357,7 +376,13 @@ export default function ConciliacaoPJ() {
     const isDivergent = item.status === 'DIVERGENT';
 
     return (
-      <div key={item.id} className="grid grid-cols-[1fr_56px_1fr] border-b last:border-0 hover:bg-muted/10 transition-colors text-sm">
+      <div key={item.id} className="grid grid-cols-[20px_1fr_56px_1fr] border-b last:border-0 hover:bg-muted/10 transition-colors text-sm">
+        {/* Checkbox */}
+        <div className="flex items-center justify-center pl-1 pt-3">
+          <button onClick={() => toggleSelect(item.id)} className="p-0.5">
+            {selected.has(item.id) ? <SquareCheck className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+        </div>
         {/* Left: bank entry */}
         <div className="p-3 pr-1 min-w-0">
           <p className="font-medium text-foreground truncate leading-snug">{item.bankReference || 'Sem referência'}</p>
@@ -384,7 +409,7 @@ export default function ConciliacaoPJ() {
               <button onClick={() => handleAction(item.id, 'approve')} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20" title="Conciliar">
                 <CheckCircle2 className="w-3 h-3 text-blue-600" />
               </button>
-              <button onClick={() => { setForceItem(item); setForceReason(''); }} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/20" title="Forçar">
+              <button onClick={() => { setForceItem(item); setForceReason(''); setForceUpdateAmount(false); }} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/20" title="Forçar">
                 <Zap className="w-3 h-3 text-amber-500" />
               </button>
               <button onClick={() => handleAction(item.id, 'ignore')} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-muted" title="Ignorar">
@@ -429,6 +454,15 @@ export default function ConciliacaoPJ() {
                   <Link className="w-3 h-3" /> Re-vincular
                 </button>
               )}
+              {(item.status === 'DIVERGENT' || item.status === 'PENDING' || item.status === 'SUGGESTED') && (
+                <button
+                  onClick={() => handleAction(item.id, 'clear-match')}
+                  title="Remover vínculo automático"
+                  className="mt-0.5 flex items-center gap-1 px-2 py-0.5 text-xs rounded-md bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 border border-red-200 dark:border-red-800 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" /> Remover
+                </button>
+              )}
             </>
           ) : item.status === 'IGNORED' ? (
             <div className="flex items-center h-full text-xs text-muted-foreground italic">Ignorado</div>
@@ -440,6 +474,17 @@ export default function ConciliacaoPJ() {
                 className="self-start flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 transition-colors"
               >
                 <Link className="w-3 h-3" /> Vincular
+              </button>
+              <button
+                onClick={() => {
+                  setLancamentoItem(item);
+                  setLancamentoDesc(item.bankReference || '');
+                  setLancamentoAmount(String(Math.abs(item.bankAmount || 0)));
+                  setLancamentoDate(item.bankDate ? new Date(item.bankDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+                }}
+                className="self-start flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/40 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 transition-colors"
+              >
+                <PlusCircle className="w-3 h-3" /> Lançar
               </button>
             </div>
           )}
@@ -759,7 +804,8 @@ export default function ConciliacaoPJ() {
                 {isExpanded && (
                   <CardContent className="p-0 border-t">
                     {/* Column headers */}
-                    <div className="grid grid-cols-[1fr_56px_1fr] border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    <div className="grid grid-cols-[20px_1fr_56px_1fr] border-b bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      <div />
                       <div className="px-3 py-2">Extrato Bancário</div>
                       <div />
                       <div className="px-3 py-2">Movimentação no Sistema</div>
@@ -1004,7 +1050,7 @@ export default function ConciliacaoPJ() {
                   <Button size="sm" onClick={() => handleAction(showDetail.id, 'approve')} disabled={actionLoading === showDetail.id} className="bg-blue-600 hover:bg-blue-700 text-white">
                     <CheckCircle2 className="w-4 h-4 mr-1" /> Conciliar
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setForceItem(showDetail); setForceReason(''); setShowDetail(null); }} className="border-amber-300 text-amber-700 hover:bg-amber-50">
+                  <Button size="sm" variant="outline" onClick={() => { setForceItem(showDetail); setForceReason(''); setForceUpdateAmount(false); setShowDetail(null); }} className="border-amber-300 text-amber-700 hover:bg-amber-50">
                     <Zap className="w-4 h-4 mr-1" /> Forçar
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => handleAction(showDetail.id, 'ignore')} disabled={actionLoading === showDetail.id}>
@@ -1027,7 +1073,7 @@ export default function ConciliacaoPJ() {
 
       {/* Vincular Dialog */}
       <Dialog open={!!vinculoItem} onOpenChange={(open) => { if (!open) setVinculoItem(null); }}>
-        <DialogContent className="w-full max-w-4xl">
+        <DialogContent className="w-[95vw] max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Link className="w-5 h-5 text-blue-500" /> Vincular Lançamento Manualmente
@@ -1156,8 +1202,48 @@ export default function ConciliacaoPJ() {
         </DialogContent>
       </Dialog>
 
+      {/* Lançar Dialog */}
+      <Dialog open={!!lancamentoItem} onOpenChange={(open) => { if (!open) setLancamentoItem(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-green-500" /> {lancamentoItem?.type === 'PAYABLE' ? 'Lançar Despesa' : 'Lançar Receita'}
+            </DialogTitle>
+          </DialogHeader>
+          {lancamentoItem && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Criar um novo lançamento de <strong>{lancamentoItem.type === 'PAYABLE' ? 'conta a pagar' : 'conta a receber'}</strong> e vincular automaticamente a esta movimentação bancária.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Descrição</label>
+                  <input value={lancamentoDesc} onChange={e => setLancamentoDesc(e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-green-500 outline-none" placeholder="Descrição do lançamento" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Valor (R$)</label>
+                    <input type="number" step="0.01" value={lancamentoAmount} onChange={e => setLancamentoAmount(e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-green-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Data de vencimento</label>
+                    <input type="date" value={lancamentoDate} onChange={e => setLancamentoDate(e.target.value)} className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-green-500 outline-none" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 border-t">
+                <Button variant="outline" onClick={() => setLancamentoItem(null)} className="flex-1">Cancelar</Button>
+                <Button onClick={handleLancar} disabled={lancamentoLoading || !lancamentoDesc || !lancamentoAmount || !lancamentoDate} className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+                  {lancamentoLoading ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Criando...</> : <><PlusCircle className="w-4 h-4 mr-1" />Criar e Vincular</>}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Force Reconciliation Dialog */}
-      <Dialog open={!!forceItem} onOpenChange={() => setForceItem(null)}>
+      <Dialog open={!!forceItem} onOpenChange={() => { setForceItem(null); setForceUpdateAmount(false); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1178,6 +1264,25 @@ export default function ConciliacaoPJ() {
                 </p>
               </div>
             )}
+            {forceItem && forceItem.type === 'PAYABLE' && forceItem.account && Math.abs((forceItem.bankAmount || 0) - (forceItem.account.amount || 0)) > 0.01 && (
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 cursor-pointer">
+                <input type="checkbox" checked={forceUpdateAmount} onChange={e => setForceUpdateAmount(e.target.checked)} className="mt-0.5 w-4 h-4 accent-amber-600" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Corrigir valor no sistema</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                    O valor da conta a pagar será atualizado de <strong>{formatCurrency(forceItem.account.amount)}</strong> para <strong>{formatCurrency(forceItem.bankAmount || 0)}</strong> (valor do banco).
+                  </p>
+                </div>
+              </label>
+            )}
+            {forceItem && forceItem.type === 'RECEIVABLE' && forceItem.account && Math.abs((forceItem.bankAmount || 0) - (forceItem.account.amount || 0)) > 0.01 && (
+              <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800">
+                <p className="text-sm text-blue-700 dark:text-blue-400">
+                  <strong>Receita:</strong> o valor no sistema ({formatCurrency(forceItem.account.amount)}) não será alterado.
+                  A diferença de {formatCurrency(Math.abs((forceItem.bankAmount || 0) - (forceItem.account.amount || 0)))} pode ser juros ou multa do boleto.
+                </p>
+              </div>
+            )}
             <div>
               <Label className="text-sm font-medium">Motivo da conciliação forçada</Label>
               <textarea
@@ -1192,7 +1297,7 @@ export default function ConciliacaoPJ() {
               <Button
                 onClick={async () => {
                   if (!forceItem) return;
-                  await handleAction(forceItem.id, 'force', { notes: forceReason || 'Conciliação forçada' });
+                  await handleAction(forceItem.id, 'force', { notes: forceReason || 'Conciliação forçada', updateAmount: forceUpdateAmount });
                   setForceItem(null);
                 }}
                 disabled={actionLoading === forceItem?.id}
