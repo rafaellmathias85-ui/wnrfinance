@@ -150,8 +150,8 @@ export async function POST(req: NextRequest) {
       clientMap[cl.name] = existing.id;
     }
 
-    // ── Suppliers & Employees ──────────────────────────────────────────
-    for (const sup of [...data.suppliers, ...data.employees]) {
+    // ── Suppliers ─────────────────────────────────────────────────────
+    for (const sup of data.suppliers) {
       const existing = await prisma.supplier.findFirst({ where: { companyId, name: sup.name } });
       if (!existing) {
         await prisma.supplier.create({
@@ -159,10 +159,30 @@ export async function POST(req: NextRequest) {
             companyId,
             name: sup.name,
             document: sup.document || null,
+            supplierType: 'supplier',
             isActive: true,
           },
         });
         results.suppliers++;
+      }
+    }
+
+    // ── Employees ─────────────────────────────────────────────────────
+    for (const emp of data.employees) {
+      const existing = await prisma.supplier.findFirst({ where: { companyId, name: emp.name } });
+      if (!existing) {
+        await prisma.supplier.create({
+          data: {
+            companyId,
+            name: emp.name,
+            document: emp.document || null,
+            supplierType: 'employee',
+            isActive: true,
+          },
+        });
+        results.suppliers++;
+      } else if (existing.supplierType !== 'employee') {
+        await prisma.supplier.update({ where: { id: existing.id }, data: { supplierType: 'employee' } });
       }
     }
 

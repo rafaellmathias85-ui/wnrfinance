@@ -2,7 +2,7 @@
 import { apiFetch } from '@/lib/fetch';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Activity, BarChart3, Crown, DollarSign, Loader2, Shield, ShieldCheck, Users } from 'lucide-react';
+import { Activity, BarChart3, Crown, Database, DollarSign, Loader2, Shield, ShieldCheck, Users } from 'lucide-react';
 import { DataGrid, KpiStrip, PageHeader, type DataGridColumn, type KpiItem } from '@/components/enterprise';
 import { Button } from '@/components/ui/button';
 import { useFormatCurrency } from '@/hooks/use-format-currency';
@@ -13,6 +13,8 @@ export default function AdminPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
 
   useEffect(() => {
     apiFetch('/api/admin')
@@ -21,6 +23,20 @@ export default function AdminPage() {
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleImportSeed = async () => {
+    if (!confirm('Importar dados PJ (bancos, categorias, clientes, fornecedores e movimentações 2025) para a empresa ativa? Esta ação não duplica registros existentes.')) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await apiFetch('/api/admin/import-seed', { method: 'POST' });
+      const result = await res.json();
+      setImportResult(result);
+    } catch (e: any) {
+      setImportResult({ error: e.message });
+    }
+    setImporting(false);
+  };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
   if (error) return <div className="text-center py-20"><Shield className="w-16 h-16 text-red-300 mx-auto mb-4" /><p className="text-lg font-medium text-foreground">{error}</p></div>;
@@ -172,6 +188,51 @@ export default function AdminPage() {
           data={data?.recentUsers || []}
           emptyMessage="Nenhum usuário encontrado"
         />
+      </div>
+
+      {/* Data Tools */}
+      <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2">
+          <Database className="w-4 h-4 text-blue-600" />
+          <h3 className="text-sm font-semibold">Ferramentas de Dados</h3>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-lg bg-muted/50">
+            <div>
+              <p className="text-sm font-medium text-foreground">Importar Dados PJ 2025</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Importa bancos, categorias, clientes, fornecedores e movimentações S1/2025 para a empresa ativa. Não duplica registros já existentes.</p>
+            </div>
+            <Button
+              onClick={handleImportSeed}
+              disabled={importing}
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5"
+            >
+              {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+              {importing ? 'Importando...' : 'Executar Import'}
+            </Button>
+          </div>
+          {importResult && (
+            <div className={`p-4 rounded-lg text-sm ${importResult.error ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'}`}>
+              {importResult.error ? (
+                <p>Erro: {importResult.error}</p>
+              ) : (
+                <div className="space-y-1">
+                  <p className="font-semibold">Import concluído com sucesso!</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                    {Object.entries(importResult.results || {}).map(([k, v]) => (
+                      <div key={k} className="text-center p-2 bg-white/50 dark:bg-black/20 rounded-md">
+                        <p className="text-lg font-bold">{String(v)}</p>
+                        <p className="text-[11px] capitalize">{k}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

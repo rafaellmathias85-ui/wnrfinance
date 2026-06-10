@@ -205,6 +205,7 @@ const PJ_MODULES: ModuleTab[] = [
           { href: '/pj/cartoes', label: 'Cartões', icon: CreditCard, description: 'Cartões corporativos' },
           { href: '/pj/clientes', label: 'Clientes', icon: UserCheck, description: 'Base de clientes' },
           { href: '/pj/fornecedores', label: 'Fornecedores', icon: Truck, description: 'Cadastro de fornecedores' },
+          { href: '/pj/funcionarios', label: 'Funcionários', icon: Users, description: 'Colaboradores da empresa' },
         ],
       },
       {

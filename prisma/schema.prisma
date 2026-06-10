@@ -1022,25 +1022,30 @@ model ClientPortalToken {
 }
 
 model Supplier {
-  id        String   @id @default(cuid())
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId    String?
-  name      String
-  document  String? // CPF or CNPJ
-  email     String?
-  phone     String?
-  address   String?
-  city      String?
-  state     String?
-  notes     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId       String?
+  name         String
+  document     String? // CPF or CNPJ
+  email        String?
+  phone        String?
+  address      String?
+  city         String?
+  state        String?
+  notes        String?
+  supplierType String   @default("supplier") // "supplier" | "employee"
+  position     String? // cargo/função (para funcionários)
+  salary       Float?  // salário (para funcionários)
+  hiredAt      DateTime? // data de admissão
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([companyId])
   @@index([userId])
   @@index([name])
+  @@index([companyId, supplierType])
 }
 
 // ====================== AI PROVIDER LOGS ======================
