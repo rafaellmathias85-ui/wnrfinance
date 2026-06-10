@@ -14,6 +14,32 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
+function ImportResultBox({ result, fileName, totalRows }: { result: any; fileName?: string; totalRows?: number }) {
+  if (result.error) {
+    return (
+      <div className="p-3 rounded-lg text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400">
+        Erro: {result.error}
+      </div>
+    );
+  }
+  return (
+    <div className="p-3 rounded-lg text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400">
+      <p className="font-semibold mb-1">
+        Import concluído{fileName ? ` — ${fileName}` : ''}
+        {totalRows ? ` (${totalRows} linhas lidas)` : ''}
+      </p>
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-2">
+        {Object.entries(result.results || {}).map(([k, v]) => (
+          <div key={k} className="text-center p-2 bg-white/60 dark:bg-black/20 rounded">
+            <p className="text-base font-bold">{String(v)}</p>
+            <p className="text-[10px] capitalize">{k}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PJConfiguracoesPage() {
   const { data: session } = useSession() || {};
   const { theme, setTheme } = useTheme();
@@ -22,6 +48,8 @@ export default function PJConfiguracoesPage() {
   const [entitlements, setEntitlements] = useState<any>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [csvResult, setCsvResult] = useState<any>(null);
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaSetupData, setMfaSetupData] = useState<{ qrDataUrl: string; secret: string; backupCodes: string[] } | null>(null);
   const [mfaCode, setMfaCode] = useState('');
@@ -70,6 +98,24 @@ export default function PJConfiguracoesPage() {
       setMfaEnabled(false); setMfaSetupData(null); setShowDisableDialog(false); setDisableCode(''); setMfaSuccess('MFA desativado.');
     } catch (e: any) { setMfaError(e.message || 'Código inválido'); }
     setMfaLoading(false);
+  };
+
+  const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvUploading(true);
+    setCsvResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await apiFetch('/api/admin/import-csv', { method: 'POST', body: fd });
+      const result = await res.json();
+      setCsvResult(result);
+    } catch (err: any) {
+      setCsvResult({ error: err.message });
+    }
+    setCsvUploading(false);
+    e.target.value = '';
   };
 
   const handleImportSeed = async () => {
@@ -264,33 +310,41 @@ export default function PJConfiguracoesPage() {
       {/* Importar Dados */}
       <Card className="shadow-sm">
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Database className="w-5 h-5" /> Importar Dados PJ</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Popula a empresa ativa com os dados do extrato S1/2025: 2 contas bancárias (Itaú e Inter), categorias, clientes, fornecedores, funcionários e movimentações financeiras. Não duplica registros já existentes.
-          </p>
-          <Button onClick={handleImportSeed} disabled={importing} variant="outline" className="gap-2">
-            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
-            {importing ? 'Importando...' : 'Executar Import'}
-          </Button>
-          {importResult && (
-            <div className={`p-3 rounded-lg text-sm mt-2 ${importResult.error ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'}`}>
-              {importResult.error ? (
-                <p>Erro: {importResult.error}</p>
-              ) : (
-                <div>
-                  <p className="font-semibold mb-2">Import concluído!</p>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                    {Object.entries(importResult.results || {}).map(([k, v]) => (
-                      <div key={k} className="text-center p-2 bg-white/60 dark:bg-black/20 rounded">
-                        <p className="text-base font-bold">{String(v)}</p>
-                        <p className="text-[10px] capitalize">{k}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+        <CardContent className="space-y-4">
+
+          {/* ── Import fixo (S1/2025) ── */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Extrato S1/2025 (pré-carregado)</p>
+            <p className="text-xs text-muted-foreground">2 contas bancárias (Itaú e Inter), categorias, clientes, fornecedores, funcionários e movimentações. Não duplica registros já existentes.</p>
+            <Button onClick={handleImportSeed} disabled={importing} variant="outline" size="sm" className="gap-2">
+              {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+              {importing ? 'Importando...' : 'Executar Import'}
+            </Button>
+            {importResult && (
+              <ImportResultBox result={importResult} />
+            )}
+          </div>
+
+          <div className="border-t border-border/40" />
+
+          {/* ── Upload de CSV ── */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Carregar novo arquivo CSV</p>
+            <p className="text-xs text-muted-foreground">CSV com colunas: Tipo, Categoria, Cliente/Fornecedor, Vencimento, Valor (R$), Quitado. Separador ponto-e-vírgula (;).</p>
+            <label className="cursor-pointer">
+              <input type="file" accept=".csv,.txt" onChange={handleCsvUpload} className="hidden" disabled={csvUploading} />
+              <Button asChild variant="outline" size="sm" className="gap-2 pointer-events-none" disabled={csvUploading}>
+                <span>
+                  {csvUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                  {csvUploading ? 'Importando...' : 'Selecionar CSV'}
+                </span>
+              </Button>
+            </label>
+            {csvResult && (
+              <ImportResultBox result={csvResult} fileName={csvResult.fileName} totalRows={csvResult.totalRows} />
+            )}
+          </div>
+
         </CardContent>
       </Card>
 
