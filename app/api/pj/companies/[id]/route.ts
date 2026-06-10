@@ -29,14 +29,25 @@ export async function PUT(req: NextRequest, { params }: any) {
     return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
   }
   const body = await req.json();
+
+  // Merge features JSON — preserve existing keys not included in this request
+  const existingFeatures = (uc.company.features as any) ?? {};
+  const newFeatures = { ...existingFeatures };
+  if (body.fiscal) newFeatures.fiscal = { ...existingFeatures.fiscal, ...body.fiscal };
+  if (body.address) newFeatures.address = body.address;
+  if (body.nfse) newFeatures.nfse = body.nfse;
+  if (body.vendas) newFeatures.vendas = body.vendas;
+  if (body.empresa) newFeatures.empresa = { ...existingFeatures.empresa, ...body.empresa };
+
   const updated = await prisma.company.update({
     where: { id },
     data: {
-      name: body.name,
-      tradeName: body.tradeName,
-      address: body.address,
-      phone: body.phone,
-      email: body.email,
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.tradeName !== undefined && { tradeName: body.tradeName || null }),
+      ...(body.phone !== undefined && { phone: body.phone || null }),
+      ...(body.email !== undefined && { email: body.email || null }),
+      ...(body.segment !== undefined && { segment: body.segment || null }),
+      features: newFeatures,
     },
   });
   return NextResponse.json(updated);
