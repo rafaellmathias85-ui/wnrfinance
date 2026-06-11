@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   Send, Sparkles, Settings2, Plus, Trash2, Loader2, RotateCcw,
   TrendingUp, AlertTriangle, BarChart3, Target, Brain, Clock,
-  Bell, ListChecks, ChevronRight, Mic, MicOff, Loader,
+  Bell, ListChecks, ChevronRight, Mic, MicOff, Loader, Paperclip,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -98,6 +98,10 @@ export default function SophiPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const MAX_RECORD_SECONDS = 120;
+
+  // Audio file upload (bypass mic permission)
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Config
   const [config, setConfig] = useState<SophiConfig>({ extraInstructions: '', dailyTasks: [], reminders: [], alertRules: [] });
@@ -243,6 +247,46 @@ export default function SophiPage() {
       startRecording();
     }
   }, [isRecording, startRecording, stopRecording]);
+
+  // ─── Audio file upload ────────────────────────────────────────────────────────
+
+  const handleAudioFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (file.size < 500) {
+      window.alert('Arquivo de áudio muito pequeno ou inválido.');
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      window.alert('Arquivo muito grande. Limite: 25 MB.');
+      return;
+    }
+
+    setIsUploadingAudio(true);
+    try {
+      const form = new FormData();
+      form.append('audio', file, file.name);
+      const res = await apiFetch('/api/pj/sophi/transcribe', { method: 'POST', body: form });
+      if (res.ok) {
+        const { text } = await res.json();
+        if (text?.trim()) {
+          setTimeout(() => { sendMessageRef.current?.(text.trim()); }, 50);
+        } else {
+          toast({ title: 'Nenhuma fala detectada no arquivo', variant: 'destructive' });
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        window.alert(`Erro na transcrição: ${errData.error || `HTTP ${res.status}`}`);
+      }
+    } catch (err: any) {
+      window.alert(`Erro ao enviar áudio: ${err?.message || 'verifique a conexão'}`);
+    } finally {
+      setIsUploadingAudio(false);
+      inputRef.current?.focus();
+    }
+  }, [toast]);
 
   // ─── Space bar to toggle ─────────────────────────────────────────────────────
 
@@ -436,6 +480,13 @@ export default function SophiPage() {
             )}
           </div>
 
+          {/* Audio upload indicator */}
+          {isUploadingAudio && (
+            <div className="shrink-0 mb-2 flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400">
+              <Loader className="w-4 h-4 animate-spin" /> Transcrevendo arquivo com Whisper...
+            </div>
+          )}
+
           {/* Recording / transcribing / requesting indicator */}
           {(requestingMic || isRecording || isTranscribing) && (
             <div className={`shrink-0 mb-2 flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium ${
@@ -524,17 +575,40 @@ export default function SophiPage() {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder={
+                isUploadingAudio ? 'Transcrevendo arquivo de áudio...' :
                 isTranscribing ? 'Transcrevendo...' :
                 isRecording ? 'Gravando... pressione Espaço para enviar' :
-                voiceSupported ? 'Digite ou pressione Espaço para falar...' :
-                'Pergunte à Sophi...'
+                'Digite, grave (Espaço) ou envie um arquivo de áudio...'
               }
-              disabled={streaming || isRecording || isTranscribing}
+              disabled={streaming || isRecording || isTranscribing || isUploadingAudio}
               className={`flex-1 ${isRecording ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
               }}
             />
+
+            {/* Hidden file input for audio upload */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*,video/*,.mp3,.mp4,.m4a,.ogg,.webm,.wav,.flac"
+              className="hidden"
+              onChange={handleAudioFileUpload}
+            />
+
+            {/* Audio upload button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={streaming || isRecording || isTranscribing || isUploadingAudio || requestingMic}
+              title="Enviar arquivo de áudio para transcrição (mp3, m4a, ogg, wav...)"
+            >
+              {isUploadingAudio
+                ? <Loader className="w-4 h-4 animate-spin" />
+                : <Paperclip className="w-4 h-4" />}
+            </Button>
 
             {/* Mic button — always shown, MediaRecorder + Whisper */}
             <Button
@@ -542,7 +616,7 @@ export default function SophiPage() {
               variant={isRecording ? 'destructive' : 'outline'}
               size="icon"
               onClick={toggleRecording}
-              disabled={streaming || isTranscribing || requestingMic}
+              disabled={streaming || isTranscribing || requestingMic || isUploadingAudio}
               title={
                 requestingMic ? 'Aguardando permissão...' :
                 isTranscribing ? 'Transcrevendo...' :
@@ -558,15 +632,16 @@ export default function SophiPage() {
                 : <Mic className="w-4 h-4" />}
             </Button>
 
-            <Button type="submit" disabled={streaming || isRecording || isTranscribing || !input.trim()} className="gap-2 shrink-0">
+            <Button type="submit" disabled={streaming || isRecording || isTranscribing || isUploadingAudio || !input.trim()} className="gap-2 shrink-0">
               {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {streaming ? 'Analisando...' : 'Enviar'}
             </Button>
           </form>
 
-          {voiceSupported && !isRecording && !isTranscribing && (
+          {!isRecording && !isTranscribing && !isUploadingAudio && (
             <p className="text-center text-[10px] text-muted-foreground mt-1">
-              <kbd className="px-1 py-0.5 rounded border border-border bg-muted font-mono">Espaço</kbd> para gravar · Whisper AI transcreve e envia automaticamente
+              <kbd className="px-1 py-0.5 rounded border border-border bg-muted font-mono">Espaço</kbd> para gravar ·{' '}
+              <Paperclip className="inline w-2.5 h-2.5" /> para enviar áudio gravado (mp3, m4a, ogg…) · Whisper transcreve automaticamente
             </p>
           )}
         </div>
