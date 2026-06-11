@@ -420,6 +420,29 @@ export async function POST(req: NextRequest) {
       const absAmount = Math.abs(entry.amount);
       const bankDate = new Date(entry.date);
 
+      // Dedup: pula se já existe registro idêntico para esta empresa
+      // Checa por (date + amount + reference). Se FITID disponível, também
+      // verifica se algum registro anterior tem esse FITID na referência.
+      const dedupWhere: any = {
+        companyId,
+        bankDate,
+        bankAmount: absAmount,
+      };
+      const entryFitid = (entry as any).fitid as string | undefined;
+      if (entryFitid) {
+        dedupWhere.OR = [
+          { bankReference: entry.reference },
+          { bankReference: { contains: entryFitid } },
+        ];
+      } else {
+        dedupWhere.bankReference = entry.reference;
+      }
+      const existingEntry = await prisma.pJReconciliation.findFirst({
+        where: dedupWhere,
+        select: { id: true },
+      });
+      if (existingEntry) continue;
+
       const best = findBestMatch(absAmount, bankDate, entry.reference, pool, usedIds);
 
       let matchStatus = 'BANK_ONLY';

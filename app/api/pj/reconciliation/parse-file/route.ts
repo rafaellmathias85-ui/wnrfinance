@@ -58,8 +58,8 @@ function normalizeDate(d: string): string {
 }
 
 // Parse OFX content
-function parseOFXContent(text: string): Array<{date: string; reference: string; amount: number; type: string}> {
-  const entries: Array<{date: string; reference: string; amount: number; type: string}> = [];
+function parseOFXContent(text: string): Array<{date: string; reference: string; amount: number; type: string; fitid?: string}> {
+  const entries: Array<{date: string; reference: string; amount: number; type: string; fitid?: string}> = [];
   // Match STMTTRN blocks
   const txRegex = /<STMTTRN>[\s\S]*?<\/STMTTRN>/gi;
   const matches = text.match(txRegex) || [];
@@ -72,7 +72,9 @@ function parseOFXContent(text: string): Array<{date: string; reference: string; 
 
     const dtStr = getTag('DTPOSTED');
     const amtStr = getTag('TRNAMT');
-    const memo = getTag('MEMO') || getTag('NAME') || getTag('FITID') || 'SEM_REF';
+    const fitid = getTag('FITID');
+    // Use FITID as fallback reference so (date+amount+reference) is always unique
+    const memo = getTag('MEMO') || getTag('NAME') || fitid || 'SEM_REF';
 
     const amount = parseFloat(amtStr.replace(',', '.'));
     if (isNaN(amount) || amount === 0) continue;
@@ -82,7 +84,7 @@ function parseOFXContent(text: string): Array<{date: string; reference: string; 
       date = `${dtStr.slice(0,4)}-${dtStr.slice(4,6)}-${dtStr.slice(6,8)}`;
     }
 
-    entries.push({ date, reference: memo, amount, type: amount < 0 ? 'DEBIT' : 'CREDIT' });
+    entries.push({ date, reference: memo, amount, type: amount < 0 ? 'DEBIT' : 'CREDIT', fitid: fitid || undefined });
   }
   return entries;
 }
