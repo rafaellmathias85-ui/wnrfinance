@@ -2,6 +2,10 @@
 const basePath = process.env.NEXT_BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 const nextConfig = {
+  // Habilita instrumentation.ts para inicialização de serviços no boot do servidor
+  experimental: {
+    instrumentationHook: true,
+  },
   output: process.env.NEXT_OUTPUT_MODE || 'standalone',
   basePath,
   assetPrefix: basePath,
