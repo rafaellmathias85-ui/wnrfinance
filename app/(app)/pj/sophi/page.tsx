@@ -222,14 +222,39 @@ export default function SophiPage() {
     } catch (err: any) {
       setRequestingMic(false);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        window.alert(
-          'Microfone bloqueado!\n\n' +
-          'Para liberar no Edge/Chrome:\n' +
-          '1. Clique no ícone de cadeado na barra de endereço\n' +
-          '2. Procure "Microfone"\n' +
-          '3. Selecione "Permitir"\n' +
-          '4. Recarregue a página'
-        );
+        // Check if browser-level permission is already granted — if so, the block is at OS level
+        navigator.permissions?.query({ name: 'microphone' as PermissionName })
+          .then(status => {
+            if (status.state === 'granted') {
+              window.alert(
+                'Microfone bloqueado pelo sistema operacional!\n\n' +
+                'O navegador tem permissão, mas o Windows está bloqueando.\n\n' +
+                'Para liberar no Windows:\n' +
+                '1. Abra Configurações → Privacidade e segurança → Microfone\n' +
+                '2. Ative "Permitir que aplicativos acessem o microfone"\n' +
+                '3. Role para baixo e ative o acesso para o seu navegador (Chrome/Edge)\n' +
+                '4. Recarregue esta página'
+              );
+            } else {
+              window.alert(
+                'Microfone bloqueado!\n\n' +
+                'Para liberar no Edge/Chrome:\n' +
+                '1. Clique no ícone de cadeado na barra de endereço\n' +
+                '2. Procure "Microfone"\n' +
+                '3. Selecione "Permitir"\n' +
+                '4. Recarregue a página'
+              );
+            }
+          })
+          .catch(() => {
+            window.alert(
+              'Microfone bloqueado!\n\n' +
+              'Verifique as permissões do navegador E do Windows:\n\n' +
+              'No navegador: cadeado → Microfone → Permitir\n\n' +
+              'No Windows: Configurações → Privacidade → Microfone\n' +
+              '→ Ativar acesso para o navegador (Chrome/Edge)'
+            );
+          });
       } else if (err.name === 'NotFoundError') {
         window.alert('Nenhum microfone encontrado. Verifique se há um microfone conectado.');
       } else {
