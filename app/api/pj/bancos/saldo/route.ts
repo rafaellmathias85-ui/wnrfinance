@@ -22,17 +22,53 @@ export async function GET() {
       accountNumber: true,
       agency: true,
       openingBalance: true,
-      currentBalance: true,
       status: true,
     },
     orderBy: { bankName: 'asc' },
   });
 
-  const bancaria = accounts.filter(a => !a.accountType || ['checking', 'savings'].includes(a.accountType ?? ''));
-  const credito  = accounts.filter(a => a.accountType === 'credit');
-  const outros   = accounts.filter(a => a.accountType === 'investment' || (a.accountType && !['checking', 'savings', 'credit'].includes(a.accountType)));
+  const accountIds = accounts.map(a => a.id);
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
 
-  const sum = (arr: typeof accounts) => arr.reduce((s, a) => s + (a.currentBalance ?? a.openingBalance ?? 0), 0);
+  // Aggregate bank transaction credits and debits per account up to today
+  const [credits, debits] = await Promise.all([
+    prisma.bankTransaction.groupBy({
+      by: ['bankConnectionId'],
+      where: {
+        bankConnectionId: { in: accountIds },
+        type: 'credit',
+        date: { lte: today },
+        status: { not: 'IGNORED' },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.bankTransaction.groupBy({
+      by: ['bankConnectionId'],
+      where: {
+        bankConnectionId: { in: accountIds },
+        type: 'debit',
+        date: { lte: today },
+        status: { not: 'IGNORED' },
+      },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  const creditMap = new Map(credits.map(c => [c.bankConnectionId, c._sum.amount ?? 0]));
+  const debitMap  = new Map(debits.map(d  => [d.bankConnectionId,  d._sum.amount ?? 0]));
+
+  // calculatedBalance = openingBalance + imported credits − imported debits
+  const enriched = accounts.map(a => ({
+    ...a,
+    calculatedBalance: (a.openingBalance ?? 0) + (creditMap.get(a.id) ?? 0) - (debitMap.get(a.id) ?? 0),
+  }));
+
+  const bancaria = enriched.filter(a => !a.accountType || ['checking', 'savings'].includes(a.accountType ?? ''));
+  const credito  = enriched.filter(a => a.accountType === 'credit');
+  const outros   = enriched.filter(a => a.accountType === 'investment' || (a.accountType && !['checking', 'savings', 'credit'].includes(a.accountType)));
+
+  const sum = (arr: typeof enriched) => arr.reduce((s, a) => s + a.calculatedBalance, 0);
 
   return NextResponse.json({
     bancaria: { accounts: bancaria, total: sum(bancaria) },

@@ -331,7 +331,6 @@ export default function MovimentacoesPage() {
 
   const openSaldoPopup = async () => {
     setShowSaldoPopup(true);
-    if (bancoSaldos) return;
     setLoadingSaldo(true);
     try {
       const r = await apiFetch('/api/pj/bancos/saldo');
@@ -538,11 +537,11 @@ export default function MovimentacoesPage() {
                         <div className="space-y-1.5 text-sm">
                           <div className="flex justify-between">
                             <span className="text-slate-400">Saldo</span>
-                            <span className="text-white font-medium">{fmt(acc.currentBalance ?? acc.openingBalance ?? 0)}</span>
+                            <span className="text-white font-medium">{fmt(acc.calculatedBalance ?? acc.openingBalance ?? 0)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-400">Saldo Bloqueado</span>
-                            <span className="text-slate-300">R$ 0,00</span>
+                            <span className="text-slate-400">Saldo de Abertura</span>
+                            <span className="text-slate-300">{fmt(acc.openingBalance ?? 0)}</span>
                           </div>
                           {saldoTab === 'credito' && (
                             <div className="flex justify-between">
@@ -552,7 +551,7 @@ export default function MovimentacoesPage() {
                           )}
                           <div className="flex justify-between pt-1.5 border-t border-slate-600 font-semibold">
                             <span className="text-slate-300">TOTAL</span>
-                            <span className="text-white">{fmt(acc.currentBalance ?? acc.openingBalance ?? 0)}</span>
+                            <span className="text-white">{fmt(acc.calculatedBalance ?? acc.openingBalance ?? 0)}</span>
                           </div>
                         </div>
                       </div>

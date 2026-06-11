@@ -172,9 +172,9 @@ export async function GET(req: NextRequest) {
   const totalSaidas = filtered.filter((m) => m.tipo === 'saida').reduce((s, m) => s + m.amount, 0);
   const resultado = totalEntradas - totalSaidas;
 
-  // saldoHoje: all time balance up to today
+  // saldoHoje: bank opening balances + all-time paid incomes − all-time paid expenses up to today
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-  const [todayPayables, todayReceivables] = await Promise.all([
+  const [todayPayables, todayReceivables, bankOpening] = await Promise.all([
     prisma.accountsPayable.aggregate({
       where: { companyId, status: 'pago', paidAt: { lte: todayStart } },
       _sum: { amountPaid: true, amount: true },
@@ -183,10 +183,15 @@ export async function GET(req: NextRequest) {
       where: { companyId, status: 'recebido', receivedAt: { lte: todayStart } },
       _sum: { amountReceived: true, amount: true },
     }),
+    prisma.bankConnection.aggregate({
+      where: { companyId, scope: 'PJ', status: { not: 'DISABLED' } },
+      _sum: { openingBalance: true },
+    }),
   ]);
   const totalPaidOut = todayPayables._sum.amountPaid || todayPayables._sum.amount || 0;
   const totalReceivedIn = todayReceivables._sum.amountReceived || todayReceivables._sum.amount || 0;
-  const saldoHoje = totalReceivedIn - totalPaidOut;
+  const bankBaseBalance = bankOpening._sum.openingBalance ?? 0;
+  const saldoHoje = bankBaseBalance + totalReceivedIn - totalPaidOut;
 
   const descSorted = [...withBalance].reverse();
   const total = descSorted.length;
