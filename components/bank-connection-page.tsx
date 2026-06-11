@@ -342,7 +342,11 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao sincronizar');
-      setMessage(`Sincronização concluída. Importadas: ${data.imported || 0}.`);
+      const range = data.syncRange;
+      const rangeStr = range
+        ? ` (${new Date(range.startDate).toLocaleDateString('pt-BR')} → ${new Date(range.endDate).toLocaleDateString('pt-BR')})`
+        : '';
+      setMessage(`Sincronização concluída. Importadas: ${data.imported || 0}, já existentes: ${data.skipped || 0}.${rangeStr}`);
       await loadConnections();
     } catch (err: any) {
       setError(err.message || 'Erro ao sincronizar');

@@ -184,9 +184,44 @@ export class BankingService {
     }
 
     const provider = createBankProvider(connection);
-    const endDate = options.endDate || new Date();
-    const lookbackDays = Number(process.env.BANK_SYNC_LOOKBACK_DAYS || 7);
-    const startDate = options.startDate || new Date(endDate.getTime() - lookbackDays * 86400000);
+
+    // endDate = fim do dia de hoje
+    const endDate = options.endDate || (() => {
+      const d = new Date();
+      d.setHours(23, 59, 59, 999);
+      return d;
+    })();
+
+    // startDate inteligente: re-verifica a partir do último dia importado
+    // (captura transações tardias do mesmo dia sem duplicar)
+    let startDate: Date;
+    if (options.startDate) {
+      startDate = options.startDate;
+    } else {
+      const lastImported = await prisma.bankTransaction.findFirst({
+        where: { bankConnectionId: connection.id, status: { not: 'IGNORED' } },
+        orderBy: { date: 'desc' },
+        select: { date: true },
+      });
+
+      if (lastImported) {
+        // Re-busca desde o início do último dia importado
+        startDate = new Date(lastImported.date);
+        startDate.setHours(0, 0, 0, 0);
+      } else {
+        // Primeira importação: usa openingDate da conta ou fallback configurável
+        const openingDateStr = (connectionRow.extraConfig as any)?.openingDate as string | undefined;
+        if (openingDateStr) {
+          startDate = new Date(openingDateStr);
+          startDate.setHours(0, 0, 0, 0);
+        } else {
+          const fallbackDays = Number(process.env.BANK_SYNC_LOOKBACK_DAYS || 30);
+          startDate = new Date();
+          startDate.setDate(startDate.getDate() - fallbackDays);
+          startDate.setHours(0, 0, 0, 0);
+        }
+      }
+    }
 
     try {
       const [balance, transactions] = await Promise.all([
@@ -232,6 +267,7 @@ export class BankingService {
         skipped: saved.skipped,
         reconciliation,
         balance,
+        syncRange: { startDate, endDate },
       };
     } catch (error: any) {
       const message = error?.message || 'Erro de conexão bancária';
