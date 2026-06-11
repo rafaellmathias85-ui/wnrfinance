@@ -73,7 +73,7 @@ const PRESET_PROVIDERS = [
   { name: 'OpenAI', model: 'gpt-4o-mini', endpoint: 'https://api.openai.com/v1', priority: 1 },
   { name: 'DeepSeek', model: 'deepseek-chat', endpoint: 'https://api.deepseek.com/v1', priority: 2 },
   { name: 'Groq', model: 'llama-3.3-70b-versatile', endpoint: 'https://api.groq.com/openai/v1', priority: 1 },
-  { name: 'SambaNova', model: 'DeepSeek-V3.1', endpoint: 'https://api.sambanova.ai/v1', priority: 2 },
+  { name: 'SambaNova', model: 'Meta-Llama-3.3-70B-Instruct', endpoint: 'https://api.sambanova.ai/v1', priority: 2 },
   { name: 'Together.ai', model: 'deepseek-ai/DeepSeek-V4-Pro', endpoint: 'https://api.together.xyz/v1', priority: 3 },
   { name: 'Anthropic', model: 'claude-sonnet-4-20250514', endpoint: 'https://api.anthropic.com/v1', priority: 1 },
 ];
@@ -128,11 +128,16 @@ export default function ChavesAPIPage() {
     setSaving(true);
     try {
       const method = editId ? 'PUT' : 'POST';
-      const body = editId ? { id: editId, ...form } : form;
+      // When editing, omit apiKey if the user left it blank (keep existing key in DB)
+      const payload: any = { ...form };
+      if (editId) {
+        payload.id = editId;
+        if (!form.apiKey) delete payload.apiKey;
+      }
       const res = await apiFetch('/api/ai/providers', {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setShowForm(false);
@@ -140,9 +145,13 @@ export default function ChavesAPIPage() {
         setForm({ ...emptyForm });
         setShowKey(false);
         await load();
+      } else {
+        let msg = `HTTP ${res.status}`;
+        try { const d = await res.json(); msg = d.error || msg; } catch { /* noop */ }
+        alert(`Erro ao salvar: ${msg}`);
       }
-    } catch (err) {
-      console.error('Erro ao salvar:', err);
+    } catch (err: any) {
+      alert(`Erro ao salvar: ${err?.message || 'Erro de rede'}`);
     } finally {
       setSaving(false);
     }
@@ -178,17 +187,21 @@ export default function ChavesAPIPage() {
     if (idx < 0) return;
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
     if (swapIdx < 0 || swapIdx >= providers.length) return;
-    const updates = [
-      { id: providers[idx].id, sortOrder: providers[swapIdx].sortOrder },
-      { id: providers[swapIdx].id, sortOrder: providers[idx].sortOrder },
-    ];
-    for (const u of updates) {
-      await apiFetch('/api/ai/providers', {
+    const a = providers[idx];
+    const b = providers[swapIdx];
+    // Swap both sortOrder (visual) and priority (load balancer)
+    await Promise.all([
+      apiFetch('/api/ai/providers', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(u),
-      });
-    }
+        body: JSON.stringify({ id: a.id, sortOrder: b.sortOrder, priority: b.priority }),
+      }),
+      apiFetch('/api/ai/providers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: b.id, sortOrder: a.sortOrder, priority: a.priority }),
+      }),
+    ]);
     await load();
   };
 

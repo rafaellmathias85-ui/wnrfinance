@@ -158,20 +158,27 @@ export default function UsuariosPage() {
       toast({ title: 'Selecione ao menos um tipo de acesso (PF ou PJ)', variant: 'destructive' }); return;
     }
     setCreateLoading(true);
-    const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/create-user`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createForm),
-    });
-    if (res.ok) {
-      toast({ title: 'Usuário criado com sucesso' });
-      setShowCreate(false);
-      setCreateForm({ name: '', email: '', password: '', confirmPassword: '', role: 'VIEWER', hasPF: false, hasPJ: true });
-      fetchUsers();
-    } else {
-      const err = await res.json();
-      toast({ title: 'Erro ao criar usuário', description: err.error, variant: 'destructive' });
+    try {
+      const { confirmPassword: _, ...payload } = createForm;
+      const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/create-user`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      let data: any = {};
+      try { data = await res.json(); } catch { /* body não é JSON */ }
+      if (res.ok) {
+        toast({ title: 'Usuário criado com sucesso' });
+        setShowCreate(false);
+        setCreateForm({ name: '', email: '', password: '', confirmPassword: '', role: 'VIEWER', hasPF: false, hasPJ: true });
+        fetchUsers();
+      } else {
+        toast({ title: 'Erro ao criar usuário', description: data.error || `HTTP ${res.status}`, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao criar usuário', description: err?.message || 'Erro de rede', variant: 'destructive' });
+    } finally {
+      setCreateLoading(false);
     }
-    setCreateLoading(false);
   };
 
   const handleInvite = async (e: React.FormEvent<HTMLFormElement>) => {
