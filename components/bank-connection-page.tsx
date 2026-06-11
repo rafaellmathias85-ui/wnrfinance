@@ -354,10 +354,19 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
   const removeConnection = async (connection: BankConnection) => {
     if (!confirm('Remover conexão bancária?')) return;
     setBusy(`delete:${connection.id}`);
-    await apiFetch(`/api/banking/connections/${connection.id}`, { method: 'DELETE' });
-    if (editConnection?.id === connection.id) setEditConnection(null);
-    await loadConnections();
-    setBusy(null);
+    setError('');
+    try {
+      const res = await apiFetch(`/api/banking/connections/${connection.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || 'Erro ao remover conexão.');
+        return;
+      }
+      if (editConnection?.id === connection.id) setEditConnection(null);
+      await loadConnections();
+    } finally {
+      setBusy(null);
+    }
   };
 
   const openEditDialog = (conn: BankConnection) => {

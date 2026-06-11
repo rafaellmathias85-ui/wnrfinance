@@ -63,6 +63,7 @@ export class BankingService {
     if (params.companyId !== undefined) where.companyId = params.companyId;
     if (params.personType) where.personType = params.personType;
 
+    where.status = { not: 'DISABLED' };
     return prisma.bankConnection.findMany({
       where,
       orderBy: { createdAt: 'desc' },
