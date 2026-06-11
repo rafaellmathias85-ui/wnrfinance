@@ -323,6 +323,22 @@ export default function MovimentacoesPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [page, setPage] = useState(1);
 
+  // Saldo popup
+  const [showSaldoPopup, setShowSaldoPopup] = useState(false);
+  const [saldoTab, setSaldoTab] = useState<'bancaria' | 'credito'>('bancaria');
+  const [bancoSaldos, setBancoSaldos] = useState<any>(null);
+  const [loadingSaldo, setLoadingSaldo] = useState(false);
+
+  const openSaldoPopup = async () => {
+    setShowSaldoPopup(true);
+    if (bancoSaldos) return;
+    setLoadingSaldo(true);
+    try {
+      const r = await apiFetch('/api/pj/bancos/saldo');
+      if (r.ok) setBancoSaldos(await r.json());
+    } finally { setLoadingSaldo(false); }
+  };
+
   // Selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const toggleSelect = (id: string) =>
@@ -442,6 +458,7 @@ export default function MovimentacoesPage() {
       bg: 'bg-slate-700/60 border-slate-600',
       ring: '',
       filterKey: '',
+      onClick: openSaldoPopup,
     },
   ];
 
@@ -473,8 +490,8 @@ export default function MovimentacoesPage() {
         {CARDS.map((c) => (
           <div
             key={c.label}
-            onClick={() => c.filterKey && handleCardFilter(c.filterKey)}
-            className={`border rounded-xl p-4 transition-all ${c.bg} ${c.ring} ${c.filterKey ? 'cursor-pointer hover:opacity-90' : ''}`}
+            onClick={() => { if ((c as any).onClick) (c as any).onClick(); else if (c.filterKey) handleCardFilter(c.filterKey); }}
+            className={`border rounded-xl p-4 transition-all ${c.bg} ${c.ring} ${c.filterKey || (c as any).onClick ? 'cursor-pointer hover:opacity-90' : ''}`}
           >
             <div className="flex items-center gap-2 mb-2">
               <c.icon className={`w-4 h-4 ${c.color}`} />
@@ -484,6 +501,73 @@ export default function MovimentacoesPage() {
           </div>
         ))}
       </div>
+
+      {/* Saldo Popup */}
+      {showSaldoPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowSaldoPopup(false)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
+              <span className="font-semibold text-white">Saldo Bancário</span>
+              <button onClick={() => setShowSaldoPopup(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex border-b border-slate-700">
+              {(['bancaria', 'credito'] as const).map(t => (
+                <button key={t} onClick={() => setSaldoTab(t)}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors ${saldoTab === t ? 'text-white border-b-2 border-blue-500' : 'text-slate-400 hover:text-slate-200'}`}>
+                  {t === 'bancaria' ? 'Bancária' : 'Crédito'}
+                </button>
+              ))}
+            </div>
+            <div className="p-5 space-y-3 max-h-80 overflow-y-auto">
+              {loadingSaldo ? (
+                <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-slate-400" /></div>
+              ) : !bancoSaldos ? (
+                <p className="text-slate-400 text-sm text-center py-4">Não foi possível carregar os saldos.</p>
+              ) : (() => {
+                const list = saldoTab === 'bancaria' ? bancoSaldos.bancaria?.accounts : bancoSaldos.credito?.accounts;
+                const total = saldoTab === 'bancaria' ? bancoSaldos.bancaria?.total : bancoSaldos.credito?.total;
+                if (!list?.length) return <p className="text-slate-400 text-sm text-center py-4">Nenhuma conta cadastrada nesta categoria.</p>;
+                return (
+                  <>
+                    {list.map((acc: any) => (
+                      <div key={acc.id} className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                        <p className="font-semibold text-white mb-3">{acc.bankName}</p>
+                        <div className="space-y-1.5 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Saldo</span>
+                            <span className="text-white font-medium">{fmt(acc.currentBalance ?? acc.openingBalance ?? 0)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Saldo Bloqueado</span>
+                            <span className="text-slate-300">R$ 0,00</span>
+                          </div>
+                          {saldoTab === 'credito' && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Limite</span>
+                              <span className="text-slate-300">R$ 0,00</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between pt-1.5 border-t border-slate-600 font-semibold">
+                            <span className="text-slate-300">TOTAL</span>
+                            <span className="text-white">{fmt(acc.currentBalance ?? acc.openingBalance ?? 0)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex justify-between pt-2 font-bold text-base">
+                      <span className="text-slate-300">Total {saldoTab === 'bancaria' ? 'Bancário' : 'Crédito'}</span>
+                      <span className="text-white">{fmt(total ?? 0)}</span>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3">

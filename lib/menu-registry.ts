@@ -169,7 +169,7 @@ const PJ_MODULES: ModuleTab[] = [
     id: 'pj-hoje',
     label: 'Hoje',
     icon: Sun,
-    singleLink: '/hoje',
+    singleLink: '/pj/hoje',
     columns: [],
   },
   {
