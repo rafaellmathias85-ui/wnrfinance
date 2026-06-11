@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   Send, Sparkles, Settings2, Plus, Trash2, Loader2, RotateCcw,
   TrendingUp, AlertTriangle, BarChart3, Target, Brain, Clock,
-  Bell, ListChecks, ChevronRight, Mic, MicOff,
+  Bell, ListChecks, ChevronRight, Mic, MicOff, Loader,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -87,11 +87,16 @@ export default function SophiPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Voice
-  const [isListening, setIsListening] = useState(false);
+  // Voice — MediaRecorder-based (no SpeechRecognition, no Google, works in all browsers)
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [voiceSupported, setVoiceSupported] = useState(false);
-  const [interimText, setInterimText] = useState('');
-  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const MAX_RECORD_SECONDS = 120;
 
   // Config
   const [config, setConfig] = useState<SophiConfig>({ extraInstructions: '', dailyTasks: [], reminders: [], alertRules: [] });
@@ -100,102 +105,130 @@ export default function SophiPage() {
   const [newTask, setNewTask] = useState({ task: '', time: '' });
   const [newReminder, setNewReminder] = useState('');
 
-  // ─── Speech Recognition setup ────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
-
-    setVoiceSupported(true);
-    const rec = new SR();
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.lang = 'pt-BR';
-
-    rec.onstart = () => setIsListening(true);
-
-    rec.onresult = (e: any) => {
-      let interim = '';
-      let final = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) final += t;
-        else interim += t;
-      }
-      setInterimText(interim);
-      if (final) {
-        setInput(final.trim());
-        setInterimText('');
-      }
-    };
-
-    rec.onend = () => {
-      setIsListening(false);
-      setInterimText('');
-      // Auto-send if we have text from voice
-      setInput(prev => {
-        if (prev.trim()) {
-          // trigger send via a timeout to let state settle
-          setTimeout(() => {
-            setInput(current => {
-              if (current.trim()) sendMessageRef.current?.(current);
-              return '';
-            });
-          }, 0);
-        }
-        return prev;
-      });
-    };
-
-    rec.onerror = (e: any) => {
-      setIsListening(false);
-      setInterimText('');
-      if (e.error === 'no-speech') return;
-      if (e.error === 'not-allowed') {
-        window.alert('Permissão de microfone negada.\nClique no ícone de cadeado na barra de endereço do navegador e permita o acesso ao microfone.');
-        return;
-      }
-      toast({ title: 'Erro no microfone', description: e.error, variant: 'destructive' });
-    };
-
-    recognitionRef.current = rec;
-    return () => { try { rec.abort(); } catch { /* noop */ } };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const toggleListening = useCallback(() => {
-    const rec = recognitionRef.current;
-    if (!rec) {
-      window.alert('Reconhecimento de voz não suportado neste navegador.\nUse Google Chrome ou Microsoft Edge.');
-      return;
-    }
-    if (isListening) {
-      try { rec.stop(); } catch { /* noop */ }
-    } else {
-      setInput('');
-      try {
-        rec.start();
-      } catch (err: any) {
-        // Already started or other error
-        console.warn('SpeechRecognition start error:', err);
-        // Re-create the recognition instance and try again
-        const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (SR && recognitionRef.current) {
-          try {
-            recognitionRef.current.abort();
-          } catch { /* noop */ }
-          setTimeout(() => {
-            try { recognitionRef.current?.start(); } catch { /* noop */ }
-          }, 300);
-        }
-      }
-    }
-  }, [isListening]);
-
-  // Expose sendMessage to the onend closure
+  // sendMessage ref (for voice auto-send after transcription)
   const sendMessageRef = useRef<((content: string) => void) | null>(null);
 
-  // Space bar to toggle voice (only when not typing in an input)
+  // ─── Check MediaRecorder support ────────────────────────────────────────────
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      setVoiceSupported(true);
+    }
+  }, []);
+
+  // ─── Stop recording helper ───────────────────────────────────────────────────
+
+  const stopRecording = useCallback(() => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setRecordingSeconds(0);
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    }
+    // Tracks are stopped inside recorder.onstop
+    setIsRecording(false);
+  }, []);
+
+  // ─── Start recording ─────────────────────────────────────────────────────────
+
+  const startRecording = useCallback(async () => {
+    if (isTranscribing || streaming) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+
+      // Pick best supported mime type
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg']
+        .find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        // Release mic tracks
+        stream.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+
+        const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
+        if (blob.size < 500) return; // Too short — ignore
+
+        setIsTranscribing(true);
+        try {
+          const form = new FormData();
+          const ext = mimeType?.includes('ogg') ? 'ogg' : 'webm';
+          form.append('audio', blob, `audio.${ext}`);
+
+          const res = await apiFetch('/api/pj/sophi/transcribe', { method: 'POST', body: form });
+          if (res.ok) {
+            const { text } = await res.json();
+            if (text?.trim()) {
+              // Auto-send the transcribed text
+              setTimeout(() => { sendMessageRef.current?.(text.trim()); }, 50);
+            } else {
+              toast({ title: 'Nenhuma fala detectada', variant: 'destructive' });
+            }
+          } else {
+            const err = await res.json().catch(() => ({}));
+            toast({ title: 'Erro na transcrição', description: err.error || `HTTP ${res.status}`, variant: 'destructive' });
+          }
+        } catch (err: any) {
+          toast({ title: 'Erro ao transcrever', description: err?.message, variant: 'destructive' });
+        } finally {
+          setIsTranscribing(false);
+          inputRef.current?.focus();
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start(200);
+      setIsRecording(true);
+      setRecordingSeconds(0);
+
+      // Countdown timer + auto-stop at max
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds(s => {
+          if (s + 1 >= MAX_RECORD_SECONDS) {
+            stopRecording();
+            return 0;
+          }
+          return s + 1;
+        });
+      }, 1000);
+
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        toast({
+          title: 'Microfone bloqueado',
+          description: 'Clique no ícone de cadeado na barra de endereço e permita o microfone para este site.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Erro ao acessar microfone', description: err?.message, variant: 'destructive' });
+      }
+    }
+  }, [isTranscribing, streaming, stopRecording, toast]);
+
+  // ─── Toggle recording ─────────────────────────────────────────────────────────
+
+  const toggleRecording = useCallback(() => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }, [isRecording, startRecording, stopRecording]);
+
+  // ─── Space bar to toggle ─────────────────────────────────────────────────────
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.code !== 'Space') return;
@@ -203,13 +236,22 @@ export default function SophiPage() {
       if (['INPUT', 'TEXTAREA'].includes(tag)) return;
       if ((e.target as HTMLElement).isContentEditable) return;
       e.preventDefault();
-      toggleListening();
+      toggleRecording();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [toggleListening]);
+  }, [toggleRecording]);
 
-  // Auto-scroll
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
+  // ─── Auto-scroll ─────────────────────────────────────────────────────────────
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   // ─── Load config ─────────────────────────────────────────────────────────────
@@ -282,7 +324,7 @@ export default function SophiPage() {
     }
   }, [messages, streaming]);
 
-  // Keep ref in sync so voice onend can call it
+  // Keep ref in sync
   useEffect(() => { sendMessageRef.current = sendMessage; }, [sendMessage]);
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); sendMessage(input); };
@@ -320,6 +362,14 @@ export default function SophiPage() {
   const removeReminder = (id: string) => setConfig(c => ({ ...c, reminders: c.reminders.filter(r => r.id !== id) }));
   const toggleReminder = (id: string) => setConfig(c => ({ ...c, reminders: c.reminders.map(r => r.id === id ? { ...r, active: !r.active } : r) }));
 
+  // ─── Voice status label ───────────────────────────────────────────────────────
+
+  const voiceLabel = isTranscribing
+    ? 'Transcrevendo...'
+    : isRecording
+    ? `Gravando ${recordingSeconds}s — Espaço para parar`
+    : null;
+
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -356,7 +406,7 @@ export default function SophiPage() {
           {/* Quick actions */}
           <div className="flex gap-2 flex-wrap mb-3 shrink-0">
             {QUICK_ACTIONS.map(({ icon: Icon, label, message, color }) => (
-              <button key={label} onClick={() => sendMessage(message)} disabled={streaming}
+              <button key={label} onClick={() => sendMessage(message)} disabled={streaming || isRecording || isTranscribing}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${color}`}>
                 <Icon className="w-3.5 h-3.5" />{label}
               </button>
@@ -369,12 +419,25 @@ export default function SophiPage() {
             )}
           </div>
 
-          {/* Listening overlay indicator */}
-          {isListening && (
-            <div className="shrink-0 mb-2 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm font-medium animate-pulse">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-              Ouvindo... {interimText && <span className="font-normal text-red-500 truncate max-w-xs">&ldquo;{interimText}&rdquo;</span>}
-              <span className="ml-auto text-xs font-normal opacity-70">Pressione Espaço para parar</span>
+          {/* Recording / transcribing indicator */}
+          {(isRecording || isTranscribing) && (
+            <div className={`shrink-0 mb-2 flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium ${
+              isTranscribing
+                ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400'
+                : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 animate-pulse'
+            }`}>
+              {isTranscribing ? (
+                <><Loader className="w-4 h-4 animate-spin" /> Transcrevendo com Whisper...</>
+              ) : (
+                <>
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                  Gravando {recordingSeconds}s
+                  <div className="flex-1" />
+                  <span className="text-xs font-normal opacity-70">
+                    Espaço ou clique no microfone para enviar · máx {MAX_RECORD_SECONDS}s
+                  </span>
+                </>
+              )}
             </div>
           )}
 
@@ -389,11 +452,11 @@ export default function SophiPage() {
                 <p className="text-sm text-muted-foreground max-w-sm mb-1">
                   Sua CFO virtual com acesso completo aos dados financeiros da empresa.
                 </p>
-                <p className="text-xs text-muted-foreground mb-4">
-                  {voiceSupported
-                    ? <>Pressione <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-xs font-mono">Espaço</kbd> ou clique no microfone para falar.</>
-                    : <>Clique no microfone <Mic className="inline w-3 h-3" /> para ativar voz (requer Chrome/Edge).</>}
-                </p>
+                {voiceSupported && (
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Pressione <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-xs font-mono">Espaço</kbd> ou clique no microfone para falar. O áudio é transcrito pelo Whisper.
+                  </p>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground max-w-sm">
                   {['Qual o status do caixa hoje?', 'Quais contas vencem esta semana?', 'Tenho risco de inadimplência?', 'Como devo alocar o caixa excedente?'].map(q => (
                     <button key={q} onClick={() => sendMessage(q)}
@@ -435,61 +498,55 @@ export default function SophiPage() {
 
           {/* Input bar */}
           <form onSubmit={handleSubmit} className="flex gap-2 mt-3 shrink-0">
-            <div className="flex-1 relative">
-              <Input
-                ref={inputRef}
-                value={isListening && interimText ? interimText : input}
-                onChange={e => !isListening && setInput(e.target.value)}
-                placeholder={
-                  isListening
-                    ? 'Ouvindo... fale agora'
-                    : voiceSupported
-                    ? 'Digite ou pressione Espaço para falar...'
-                    : 'Pergunte à Sophi...'
-                }
-                disabled={streaming}
-                className={`pr-10 ${isListening ? 'border-red-400 focus-visible:ring-red-400 bg-red-50/30 dark:bg-red-950/20' : ''}`}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
-                }}
-                readOnly={isListening}
-              />
-              {/* Voice indicator inside input */}
-              {isListening && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                </div>
-              )}
-            </div>
-
-            {/* Mic button — always visible; click shows alert if unsupported */}
-            <Button
-              type="button"
-              variant={isListening ? 'destructive' : 'outline'}
-              size="icon"
-              onClick={toggleListening}
-              disabled={streaming}
-              title={
-                !voiceSupported
-                  ? 'Reconhecimento de voz não suportado (use Chrome ou Edge)'
-                  : isListening
-                  ? 'Parar gravação (Espaço)'
-                  : 'Falar com a Sophi (Espaço)'
+            <Input
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder={
+                isTranscribing ? 'Transcrevendo...' :
+                isRecording ? 'Gravando... pressione Espaço para enviar' :
+                voiceSupported ? 'Digite ou pressione Espaço para falar...' :
+                'Pergunte à Sophi...'
               }
-              className={`${isListening ? 'animate-pulse' : ''} ${!voiceSupported ? 'opacity-40' : ''}`}
-            >
-              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </Button>
+              disabled={streaming || isRecording || isTranscribing}
+              className={`flex-1 ${isRecording ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
+              }}
+            />
 
-            <Button type="submit" disabled={streaming || (!input.trim() && !isListening)} className="gap-2 shrink-0">
+            {/* Mic button — MediaRecorder, works em todos os browsers */}
+            {voiceSupported && (
+              <Button
+                type="button"
+                variant={isRecording ? 'destructive' : 'outline'}
+                size="icon"
+                onClick={toggleRecording}
+                disabled={streaming || isTranscribing}
+                title={
+                  isTranscribing ? 'Transcrevendo...' :
+                  isRecording ? 'Parar gravação (Espaço)' :
+                  'Gravar mensagem de voz (Espaço)'
+                }
+                className={isRecording ? 'animate-pulse' : ''}
+              >
+                {isTranscribing
+                  ? <Loader className="w-4 h-4 animate-spin" />
+                  : isRecording
+                  ? <MicOff className="w-4 h-4" />
+                  : <Mic className="w-4 h-4" />}
+              </Button>
+            )}
+
+            <Button type="submit" disabled={streaming || isRecording || isTranscribing || !input.trim()} className="gap-2 shrink-0">
               {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {streaming ? 'Analisando...' : 'Enviar'}
             </Button>
           </form>
 
-          {voiceSupported && !isListening && (
+          {voiceSupported && !isRecording && !isTranscribing && (
             <p className="text-center text-[10px] text-muted-foreground mt-1">
-              <kbd className="px-1 py-0.5 rounded border border-border bg-muted font-mono">Espaço</kbd> para ativar/desativar microfone · o resultado é enviado automaticamente
+              <kbd className="px-1 py-0.5 rounded border border-border bg-muted font-mono">Espaço</kbd> para gravar · Whisper AI transcreve e envia automaticamente
             </p>
           )}
         </div>
@@ -581,7 +638,7 @@ export default function SophiPage() {
                         CFO &amp; CIO Virtual Sênior. Opera nos 5 pilares: Diagnóstico de Caixa, Otimização de Custos,
                         Engenharia de Receita, Inteligência de Investimentos e Gestão de Riscos. Acessa dados financeiros
                         reais da empresa e usa os provedores configurados em <strong>Configurações → Provedores de IA</strong>.
-                        Suporte a voz: pressione <kbd className="px-1 py-0.5 rounded border font-mono text-[10px]">Espaço</kbd> fora do campo de texto.
+                        Voz: pressione <kbd className="px-1 py-0.5 rounded border font-mono text-[10px]">Espaço</kbd> — áudio transcrito por Whisper AI, sem Google.
                       </p>
                     </div>
                   </div>
