@@ -65,24 +65,42 @@ export class InterPJProvider implements BankProvider {
     const agent = this.createMtlsAgent();
     const token = await this.getOAuthToken(agent);
     const baseUrl = process.env.INTER_PJ_BASE_URL || 'https://cdpj.partners.bancointer.com.br';
-    const params = new URLSearchParams({
-      dataInicio: formatTransactionDate(startDate),
-      dataFim: formatTransactionDate(endDate),
-    });
+    const pageSize = 50;
+    const allRows: Array<Record<string, unknown>> = [];
+    let page = 0;
+    let totalPages = 1;
 
-    const response = await this.requestJson<Record<string, unknown>>(
-      `${baseUrl}/banking/v2/extrato?${params.toString()}`,
-      {
-        method: 'GET',
-        agent,
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
+    do {
+      const params = new URLSearchParams({
+        dataInicio: formatTransactionDate(startDate),
+        dataFim: formatTransactionDate(endDate),
+        pagina: String(page),
+        tamanhoPagina: String(pageSize),
+      });
 
-    const rows = extractTransactionRows(response);
+      const response = await this.requestJson<Record<string, unknown>>(
+        `${baseUrl}/banking/v2/extrato?${params.toString()}`,
+        {
+          method: 'GET',
+          agent,
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      const rows = extractTransactionRows(response);
+      allRows.push(...rows);
+
+      if (typeof response.totalPaginas === 'number' && response.totalPaginas > 1) {
+        totalPages = response.totalPaginas;
+      } else {
+        break;
+      }
+      page++;
+    } while (page < totalPages && page < 20);
+
     const accountId = this.getAccountId();
 
-    return rows.map((row) => {
+    return allRows.map((row) => {
       const amount = pickNumber(row, ['valor', 'amount', 'valorTransacao', 'transactionAmount']);
       const direction = inferDirection(row, amount);
       const date = parseBankDate(firstString(row, ['dataEntrada', 'dataTransacao', 'dataLancamento', 'date']));
@@ -244,10 +262,12 @@ export class InterPJProvider implements BankProvider {
 function extractTransactionRows(response: Record<string, unknown>): Array<Record<string, unknown>> {
   const candidates = [
     response.transacoes,
+    response.lancamentos,
     response.transactions,
     response.extrato,
     response.items,
     response.data,
+    response.content,
   ];
   const found = candidates.find(Array.isArray);
   return (found as Array<Record<string, unknown>> | undefined) || [];

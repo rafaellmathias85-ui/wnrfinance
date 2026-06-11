@@ -397,11 +397,17 @@ export class BankingService {
     const importBatchId = `sync_${connection.id}_${Date.now()}`;
 
     for (const tx of transactions) {
+      const dbExternalId = buildDatabaseExternalId(tx);
+
+      // Check both same-connection hash and cross-connection externalId to avoid
+      // unique constraint violations when OFX and API share the same externalId format.
       const duplicate = await prisma.bankTransaction.findFirst({
         where: {
           userId: connection.userId,
-          bankConnectionId: connection.id,
-          transactionHash: tx.checksum,
+          OR: [
+            { bankConnectionId: connection.id, transactionHash: tx.checksum },
+            { externalId: dbExternalId },
+          ],
         },
         select: { id: true },
       });
@@ -411,33 +417,43 @@ export class BankingService {
         continue;
       }
 
-      const created = await prisma.bankTransaction.create({
-        data: {
-          userId: connection.userId,
-          companyId: connection.companyId || null,
-          bankConnectionId: connection.id,
-          personType: tx.personType,
-          bankCode: tx.bankCode,
-          accountId: tx.accountId,
-          externalId: buildDatabaseExternalId(tx),
-          transactionHash: tx.checksum,
-          description: tx.description,
-          amount: tx.amount,
-          type: tx.direction === 'CREDIT' ? 'credit' : 'debit',
-          date: tx.date,
-          balanceAfter: tx.balanceAfter ?? null,
-          documentNumber: tx.documentNumber ?? null,
-          payerName: tx.counterpartyName ?? null,
-          payerDocument: tx.counterpartyTaxId ?? null,
-          rawData: tx.rawData as any,
-          status: 'PENDING',
-          importBatchId,
-        },
-        select: { id: true },
-      });
+      try {
+        const created = await prisma.bankTransaction.create({
+          data: {
+            userId: connection.userId,
+            companyId: connection.companyId || null,
+            bankConnectionId: connection.id,
+            personType: tx.personType,
+            bankCode: tx.bankCode,
+            accountId: tx.accountId,
+            externalId: dbExternalId,
+            transactionHash: tx.checksum,
+            description: tx.description,
+            amount: tx.amount,
+            type: tx.direction === 'CREDIT' ? 'credit' : 'debit',
+            date: tx.date,
+            balanceAfter: tx.balanceAfter ?? null,
+            documentNumber: tx.documentNumber ?? null,
+            payerName: tx.counterpartyName ?? null,
+            payerDocument: tx.counterpartyTaxId ?? null,
+            rawData: tx.rawData as any,
+            status: 'PENDING',
+            importBatchId,
+          },
+          select: { id: true },
+        });
 
-      createdIds.push(created.id);
-      imported++;
+        createdIds.push(created.id);
+        imported++;
+      } catch (err: any) {
+        // P2002 = unique constraint violation — transaction already exists under a different
+        // connection (e.g., previously imported via OFX with the same externalId).
+        if (err?.code === 'P2002') {
+          skipped++;
+        } else {
+          throw err;
+        }
+      }
     }
 
     return { imported, skipped, createdIds };
