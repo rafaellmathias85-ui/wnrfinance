@@ -44,7 +44,7 @@ export class InterPJProvider implements BankProvider {
 
   async getBalance(): Promise<BankBalance> {
     const agent = this.createMtlsAgent();
-    const token = await this.getOAuthToken(agent);
+    const token = await this.getOAuthToken(agent, 'extrato.read saldo.read');
     const baseUrl = process.env.INTER_PJ_BASE_URL || 'https://cdpj.partners.bancointer.com.br';
     const response = await this.requestJson<Record<string, unknown>>(`${baseUrl}/banking/v2/saldo`, {
       method: 'GET',
@@ -63,12 +63,16 @@ export class InterPJProvider implements BankProvider {
 
   async getTransactions(startDate: Date, endDate: Date): Promise<CanonicalTransaction[]> {
     const agent = this.createMtlsAgent();
-    const token = await this.getOAuthToken(agent);
+    // Tokens separados: cobranças usa escopo próprio e falha independentemente do extrato
+    const extratoToken = await this.getOAuthToken(agent, 'extrato.read saldo.read');
+    const boletoToken = await this.getOAuthToken(agent, 'boleto-cobranca.read').catch(() => null);
     const accountId = this.getAccountId();
 
     const [extratoTxs, boletoTxs] = await Promise.all([
-      this.fetchExtratoTransactions(agent, token, startDate, endDate, accountId),
-      this.fetchPaidBoletos(agent, token, startDate, endDate, accountId),
+      this.fetchExtratoTransactions(agent, extratoToken, startDate, endDate, accountId),
+      boletoToken
+        ? this.fetchPaidBoletos(agent, boletoToken, startDate, endDate, accountId)
+        : Promise.resolve([]),
     ]);
 
     // Dedup in-memory by checksum before returning to avoid double-importing
@@ -145,11 +149,11 @@ export class InterPJProvider implements BankProvider {
   ): Promise<CanonicalTransaction[]> {
     const baseUrl = process.env.INTER_PJ_BASE_URL || 'https://cdpj.partners.bancointer.com.br';
 
-    // A API filtra por data de vencimento, não de pagamento.
-    // Usamos janela ampliada (+ 60 dias para trás) para capturar boletos
-    // vencidos antes mas pagos dentro do período desejado.
+    // A API filtra por dataVencimento, não por dataPagamento.
+    // Janela ampliada (90 dias) captura boletos vencidos em períodos anteriores
+    // mas pagos dentro do período de interesse. Filtro por pagamento feito em código.
     const wideStart = new Date(startDate);
-    wideStart.setDate(wideStart.getDate() - 60);
+    wideStart.setDate(wideStart.getDate() - 90);
 
     const allItems: Array<Record<string, unknown>> = [];
     let page = 0;
@@ -166,12 +170,13 @@ export class InterPJProvider implements BankProvider {
 
       let response: Record<string, unknown>;
       try {
+        // Endpoint oficial Inter PJ v2: /cobranca/v2/boletos (sem /sumarizados)
         response = await this.requestJson<Record<string, unknown>>(
-          `${baseUrl}/cobranca/v2/boletos/sumarizados?${params}`,
+          `${baseUrl}/cobranca/v2/boletos?${params}`,
           { method: 'GET', agent, headers: { Authorization: `Bearer ${token}` } },
         );
-      } catch {
-        // Endpoint indisponível ou sem permissão — silencia e retorna vazio
+      } catch (err: any) {
+        console.warn(`[InterPJ] cobranças endpoint erro: ${err?.message}`);
         break;
       }
 
@@ -336,14 +341,15 @@ export class InterPJProvider implements BankProvider {
     return new https.Agent({ cert, key, passphrase, keepAlive: false });
   }
 
-  private async getOAuthToken(agent: https.Agent): Promise<string> {
+  private async getOAuthToken(agent: https.Agent, scope: string): Promise<string> {
     const clientId = bankCredentialsVault.decrypt(this.connection.clientIdEnc);
     const clientSecret = bankCredentialsVault.decrypt(this.connection.clientSecretEnc);
     if (!clientId || !clientSecret) {
       throw new Error('Client ID e Client Secret do Banco Inter PJ são obrigatórios.');
     }
 
-    const cacheKey = `${clientId}:${this.getAccountId()}`;
+    // Scope incluído na chave do cache: tokens de escopos diferentes ficam separados
+    const cacheKey = `${clientId}:${this.getAccountId()}:${scope}`;
     const cached = InterPJProvider.tokenCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now() + 60_000) {
       return cached.accessToken;
@@ -357,8 +363,7 @@ export class InterPJProvider implements BankProvider {
       grant_type: 'client_credentials',
       client_id: clientId,
       client_secret: clientSecret,
-      // Inclui boleto-cobranca.read para buscar cobranças pagas automaticamente
-      scope: 'extrato.read saldo.read boleto-cobranca.read',
+      scope,
     }).toString();
 
     const response = await this.requestJson<{ access_token?: string; expires_in?: number }>(tokenUrl, {
