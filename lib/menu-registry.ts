@@ -159,6 +159,13 @@ const PF_MODULES: ModuleTab[] = [
 /* ------------------------------------------------------------------ */
 const PJ_MODULES: ModuleTab[] = [
   {
+    id: 'pj-sophi',
+    label: 'Sophi IA',
+    icon: Sparkles,
+    singleLink: '/pj/sophi',
+    columns: [],
+  },
+  {
     id: 'pj-hoje',
     label: 'Hoje',
     icon: Sun,
