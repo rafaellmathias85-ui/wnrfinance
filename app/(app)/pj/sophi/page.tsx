@@ -90,6 +90,7 @@ export default function SophiPage() {
   // Voice — MediaRecorder-based (no SpeechRecognition, no Google, works in all browsers)
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [requestingMic, setRequestingMic] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -111,9 +112,9 @@ export default function SophiPage() {
   // ─── Check MediaRecorder support ────────────────────────────────────────────
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function') {
-      setVoiceSupported(true);
-    }
+    // voiceSupported = true even if we're not 100% sure, so button is always shown
+    // Actual check happens at click time
+    setVoiceSupported(true);
   }, []);
 
   // ─── Stop recording helper ───────────────────────────────────────────────────
@@ -138,14 +139,26 @@ export default function SophiPage() {
   const startRecording = useCallback(async () => {
     if (isTranscribing || streaming) return;
 
+    // Check API availability at click time
+    if (!navigator.mediaDevices?.getUserMedia) {
+      window.alert('Gravação de voz não disponível neste navegador ou contexto.\nUse Chrome ou Edge em HTTPS.');
+      return;
+    }
+    if (typeof MediaRecorder === 'undefined') {
+      window.alert('MediaRecorder não disponível neste navegador.\nUse Chrome 47+ ou Edge 79+.');
+      return;
+    }
+
+    setRequestingMic(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       audioChunksRef.current = [];
+      setRequestingMic(false);
 
       // Pick best supported mime type
-      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg']
-        .find(m => MediaRecorder.isTypeSupported(m)) || '';
+      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg', '']
+        .find(m => !m || MediaRecorder.isTypeSupported(m)) ?? '';
 
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
@@ -154,12 +167,14 @@ export default function SophiPage() {
       };
 
       recorder.onstop = async () => {
-        // Release mic tracks
         stream.getTracks().forEach(t => t.stop());
         streamRef.current = null;
 
         const blob = new Blob(audioChunksRef.current, { type: mimeType || 'audio/webm' });
-        if (blob.size < 500) return; // Too short — ignore
+        if (blob.size < 500) {
+          toast({ title: 'Gravação muito curta', variant: 'destructive' });
+          return;
+        }
 
         setIsTranscribing(true);
         try {
@@ -171,17 +186,17 @@ export default function SophiPage() {
           if (res.ok) {
             const { text } = await res.json();
             if (text?.trim()) {
-              // Auto-send the transcribed text
               setTimeout(() => { sendMessageRef.current?.(text.trim()); }, 50);
             } else {
-              toast({ title: 'Nenhuma fala detectada', variant: 'destructive' });
+              toast({ title: 'Nenhuma fala detectada — tente novamente', variant: 'destructive' });
             }
           } else {
-            const err = await res.json().catch(() => ({}));
-            toast({ title: 'Erro na transcrição', description: err.error || `HTTP ${res.status}`, variant: 'destructive' });
+            const errData = await res.json().catch(() => ({}));
+            const msg = errData.error || `HTTP ${res.status}`;
+            window.alert(`Erro na transcrição: ${msg}`);
           }
         } catch (err: any) {
-          toast({ title: 'Erro ao transcrever', description: err?.message, variant: 'destructive' });
+          window.alert(`Erro ao transcrever: ${err?.message || 'verifique a conexão'}`);
         } finally {
           setIsTranscribing(false);
           inputRef.current?.focus();
@@ -193,26 +208,28 @@ export default function SophiPage() {
       setIsRecording(true);
       setRecordingSeconds(0);
 
-      // Countdown timer + auto-stop at max
       recordingTimerRef.current = setInterval(() => {
         setRecordingSeconds(s => {
-          if (s + 1 >= MAX_RECORD_SECONDS) {
-            stopRecording();
-            return 0;
-          }
+          if (s + 1 >= MAX_RECORD_SECONDS) { stopRecording(); return 0; }
           return s + 1;
         });
       }, 1000);
 
     } catch (err: any) {
+      setRequestingMic(false);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        toast({
-          title: 'Microfone bloqueado',
-          description: 'Clique no ícone de cadeado na barra de endereço e permita o microfone para este site.',
-          variant: 'destructive',
-        });
+        window.alert(
+          'Microfone bloqueado!\n\n' +
+          'Para liberar no Edge/Chrome:\n' +
+          '1. Clique no ícone de cadeado na barra de endereço\n' +
+          '2. Procure "Microfone"\n' +
+          '3. Selecione "Permitir"\n' +
+          '4. Recarregue a página'
+        );
+      } else if (err.name === 'NotFoundError') {
+        window.alert('Nenhum microfone encontrado. Verifique se há um microfone conectado.');
       } else {
-        toast({ title: 'Erro ao acessar microfone', description: err?.message, variant: 'destructive' });
+        window.alert(`Erro ao acessar microfone: ${err?.name} — ${err?.message}`);
       }
     }
   }, [isTranscribing, streaming, stopRecording, toast]);
@@ -419,15 +436,19 @@ export default function SophiPage() {
             )}
           </div>
 
-          {/* Recording / transcribing indicator */}
-          {(isRecording || isTranscribing) && (
+          {/* Recording / transcribing / requesting indicator */}
+          {(requestingMic || isRecording || isTranscribing) && (
             <div className={`shrink-0 mb-2 flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium ${
               isTranscribing
                 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400'
+                : requestingMic
+                ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400'
                 : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 animate-pulse'
             }`}>
               {isTranscribing ? (
                 <><Loader className="w-4 h-4 animate-spin" /> Transcrevendo com Whisper...</>
+              ) : requestingMic ? (
+                <><Loader className="w-4 h-4 animate-spin" /> Aguardando permissão do microfone...</>
               ) : (
                 <>
                   <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
@@ -515,28 +536,27 @@ export default function SophiPage() {
               }}
             />
 
-            {/* Mic button — MediaRecorder, works em todos os browsers */}
-            {voiceSupported && (
-              <Button
-                type="button"
-                variant={isRecording ? 'destructive' : 'outline'}
-                size="icon"
-                onClick={toggleRecording}
-                disabled={streaming || isTranscribing}
-                title={
-                  isTranscribing ? 'Transcrevendo...' :
-                  isRecording ? 'Parar gravação (Espaço)' :
-                  'Gravar mensagem de voz (Espaço)'
-                }
-                className={isRecording ? 'animate-pulse' : ''}
-              >
-                {isTranscribing
-                  ? <Loader className="w-4 h-4 animate-spin" />
-                  : isRecording
-                  ? <MicOff className="w-4 h-4" />
-                  : <Mic className="w-4 h-4" />}
-              </Button>
-            )}
+            {/* Mic button — always shown, MediaRecorder + Whisper */}
+            <Button
+              type="button"
+              variant={isRecording ? 'destructive' : 'outline'}
+              size="icon"
+              onClick={toggleRecording}
+              disabled={streaming || isTranscribing || requestingMic}
+              title={
+                requestingMic ? 'Aguardando permissão...' :
+                isTranscribing ? 'Transcrevendo...' :
+                isRecording ? 'Parar gravação (Espaço)' :
+                'Gravar mensagem de voz (Espaço)'
+              }
+              className={isRecording ? 'animate-pulse' : ''}
+            >
+              {isTranscribing || requestingMic
+                ? <Loader className="w-4 h-4 animate-spin" />
+                : isRecording
+                ? <MicOff className="w-4 h-4" />
+                : <Mic className="w-4 h-4" />}
+            </Button>
 
             <Button type="submit" disabled={streaming || isRecording || isTranscribing || !input.trim()} className="gap-2 shrink-0">
               {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
