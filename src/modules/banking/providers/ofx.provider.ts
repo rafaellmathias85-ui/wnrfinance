@@ -145,30 +145,39 @@ export class OfxProvider implements BankProvider {
         continue;
       }
 
-      await prisma.bankTransaction.create({
-        data: {
-          userId: context.userId,
-          companyId: context.companyId || null,
-          bankConnectionId: context.connection?.id || null,
-          personType: tx.personType,
-          bankCode: tx.bankCode,
-          accountId: tx.accountId,
-          externalId: buildDatabaseExternalId(tx),
-          transactionHash: tx.checksum,
-          description: tx.description,
-          amount: tx.amount,
-          type: tx.direction === 'CREDIT' ? 'credit' : 'debit',
-          date: tx.date,
-          balanceAfter: tx.balanceAfter ?? null,
-          documentNumber: tx.documentNumber ?? null,
-          payerName: tx.counterpartyName ?? null,
-          payerDocument: tx.counterpartyTaxId ?? null,
-          rawData: tx.rawData as any,
-          status: 'PENDING',
-          importBatchId: batchId,
-        },
-      });
-      imported++;
+      try {
+        await prisma.bankTransaction.create({
+          data: {
+            userId: context.userId,
+            companyId: context.companyId || null,
+            bankConnectionId: context.connection?.id || null,
+            personType: tx.personType,
+            bankCode: tx.bankCode,
+            accountId: tx.accountId,
+            externalId: buildDatabaseExternalId(tx),
+            transactionHash: tx.checksum,
+            description: tx.description,
+            amount: tx.amount,
+            type: tx.direction === 'CREDIT' ? 'credit' : 'debit',
+            date: tx.date,
+            balanceAfter: tx.balanceAfter ?? null,
+            documentNumber: tx.documentNumber ?? null,
+            payerName: tx.counterpartyName ?? null,
+            payerDocument: tx.counterpartyTaxId ?? null,
+            rawData: tx.rawData as any,
+            status: 'PENDING',
+            importBatchId: batchId,
+          },
+        });
+        imported++;
+      } catch (err: any) {
+        // P2002 = unique constraint (externalId duplicado) — conta como já existente
+        if (err?.code === 'P2002') {
+          skipped++;
+        } else {
+          throw err;
+        }
+      }
     }
 
     return {
@@ -189,29 +198,55 @@ export class OfxProvider implements BankProvider {
     context: StatementImportContext,
   ): Promise<Set<string>> {
     const hashes = transactions.map((tx) => tx.checksum);
+    const externalIds = transactions.map((tx) => buildDatabaseExternalId(tx));
     if (!hashes.length) return new Set();
 
+    // Sem filtro de bankConnectionId: detecta duplicatas entre conexões diferentes
+    // para a mesma conta física (ex: OFX importado via conciliação vs via conexão).
     const existing = await prisma.bankTransaction.findMany({
       where: {
         userId: context.userId,
-        transactionHash: { in: hashes },
-        ...(context.connection?.id ? { bankConnectionId: context.connection.id } : {}),
+        OR: [
+          { transactionHash: { in: hashes } },
+          { externalId: { in: externalIds } },
+        ],
       },
-      select: { transactionHash: true },
+      select: { transactionHash: true, externalId: true },
     });
 
-    return new Set(existing.map((item) => item.transactionHash).filter(Boolean) as string[]);
+    // externalId → checksum: marca como duplicata pelo FITID mesmo com accountId diferente
+    const extIdToHash = new Map(
+      transactions.map(tx => [buildDatabaseExternalId(tx), tx.checksum]),
+    );
+
+    const duplicates = new Set<string>();
+    for (const row of existing) {
+      if (row.transactionHash) duplicates.add(row.transactionHash);
+      if (row.externalId) {
+        const hash = extIdToHash.get(row.externalId);
+        if (hash) duplicates.add(hash);
+      }
+    }
+    return duplicates;
   }
 
   private async isDuplicate(
     tx: CanonicalTransaction,
     context: StatementImportContext,
   ): Promise<boolean> {
+    const dbExternalId = buildDatabaseExternalId(tx);
+    // Fallback endsWith: detecta o mesmo FITID mesmo quando o accountId está
+    // formatado diferente entre importações (ex: "0050212" vs "0263-502122-2").
+    const rawFitid = tx.externalId;
+
     const existing = await prisma.bankTransaction.findFirst({
       where: {
         userId: context.userId,
-        transactionHash: tx.checksum,
-        ...(context.connection?.id ? { bankConnectionId: context.connection.id } : {}),
+        OR: [
+          { transactionHash: tx.checksum },
+          { externalId: dbExternalId },
+          ...(rawFitid ? [{ externalId: { endsWith: `:${rawFitid}` } }] : []),
+        ],
       },
       select: { id: true },
     });
