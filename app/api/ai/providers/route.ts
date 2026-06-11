@@ -49,7 +49,7 @@ function defaultProviderPresets() {
     { env: 'DEEPSEEK_API_KEY', name: 'DeepSeek', model: process.env.DEEPSEEK_MODEL || 'deepseek-chat', endpoint: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1', priority: 3 },
     { env: 'GROQ_API_KEY', name: 'Groq', model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile', endpoint: process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1', priority: 3 },
     { env: 'ANTHROPIC_API_KEY', name: 'Anthropic', model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514', endpoint: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com/v1', priority: 4 },
-    { env: 'SAMBANOVA_API_KEY', name: 'SambaNova', model: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3.1', endpoint: process.env.SAMBANOVA_BASE_URL || 'https://api.sambanova.ai/v1', priority: 4 },
+    { env: 'SAMBANOVA_API_KEY', name: 'SambaNova', model: process.env.SAMBANOVA_MODEL || 'Meta-Llama-3.3-70B-Instruct', endpoint: process.env.SAMBANOVA_BASE_URL || 'https://api.sambanova.ai/v1', priority: 4 },
     { env: 'TOGETHER_API_KEY', name: 'Together.ai', model: process.env.TOGETHER_MODEL || 'deepseek-ai/DeepSeek-V4-Pro', endpoint: process.env.TOGETHER_BASE_URL || 'https://api.together.xyz/v1', priority: 5 },
   ];
 
@@ -75,33 +75,50 @@ function defaultProviderPresets() {
 async function ensureDefaultProviders(userId: string) {
   const existing = await prisma.aIProvider.findMany({
     where: { userId },
-    select: { name: true, endpoint: true },
+    select: { id: true, name: true, endpoint: true, apiKey: true },
     orderBy: { sortOrder: 'asc' },
   });
 
   const presets = defaultProviderPresets();
+
+  // Create missing providers
   const missing = presets.filter(p => !existing.some(e =>
     e.name.toLowerCase() === p.name.toLowerCase() &&
     (e.endpoint || '') === (p.endpoint || '')
   ));
 
-  if (missing.length === 0) return;
+  if (missing.length > 0) {
+    await prisma.aIProvider.createMany({
+      data: missing.map((p, idx) => ({
+        userId,
+        name: p.name,
+        model: p.model,
+        endpoint: p.endpoint,
+        apiKey: p.apiKey ? encryptKey(p.apiKey) : '',
+        priority: p.priority,
+        weight: p.weight,
+        capabilities: p.capabilities,
+        isBuiltIn: p.isBuiltIn,
+        isActive: p.isActive,
+        sortOrder: existing.length + idx,
+      })),
+    });
+  }
 
-  await prisma.aIProvider.createMany({
-    data: missing.map((p, idx) => ({
-      userId,
-      name: p.name,
-      model: p.model,
-      endpoint: p.endpoint,
-      apiKey: p.apiKey ? encryptKey(p.apiKey) : '',
-      priority: p.priority,
-      weight: p.weight,
-      capabilities: p.capabilities,
-      isBuiltIn: p.isBuiltIn,
-      isActive: p.isActive,
-      sortOrder: existing.length + idx,
-    })),
-  });
+  // Sync env-sourced API keys into existing providers that have no key set
+  for (const preset of presets) {
+    if (!preset.apiKey) continue;
+    const match = existing.find(e =>
+      e.name.toLowerCase() === preset.name.toLowerCase() &&
+      (e.endpoint || '') === (preset.endpoint || '')
+    );
+    if (match && !match.apiKey) {
+      await prisma.aIProvider.update({
+        where: { id: match.id },
+        data: { apiKey: encryptKey(preset.apiKey), model: preset.model },
+      });
+    }
+  }
 }
 
 export async function GET() {
