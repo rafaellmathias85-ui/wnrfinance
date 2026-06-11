@@ -64,16 +64,13 @@ jobs:
           cp -r public .next/standalone/public
           echo "✅ Assets copiados"
 
-      # ─── 7. Prisma DB Push ────────────────────────────────────────────
-      - name: Prisma DB Push
+      # ─── 7. Prisma Migrate Deploy ─────────────────────────────────────
+      - name: Prisma Migrate Deploy
         working-directory: /var/www/wnrfinance
         run: |
-          echo "🗄️  Aplicando schema do banco..."
-          # SEM --accept-data-loss: mudanças destrutivas (drop de coluna/tabela com dados)
-          # passam a BLOQUEAR o deploy em vez de serem aplicadas silenciosamente.
-          # Nesse caso, revise o schema e aplique via migração planejada (prisma/migrations).
-          npx prisma db push
-          echo "✅ Schema aplicado"
+          echo "🗄️  Aplicando migrations pendentes..."
+          npx prisma migrate deploy
+          echo "✅ Migrations aplicadas"
 
       # ─── 8. Reiniciar PM2 ────────────────────────────────────────────
       - name: Reiniciar PM2 (wnrfinance)
