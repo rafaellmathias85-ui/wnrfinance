@@ -149,8 +149,10 @@ export default function UsuariosPage() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateUser = async () => {
+    if (!createForm.name.trim() || !createForm.email.trim() || !createForm.password) {
+      toast({ title: 'Preencha nome, e-mail e senha', variant: 'destructive' }); return;
+    }
     if (createForm.password !== createForm.confirmPassword) {
       toast({ title: 'As senhas não conferem', variant: 'destructive' }); return;
     }
@@ -159,13 +161,14 @@ export default function UsuariosPage() {
     }
     setCreateLoading(true);
     try {
-      const { confirmPassword: _, ...payload } = createForm;
+      const { confirmPassword, ...payload } = createForm;
       const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/create-user`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       let data: any = {};
-      try { data = await res.json(); } catch { /* body não é JSON */ }
+      try { data = await res.json(); } catch { /* noop */ }
       if (res.ok) {
         toast({ title: 'Usuário criado com sucesso' });
         setShowCreate(false);
@@ -246,7 +249,7 @@ export default function UsuariosPage() {
         <Card className="border-blue-500">
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><UserCog className="w-4 h-4" />Criar Novo Usuário</CardTitle></CardHeader>
           <CardContent>
-            <form onSubmit={handleCreateUser} className="space-y-4">
+            <div className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Nome completo *</Label>
@@ -330,12 +333,12 @@ export default function UsuariosPage() {
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-                <Button type="submit" disabled={createLoading} className="gap-2">
+                <Button type="button" disabled={createLoading} className="gap-2" onClick={handleCreateUser}>
                   {createLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
                   Criar Usuário
                 </Button>
               </div>
-            </form>
+            </div>
             <p className="text-xs text-muted-foreground mt-3">
               O usuário criado poderá fazer login imediatamente com o e-mail e senha definidos acima.
             </p>
