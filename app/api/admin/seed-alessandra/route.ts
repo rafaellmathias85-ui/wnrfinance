@@ -8,6 +8,12 @@ import bcrypt from 'bcryptjs';
 // Protected by NEXTAUTH_SECRET as Bearer token.
 export async function POST(req: NextRequest) {
   try {
+    // Rota one-off já utilizada — desativada por padrão (princípio de menor superfície).
+    // Para reativar temporariamente: ALLOW_ONE_OFF_SEED=true no ambiente.
+    if (process.env.ALLOW_ONE_OFF_SEED !== 'true') {
+      return NextResponse.json({ error: 'Rota desativada' }, { status: 410 });
+    }
+
     const auth = req.headers.get('authorization') || '';
     const secret = process.env.NEXTAUTH_SECRET || '';
     if (!secret || auth !== `Bearer ${secret}`) {

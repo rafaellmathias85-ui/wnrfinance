@@ -1630,6 +1630,7 @@ model BoletoCharge {
   paidAt           DateTime?
   paidAmount       Float?
   createdBy        String?
+  idempotencyKey   String?   @unique // client-provided Idempotency-Key (prevents double charge)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -1637,6 +1638,20 @@ model BoletoCharge {
   @@index([status])
   @@index([receivableId])
   @@index([dueDate])
+}
+
+// Registro de eventos de webhook recebidos (idempotência + auditoria)
+// Garante que reenvios do provedor (Asaas, Focus NFe, Pluggy) não dupliquem efeitos.
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String // asaas, focusnfe, pluggy, whatsapp
+  eventId     String // ID único do evento no provedor (ou hash do payload)
+  eventType   String? // PAYMENT_RECEIVED, nfe_autorizada, etc.
+  payload     Json?
+  processedAt DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, processedAt])
 }
 
 // ====================== MÓDULO FISCAL ======================

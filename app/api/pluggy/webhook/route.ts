@@ -11,7 +11,23 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    const signature = request.headers.get('x-pluggy-signature');
+
+    // Segurança: HMAC-SHA256 fail-closed em produção via PLUGGY_WEBHOOK_SECRET
+    const { verifyWebhookHmac } = await import('@/lib/webhook-security');
+    const auth = verifyWebhookHmac(
+      rawBody,
+      signature?.toLowerCase() || null,
+      process.env.PLUGGY_WEBHOOK_SECRET,
+      'Pluggy (pluggy/webhook)',
+      'sha256',
+    );
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.reason }, { status: auth.status });
+    }
+
+    const body = JSON.parse(rawBody);
     const { event, itemId } = body || {};
     if (!event || !itemId) return NextResponse.json({ ok: true });
 

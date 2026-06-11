@@ -66,6 +66,7 @@ async function asaasCreateCharge(payload: ChargePayload, config: any): Promise<C
   try {
     const searchRes = await fetch(`${baseUrl}/customers?cpfCnpj=${payload.customerDoc.replace(/\D/g, '')}`, {
       headers: { access_token: apiKey },
+      signal: AbortSignal.timeout(30_000),
     });
     const searchData = await searchRes.json();
     if (searchData.data?.length > 0) {
@@ -79,6 +80,7 @@ async function asaasCreateCharge(payload: ChargePayload, config: any): Promise<C
           cpfCnpj: payload.customerDoc.replace(/\D/g, ''),
           email: payload.customerEmail,
         }),
+        signal: AbortSignal.timeout(30_000),
       });
       const createData = await createRes.json();
       customerId = createData.id;
@@ -126,6 +128,7 @@ async function asaasCreateCharge(payload: ChargePayload, config: any): Promise<C
       method: 'POST',
       headers: { access_token: apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify(chargeBody),
+      signal: AbortSignal.timeout(30_000),
     });
 
     const data = await res.json();
@@ -149,6 +152,7 @@ async function asaasCreateCharge(payload: ChargePayload, config: any): Promise<C
       try {
         const pixRes = await fetch(`${baseUrl}/payments/${data.id}/pixQrCode`, {
           headers: { access_token: apiKey },
+          signal: AbortSignal.timeout(15_000),
         });
         const pixData = await pixRes.json();
         result.pixCopiaECola = pixData.payload;
@@ -199,6 +203,7 @@ export async function cancelCharge(companyId: string, providerChargeId: string):
       const res = await fetch(`${baseUrl}/payments/${providerChargeId}`, {
         method: 'DELETE',
         headers: { access_token: apiKey },
+        signal: AbortSignal.timeout(30_000),
       });
       const data = await res.json();
       return res.ok ? { success: true } : { success: false, errorMessage: data.message };
@@ -227,35 +232,48 @@ export interface AsaasWebhookEvent {
 export async function processAsaasWebhook(event: AsaasWebhookEvent): Promise<void> {
   const { payment } = event;
 
+  // Localiza a cobrança pelo ID do provedor OU pelo externalReference (nosso BoletoCharge.id)
   const boleto = await prisma.boletoCharge.findFirst({
-    where: { providerChargeId: payment.id },
+    where: {
+      OR: [
+        { providerChargeId: payment.id },
+        ...(payment.externalReference ? [{ id: payment.externalReference }] : []),
+      ],
+    },
   });
 
   if (!boleto) return;
 
   if (event.event === 'PAYMENT_RECEIVED' || event.event === 'PAYMENT_CONFIRMED') {
-    await prisma.boletoCharge.update({
-      where: { id: boleto.id },
-      data: {
-        status: 'pago',
-        paidAt: payment.paymentDate ? new Date(payment.paymentDate) : new Date(),
-        paidAmount: payment.value,
-      },
-    });
-
-    // Auto-update linked AccountsReceivable if any
-    if (boleto.receivableId) {
-      await prisma.accountsReceivable.update({
-        where: { id: boleto.receivableId },
+    const paidAt = payment.paymentDate ? new Date(payment.paymentDate) : new Date();
+    // Transação: baixa do boleto e do recebível são atômicas (sem furo de conciliação)
+    await prisma.$transaction(async (trx) => {
+      await trx.boletoCharge.update({
+        where: { id: boleto.id },
         data: {
-          status: 'recebido',
-          amountReceived: payment.value,
-          receivedAt: payment.paymentDate ? new Date(payment.paymentDate) : new Date(),
+          status: 'pago',
+          paidAt,
+          paidAmount: payment.value,
         },
-      }).catch(() => {});
-    }
+      });
+
+      if (boleto.receivableId) {
+        await trx.accountsReceivable.updateMany({
+          where: { id: boleto.receivableId },
+          data: {
+            status: 'recebido',
+            amountReceived: payment.value ?? boleto.amount,
+            receivedAt: paidAt,
+          },
+        });
+      }
+    });
   } else if (event.event === 'PAYMENT_OVERDUE') {
-    await prisma.boletoCharge.update({ where: { id: boleto.id }, data: { status: 'vencido' } });
+    // Não rebaixa cobrança já liquidada (eventos fora de ordem)
+    await prisma.boletoCharge.updateMany({
+      where: { id: boleto.id, status: { not: 'pago' } },
+      data: { status: 'vencido' },
+    });
   } else if (event.event === 'PAYMENT_DELETED' || event.event === 'PAYMENT_REFUNDED') {
     await prisma.boletoCharge.update({ where: { id: boleto.id }, data: { status: 'cancelado' } });
   }

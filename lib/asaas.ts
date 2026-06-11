@@ -12,6 +12,10 @@ function headers(apiKey: string) {
   };
 }
 
+// Timeout padrão para chamadas ao Asaas — evita requisição pendurada
+// e janela de cobrança órfã (criada no provedor sem registro local).
+const ASAAS_TIMEOUT_MS = 30_000;
+
 async function asaasRequest<T>(
   apiKey: string,
   method: string,
@@ -21,6 +25,7 @@ async function asaasRequest<T>(
   const res = await fetch(`${ASAAS_BASE}${path}`, {
     method,
     headers: headers(apiKey),
+    signal: AbortSignal.timeout(ASAAS_TIMEOUT_MS),
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const data = await res.json();

@@ -31,6 +31,23 @@ export function scheduleBankSync(): void {
 }
 
 async function runBankSync(): Promise<void> {
+  // Lock distribuído: evita sync duplicado quando há mais de uma instância
+  // (PM2 cluster / múltiplos containers). TTL 30min cobre a janela do job.
+  const { acquireLock } = await import('@/src/lib/distributed-lock');
+  const release = await acquireLock('bank-sync', 30 * 60 * 1000);
+  if (!release) {
+    console.log('[BankSync] Outra instância já está executando o sync — pulando.');
+    return;
+  }
+
+  try {
+    await runBankSyncInner();
+  } finally {
+    await release();
+  }
+}
+
+async function runBankSyncInner(): Promise<void> {
   const startedAt = new Date().toISOString();
   console.log(`[BankSync] Iniciando sincronização automática — ${startedAt}`);
 

@@ -37,7 +37,15 @@ jobs:
           npm ci --legacy-peer-deps
           echo "✅ Dependências instaladas"
 
-      # ─── 4. Build Next.js standalone ─────────────────────────────────
+      # ─── 4. Gerar Prisma Client ───────────────────────────────────────
+      - name: Gerar Prisma Client
+        working-directory: /var/www/wnrfinance
+        run: |
+          echo "🔧 Gerando Prisma Client com tipos atualizados..."
+          npx prisma generate
+          echo "✅ Prisma Client gerado"
+
+      # ─── 5. Build Next.js standalone ─────────────────────────────────
       - name: Build Next.js
         working-directory: /var/www/wnrfinance
         env:
@@ -47,7 +55,7 @@ jobs:
           npm run build
           echo "✅ Build concluído"
 
-      # ─── 5. Copiar assets estáticos para o standalone ────────────────
+      # ─── 6. Copiar assets estáticos para o standalone ────────────────
       - name: Copiar assets estáticos
         working-directory: /var/www/wnrfinance
         run: |
@@ -56,15 +64,18 @@ jobs:
           cp -r public .next/standalone/public
           echo "✅ Assets copiados"
 
-      # ─── 6. Prisma DB Push ────────────────────────────────────────────
+      # ─── 7. Prisma DB Push ────────────────────────────────────────────
       - name: Prisma DB Push
         working-directory: /var/www/wnrfinance
         run: |
           echo "🗄️  Aplicando schema do banco..."
-          npx prisma db push --accept-data-loss
+          # SEM --accept-data-loss: mudanças destrutivas (drop de coluna/tabela com dados)
+          # passam a BLOQUEAR o deploy em vez de serem aplicadas silenciosamente.
+          # Nesse caso, revise o schema e aplique via migração planejada (prisma/migrations).
+          npx prisma db push
           echo "✅ Schema aplicado"
 
-      # ─── 7. Reiniciar PM2 ────────────────────────────────────────────
+      # ─── 8. Reiniciar PM2 ────────────────────────────────────────────
       - name: Reiniciar PM2 (wnrfinance)
         working-directory: /var/www/wnrfinance
         run: |

@@ -5,6 +5,10 @@
 export async function register() {
   // Só roda no runtime Node.js (não no Edge runtime)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Valida configuração de segurança e loga pendências críticas no boot
+    const { validateSecurityConfig } = await import('./src/lib/config-validator');
+    validateSecurityConfig();
+
     const { scheduleBankSync } = await import('./src/lib/bank-sync-scheduler');
     scheduleBankSync();
   }

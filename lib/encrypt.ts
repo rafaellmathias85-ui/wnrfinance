@@ -7,14 +7,29 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 
+let warnedFallback = false;
+
 function getKey(): Buffer {
   const raw = process.env.ENCRYPTION_KEY;
   if (!raw) {
-    // Fallback for dev — derive from NEXTAUTH_SECRET
+    // Fallback: deriva do NEXTAUTH_SECRET. Mantido para não inviabilizar a
+    // descriptografia de dados legados, mas em produção isso é um risco:
+    // rotacionar o NEXTAUTH_SECRET tornaria os dados ilegíveis.
+    if (process.env.NODE_ENV === 'production' && !warnedFallback) {
+      warnedFallback = true;
+      console.error(
+        '[Encrypt] CRÍTICO: ENCRYPTION_KEY não configurada em produção — usando fallback derivado de NEXTAUTH_SECRET. ' +
+        'Configure ENCRYPTION_KEY (32 bytes base64) e re-criptografe os segredos armazenados.',
+      );
+    }
     const secret = process.env.NEXTAUTH_SECRET || 'dev-secret-not-for-production';
     return crypto.createHash('sha256').update(secret).digest();
   }
-  return Buffer.from(raw, 'base64');
+  const key = Buffer.from(raw, 'base64');
+  if (key.length !== 32) {
+    throw new Error('ENCRYPTION_KEY inválida: esperado 32 bytes em base64 (openssl rand -base64 32)');
+  }
+  return key;
 }
 
 /**

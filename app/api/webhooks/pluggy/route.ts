@@ -2,27 +2,25 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
+import { verifyWebhookHmac } from '@/lib/webhook-security';
 
-// Pluggy sends webhook events when items/accounts are updated.
-// Verify HMAC-SHA256 signature using PLUGGY_WEBHOOK_SECRET env var.
-function verifyPluggySignature(body: string, signature: string | null, secret: string): boolean {
-  if (!signature || !secret) return !secret;
-  const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
-  return crypto.timingSafeEqual(
-    Buffer.from(signature.toLowerCase()),
-    Buffer.from(expected.toLowerCase())
-  );
-}
-
+// Pluggy envia eventos quando items/contas são atualizados.
+// Segurança: HMAC-SHA256 (x-pluggy-signature) fail-closed em produção
+// via PLUGGY_WEBHOOK_SECRET.
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     const signature = req.headers.get('x-pluggy-signature');
-    const secret = process.env.PLUGGY_WEBHOOK_SECRET || '';
 
-    if (secret && !verifyPluggySignature(rawBody, signature, secret)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = verifyWebhookHmac(
+      rawBody,
+      signature?.toLowerCase() || null,
+      process.env.PLUGGY_WEBHOOK_SECRET,
+      'Pluggy',
+      'sha256',
+    );
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.reason }, { status: auth.status });
     }
 
     const body = JSON.parse(rawBody);

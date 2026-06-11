@@ -10,10 +10,15 @@ function authHeader(token: string) {
   return { 'Authorization': `Basic ${encoded}`, 'Content-Type': 'application/json' };
 }
 
+// Timeout padrão — Sefaz/prefeituras podem demorar; 60s cobre contingência
+// sem deixar a requisição pendurada indefinidamente.
+const FOCUSNFE_TIMEOUT_MS = 60_000;
+
 async function focusRequest<T>(token: string, method: string, path: string, body?: object): Promise<T> {
   const res = await fetch(`${FOCUSNFE_BASE}${path}`, {
     method,
     headers: authHeader(token),
+    signal: AbortSignal.timeout(FOCUSNFE_TIMEOUT_MS),
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 

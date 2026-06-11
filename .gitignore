@@ -47,6 +47,9 @@ desktop.ini
 tmp_*.sh
 tmp_*.tgz
 tmp_*.tar.gz
+
+# ─── Backups locais (contêm .env — nunca commitar) ────────────────
+_backups/
 C:Tempts_errors.txt
 *Tempts_errors.txt
 *.tmp

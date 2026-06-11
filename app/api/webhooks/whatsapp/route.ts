@@ -23,9 +23,49 @@ export async function GET(req: NextRequest) {
 }
 
 // POST: receive messages from Evolution API or Meta Cloud API
+// Segurança (opt-in, não quebra integrações existentes):
+// - WHATSAPP_WEBHOOK_TOKEN definido → exige header `apikey`/`x-webhook-token` ou `?token=`.
+// - WHATSAPP_APP_SECRET definido → valida x-hub-signature-256 (Meta Cloud API).
+// Sem segredos configurados em produção, loga alerta crítico a cada chamada.
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+
+    const { verifyWebhookHmac, timingSafeEqualStr } = await import('@/lib/webhook-security');
+
+    const expectedToken = process.env.WHATSAPP_WEBHOOK_TOKEN;
+    if (expectedToken) {
+      const provided =
+        req.headers.get('apikey') ||
+        req.headers.get('x-webhook-token') ||
+        new URL(req.url).searchParams.get('token') ||
+        '';
+      if (!timingSafeEqualStr(provided, expectedToken)) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
+
+    if (process.env.WHATSAPP_APP_SECRET) {
+      const auth = verifyWebhookHmac(
+        rawBody,
+        req.headers.get('x-hub-signature-256'),
+        process.env.WHATSAPP_APP_SECRET,
+        'WhatsApp Meta',
+        'sha256',
+      );
+      if (!auth.ok) {
+        return NextResponse.json({ error: auth.reason }, { status: auth.status });
+      }
+    }
+
+    if (!expectedToken && !process.env.WHATSAPP_APP_SECRET && process.env.NODE_ENV === 'production') {
+      console.error(
+        '[WebhookSecurity] ALERTA: webhook WhatsApp sem autenticação configurada. ' +
+        'Defina WHATSAPP_WEBHOOK_TOKEN (Evolution) ou WHATSAPP_APP_SECRET (Meta).',
+      );
+    }
+
+    const body = JSON.parse(rawBody);
 
     // ── Evolution API format ──────────────────────────────────────
     if (body.event === 'messages.upsert' || body.data?.messages) {

@@ -51,23 +51,67 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Campos obrigatórios: cliente, CPF/CNPJ, valor e vencimento' }, { status: 400 });
     }
 
+    // ── Idempotência (previne dupla cobrança ao cliente final) ──────────────
+    // 1) Header Idempotency-Key (retry de rede / duplo clique): retorna a cobrança já criada.
+    const idempotencyKey = request.headers.get('idempotency-key') || null;
+    if (idempotencyKey) {
+      const existingByKey = await prisma.boletoCharge.findUnique({
+        where: { idempotencyKey },
+      });
+      if (existingByKey) {
+        return NextResponse.json({ ...existingByKey, idempotent: true }, { status: 200 });
+      }
+    }
+
+    // 2) Guard por recebível: bloqueia segunda cobrança ativa para o mesmo receivableId.
+    if (receivableId) {
+      const existingForReceivable = await prisma.boletoCharge.findFirst({
+        where: {
+          companyId,
+          receivableId,
+          status: { in: ['pendente', 'pago'] },
+        },
+      });
+      if (existingForReceivable) {
+        return NextResponse.json(
+          {
+            error: 'Já existe uma cobrança ativa para este recebível.',
+            existingChargeId: existingForReceivable.id,
+            existingStatus: existingForReceivable.status,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Create record
-    const charge = await prisma.boletoCharge.create({
-      data: {
-        companyId,
-        receivableId: receivableId || null,
-        type: type || 'boleto',
-        status: 'pendente',
-        customerName,
-        customerDoc,
-        customerEmail: customerEmail || null,
-        amount: parseFloat(amount),
-        dueDate: new Date(dueDate),
-        description: description || null,
-        instructions: instructions || null,
-        createdBy: session.user.id,
-      },
-    });
+    let charge;
+    try {
+      charge = await prisma.boletoCharge.create({
+        data: {
+          companyId,
+          receivableId: receivableId || null,
+          type: type || 'boleto',
+          status: 'pendente',
+          customerName,
+          customerDoc,
+          customerEmail: customerEmail || null,
+          amount: parseFloat(amount),
+          dueDate: new Date(dueDate),
+          description: description || null,
+          instructions: instructions || null,
+          createdBy: session.user.id,
+          idempotencyKey,
+        },
+      });
+    } catch (err: any) {
+      // Corrida entre requisições com a mesma Idempotency-Key → retorna a vencedora
+      if (err?.code === 'P2002' && idempotencyKey) {
+        const winner = await prisma.boletoCharge.findUnique({ where: { idempotencyKey } });
+        if (winner) return NextResponse.json({ ...winner, idempotent: true }, { status: 200 });
+      }
+      throw err;
+    }
 
     if (emit) {
       const result = await createCharge(companyId, {
