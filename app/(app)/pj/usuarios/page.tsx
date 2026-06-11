@@ -1,14 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  UserPlus, Crown, Shield, Eye, Calculator, BookOpen, Pencil,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  UserPlus, Crown, Shield, Eye, EyeOff, Calculator, BookOpen, Pencil,
   Lock, Unlock, BarChart2, ShoppingCart, Users, Headphones, GitBranch, Settings,
-  UserCog, Loader2, EyeOff,
+  UserCog, Loader2,
 } from 'lucide-react';
 import { usePJ } from '@/lib/pj-context';
 import { apiFetch } from '@/lib/fetch';
@@ -42,17 +49,13 @@ const MODULE_BADGES = [
 ] as const;
 
 type ModuleBadgeId = (typeof MODULE_BADGES)[number]['id'];
-
-/** A user's module access map: moduleId → true (has access) | false (blocked) */
 type ModuleAccess = Partial<Record<ModuleBadgeId, boolean>>;
 
-/** Derive module access from flat permissions list */
 function deriveModuleAccess(
   perms: Array<{ module: string; action: string; allowed: boolean }>,
 ): ModuleAccess {
   const access: ModuleAccess = {};
   for (const badge of MODULE_BADGES) {
-    // A module is "accessible" if ANY feature within it has view or edit allowed
     const relevant = perms.filter(
       (p) => p.module.startsWith(`${badge.id}.`) && (p.action === 'view' || p.action === 'edit') && p.allowed,
     );
@@ -61,13 +64,8 @@ function deriveModuleAccess(
   return access;
 }
 
-// ─── Module badge chip ───────────────────────────────────────────────────────
-
-function ModuleBadge({ id, label, Icon, hasAccess }: {
-  id: ModuleBadgeId;
-  label: string;
-  Icon: React.ElementType;
-  hasAccess: boolean | undefined;
+function ModuleBadge({ label, Icon, hasAccess }: {
+  id: ModuleBadgeId; label: string; Icon: React.ElementType; hasAccess: boolean | undefined;
 }) {
   const unknown = hasAccess === undefined;
   return (
@@ -82,14 +80,233 @@ function ModuleBadge({ id, label, Icon, hasAccess }: {
       }`}
     >
       <Icon className="w-3 h-3" />
-      {unknown ? (
-        <Lock className="w-2.5 h-2.5 opacity-30" />
-      ) : hasAccess ? (
-        <Unlock className="w-2.5 h-2.5" />
-      ) : (
-        <Lock className="w-2.5 h-2.5" />
-      )}
+      {unknown ? <Lock className="w-2.5 h-2.5 opacity-30" /> : hasAccess ? <Unlock className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
     </span>
+  );
+}
+
+// ─── Create User Dialog ───────────────────────────────────────────────────────
+
+interface CreateUserDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  companyId: string;
+  onCreated: () => void;
+}
+
+function CreateUserDialog({ open, onOpenChange, companyId, onCreated }: CreateUserDialogProps) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+  const [form, setForm] = useState({
+    name: '', email: '', password: '', confirmPassword: '',
+    role: 'VIEWER', hasPF: false, hasPJ: true,
+  });
+
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setForm({ name: '', email: '', password: '', confirmPassword: '', role: 'VIEWER', hasPF: false, hasPJ: true });
+      setShowPwd(false);
+      setLoading(false);
+    }
+  }, [open]);
+
+  const set = (field: string, value: any) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const handleSubmit = async () => {
+    const name = form.name.trim();
+    const email = form.email.trim();
+    const password = form.password;
+
+    if (!name || !email || !password) {
+      const msg = 'Preencha nome, e-mail e senha.';
+      toast({ title: msg, variant: 'destructive' });
+      window.alert(msg);
+      return;
+    }
+    if (password !== form.confirmPassword) {
+      const msg = 'As senhas não conferem.';
+      toast({ title: msg, variant: 'destructive' });
+      window.alert(msg);
+      return;
+    }
+    if (password.length < 6) {
+      const msg = 'A senha deve ter pelo menos 6 caracteres.';
+      toast({ title: msg, variant: 'destructive' });
+      window.alert(msg);
+      return;
+    }
+    if (!form.hasPF && !form.hasPJ) {
+      const msg = 'Selecione ao menos um tipo de acesso (PF ou PJ).';
+      toast({ title: msg, variant: 'destructive' });
+      window.alert(msg);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/pj/companies/${companyId}/create-user`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, role: form.role, hasPF: form.hasPF, hasPJ: form.hasPJ }),
+      });
+
+      let data: any = {};
+      try { data = await res.json(); } catch { /* noop */ }
+
+      if (res.ok) {
+        toast({ title: `Usuário ${data.name || name} criado com sucesso!` });
+        onOpenChange(false);
+        onCreated();
+      } else {
+        const msg = data.error || `Erro HTTP ${res.status}`;
+        toast({ title: 'Erro ao criar usuário', description: msg, variant: 'destructive' });
+        window.alert(`Erro ao criar usuário: ${msg}`);
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Erro de rede';
+      toast({ title: 'Erro ao criar usuário', description: msg, variant: 'destructive' });
+      window.alert(`Erro de rede: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserCog className="w-5 h-5" /> Criar Novo Usuário
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="cu-name">Nome completo *</Label>
+              <Input
+                id="cu-name"
+                value={form.name}
+                onChange={e => set('name', e.target.value)}
+                placeholder="João da Silva"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="cu-email">E-mail *</Label>
+              <Input
+                id="cu-email"
+                type="email"
+                value={form.email}
+                onChange={e => set('email', e.target.value)}
+                placeholder="joao@empresa.com.br"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="cu-password">Senha * (mín. 6 caracteres)</Label>
+              <div className="relative">
+                <Input
+                  id="cu-password"
+                  type={showPwd ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={e => set('password', e.target.value)}
+                  className="pr-10"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPwd(v => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                >
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="cu-confirm">Confirmar Senha *</Label>
+              <div className="relative">
+                <Input
+                  id="cu-confirm"
+                  type={showPwd ? 'text' : 'password'}
+                  value={form.confirmPassword}
+                  onChange={e => set('confirmPassword', e.target.value)}
+                  className="pr-10"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPwd(v => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                >
+                  {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="cu-role">Cargo na empresa (PJ)</Label>
+              <select
+                id="cu-role"
+                value={form.role}
+                onChange={e => set('role', e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="VIEWER">Visualizador</option>
+                <option value="FINANCE">Financeiro</option>
+                <option value="ACCOUNTANT">Contador</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="mb-2 block">Tipo de acesso *</Label>
+              <div className="flex gap-6 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.hasPF}
+                    onChange={e => set('hasPF', e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium">PF</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.hasPJ}
+                    onChange={e => set('hasPJ', e.target.checked)}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium">PJ</span>
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Módulos que o usuário poderá acessar após login.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button type="button" onClick={handleSubmit} disabled={loading} className="gap-2 min-w-[140px]">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
+            {loading ? 'Criando...' : 'Criar Usuário'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -101,31 +318,16 @@ export default function UsuariosPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [permissionsUser, setPermissionsUser] = useState<{ id: string; name: string } | null>(null);
   const [moduleAccessMap, setModuleAccessMap] = useState<Record<string, ModuleAccess>>({});
 
-  // Create-user form state
-  const [createForm, setCreateForm] = useState({
-    name: '', email: '', password: '', confirmPassword: '',
-    role: 'VIEWER', hasPF: false, hasPJ: true,
-  });
-  const [createLoading, setCreateLoading] = useState(false);
-  const [showPwd, setShowPwd] = useState(false);
+  // Invite form state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('VIEWER');
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   const canManage = ['OWNER', 'ADMIN'].includes(activeCompanyRole || '');
-
-  const fetchUsers = useCallback(async () => {
-    if (!activeCompanyId) { setLoading(false); return; }
-    setLoading(true);
-    const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/users`);
-    if (res.ok) {
-      const data = await res.json();
-      setUsers(data);
-      fetchAllModuleAccess(data);
-    }
-    setLoading(false);
-  }, [activeCompanyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAllModuleAccess = useCallback(async (userList: any[]) => {
     const results: Record<string, ModuleAccess> = {};
@@ -147,58 +349,47 @@ export default function UsuariosPage() {
     setModuleAccessMap(results);
   }, []);
 
+  const fetchUsers = useCallback(async () => {
+    if (!activeCompanyId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/users`);
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data);
+        fetchAllModuleAccess(data);
+      }
+    } catch { /* noop */ }
+    setLoading(false);
+  }, [activeCompanyId, fetchAllModuleAccess]);
+
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  const handleCreateUser = async () => {
-    if (!createForm.name.trim() || !createForm.email.trim() || !createForm.password) {
-      toast({ title: 'Preencha nome, e-mail e senha', variant: 'destructive' }); return;
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim() || !inviteRole) {
+      toast({ title: 'Preencha o e-mail', variant: 'destructive' }); return;
     }
-    if (createForm.password !== createForm.confirmPassword) {
-      toast({ title: 'As senhas não conferem', variant: 'destructive' }); return;
-    }
-    if (!createForm.hasPF && !createForm.hasPJ) {
-      toast({ title: 'Selecione ao menos um tipo de acesso (PF ou PJ)', variant: 'destructive' }); return;
-    }
-    setCreateLoading(true);
+    setInviteLoading(true);
     try {
-      const { confirmPassword, ...payload } = createForm;
-      const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/create-user`, {
+      const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
-      let data: any = {};
-      try { data = await res.json(); } catch { /* noop */ }
       if (res.ok) {
-        toast({ title: 'Usuário criado com sucesso' });
-        setShowCreate(false);
-        setCreateForm({ name: '', email: '', password: '', confirmPassword: '', role: 'VIEWER', hasPF: false, hasPJ: true });
+        toast({ title: 'Usuário adicionado com sucesso' });
+        setShowInvite(false);
+        setInviteEmail('');
         fetchUsers();
       } else {
-        toast({ title: 'Erro ao criar usuário', description: data.error || `HTTP ${res.status}`, variant: 'destructive' });
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Erro', description: err.error || 'Verifique o e-mail', variant: 'destructive' });
       }
     } catch (err: any) {
-      toast({ title: 'Erro ao criar usuário', description: err?.message || 'Erro de rede', variant: 'destructive' });
+      toast({ title: 'Erro de rede', description: err?.message, variant: 'destructive' });
     } finally {
-      setCreateLoading(false);
-    }
-  };
-
-  const handleInvite = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: fd.get('email'), role: fd.get('role') }),
-    });
-    if (res.ok) {
-      toast({ title: 'Usuário adicionado com sucesso' });
-      setShowInvite(false);
-      fetchUsers();
-    } else {
-      const err = await res.json();
-      toast({ title: 'Erro', description: err.error, variant: 'destructive' });
+      setInviteLoading(false);
     }
   };
 
@@ -207,15 +398,15 @@ export default function UsuariosPage() {
   };
 
   const handleModalClose = () => {
+    const uid = permissionsUser?.id;
     setPermissionsUser(null);
-    // Re-fetch module access for the updated user
-    if (permissionsUser) {
-      apiFetch(`/api/pj/permissions?userId=${permissionsUser.id}`)
+    if (uid) {
+      apiFetch(`/api/pj/permissions?userId=${uid}`)
         .then((r) => r.ok ? r.json() : { permissions: [] })
         .then((d) => {
           setModuleAccessMap((prev) => ({
             ...prev,
-            [permissionsUser.id]: deriveModuleAccess(d.permissions || []),
+            [uid]: deriveModuleAccess(d.permissions || []),
           }));
         })
         .catch(() => {});
@@ -228,6 +419,7 @@ export default function UsuariosPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Usuários da Empresa</h1>
@@ -235,142 +427,66 @@ export default function UsuariosPage() {
         </div>
         {canManage && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setShowCreate(!showCreate); setShowInvite(false); }}>
-              <UserCog className="w-4 h-4 mr-2" />Criar Usuário
+            <Button variant="outline" onClick={() => setCreateDialogOpen(true)}>
+              <UserCog className="w-4 h-4 mr-2" /> Criar Usuário
             </Button>
-            <Button onClick={() => { setShowInvite(!showInvite); setShowCreate(false); }}>
-              <UserPlus className="w-4 h-4 mr-2" />Convidar Usuário
+            <Button onClick={() => setShowInvite(v => !v)}>
+              <UserPlus className="w-4 h-4 mr-2" /> Convidar Usuário
             </Button>
           </div>
         )}
       </div>
 
-      {showCreate && (
-        <Card className="border-blue-500">
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><UserCog className="w-4 h-4" />Criar Novo Usuário</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Nome completo *</Label>
-                  <input
-                    required value={createForm.name}
-                    onChange={e => setCreateForm(p => ({ ...p, name: e.target.value }))}
-                    placeholder="João da Silva"
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <Label>E-mail *</Label>
-                  <input
-                    required type="email" value={createForm.email}
-                    onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
-                    placeholder="joao@empresa.com.br"
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <Label>Senha * (mín. 6 caracteres)</Label>
-                  <div className="mt-1 relative">
-                    <input
-                      required type={showPwd ? 'text' : 'password'}
-                      value={createForm.password}
-                      onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm pr-9"
-                    />
-                    <button type="button" onClick={() => setShowPwd(v => !v)}
-                      className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
-                      {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <Label>Confirmar Senha *</Label>
-                  <input
-                    required type={showPwd ? 'text' : 'password'}
-                    value={createForm.confirmPassword}
-                    onChange={e => setCreateForm(p => ({ ...p, confirmPassword: e.target.value }))}
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Cargo na empresa (PJ)</Label>
-                  <select
-                    value={createForm.role}
-                    onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="VIEWER">Visualizador</option>
-                    <option value="FINANCE">Financeiro</option>
-                    <option value="ACCOUNTANT">Contador</option>
-                    <option value="ADMIN">Administrador</option>
-                  </select>
-                </div>
-                <div>
-                  <Label className="mb-2 block">Tipo de acesso *</Label>
-                  <div className="flex gap-6">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input type="checkbox" checked={createForm.hasPF}
-                        onChange={e => setCreateForm(p => ({ ...p, hasPF: e.target.checked }))}
-                        className="w-4 h-4 rounded" />
-                      <span className="text-sm font-medium">PF (Pessoa Física)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input type="checkbox" checked={createForm.hasPJ}
-                        onChange={e => setCreateForm(p => ({ ...p, hasPJ: e.target.checked }))}
-                        className="w-4 h-4 rounded" />
-                      <span className="text-sm font-medium">PJ (Empresa)</span>
-                    </label>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Define quais módulos o usuário poderá acessar após o login.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
-                <Button type="button" disabled={createLoading} className="gap-2" onClick={handleCreateUser}>
-                  {createLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
-                  Criar Usuário
-                </Button>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              O usuário criado poderá fazer login imediatamente com o e-mail e senha definidos acima.
-            </p>
-          </CardContent>
-        </Card>
+      {/* Create user dialog */}
+      {activeCompanyId && (
+        <CreateUserDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          companyId={activeCompanyId}
+          onCreated={fetchUsers}
+        />
       )}
 
+      {/* Invite form */}
       {showInvite && (
         <Card className="border-primary">
-          <CardHeader><CardTitle className="text-base">Convidar Usuário</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
+            <p className="text-sm font-medium mb-3">Convidar usuário existente</p>
             <form onSubmit={handleInvite} className="flex flex-wrap gap-4 items-end">
-              <div className="flex-1 min-w-[200px]">
-                <Label>Email do usuário *</Label>
-                <Input name="email" type="email" required placeholder="usuario@email.com" />
+              <div className="flex-1 min-w-[200px] space-y-1">
+                <Label>Email *</Label>
+                <Input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="usuario@email.com"
+                  required
+                />
               </div>
-              <div>
+              <div className="space-y-1">
                 <Label>Cargo</Label>
-                <select name="role" className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
+                <select
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm bg-background"
+                >
                   <option value="VIEWER">Visualizador</option>
                   <option value="FINANCE">Financeiro</option>
                   <option value="ACCOUNTANT">Contador</option>
                   <option value="ADMIN">Administrador</option>
                 </select>
               </div>
-              <Button type="submit">Convidar</Button>
+              <Button type="submit" disabled={inviteLoading} className="gap-2">
+                {inviteLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Convidar
+              </Button>
             </form>
             <p className="text-xs text-muted-foreground mt-2">O usuário precisa ter uma conta no WNR Finance.</p>
           </CardContent>
         </Card>
       )}
 
+      {/* User list */}
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -389,7 +505,6 @@ export default function UsuariosPage() {
             return (
               <Card key={u.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="pt-4 pb-4">
-                  {/* User identity row */}
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
                       {u.name?.[0]?.toUpperCase() || 'U'}
@@ -404,26 +519,17 @@ export default function UsuariosPage() {
                     </div>
                   </div>
 
-                  {/* Module access badges */}
                   <div className="mt-3 flex flex-wrap gap-1">
                     {MODULE_BADGES.map(({ id, label, Icon }) => (
-                      <ModuleBadge
-                        key={id}
-                        id={id}
-                        label={label}
-                        Icon={Icon}
-                        hasAccess={modAccess?.[id]}
-                      />
+                      <ModuleBadge key={id} id={id} label={label} Icon={Icon} hasAccess={modAccess?.[id]} />
                     ))}
                   </div>
 
-                  {/* Actions row */}
                   {canManage && (
                     <div className="mt-3 pt-3 border-t border-border flex items-center justify-end">
                       <button
                         onClick={() => openPermissions(u)}
                         className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border hover:border-primary/50 rounded-md px-2.5 py-1.5 transition-colors"
-                        title="Editar permissões"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                         Permissões

@@ -149,11 +149,14 @@ export default function SophiPage() {
     };
 
     rec.onerror = (e: any) => {
-      if (e.error !== 'no-speech') {
-        toast({ title: 'Erro no microfone', description: e.error, variant: 'destructive' });
-      }
       setIsListening(false);
       setInterimText('');
+      if (e.error === 'no-speech') return;
+      if (e.error === 'not-allowed') {
+        window.alert('Permissão de microfone negada.\nClique no ícone de cadeado na barra de endereço do navegador e permita o acesso ao microfone.');
+        return;
+      }
+      toast({ title: 'Erro no microfone', description: e.error, variant: 'destructive' });
     };
 
     recognitionRef.current = rec;
@@ -162,12 +165,30 @@ export default function SophiPage() {
 
   const toggleListening = useCallback(() => {
     const rec = recognitionRef.current;
-    if (!rec) return;
+    if (!rec) {
+      window.alert('Reconhecimento de voz não suportado neste navegador.\nUse Google Chrome ou Microsoft Edge.');
+      return;
+    }
     if (isListening) {
-      rec.stop();
+      try { rec.stop(); } catch { /* noop */ }
     } else {
       setInput('');
-      rec.start();
+      try {
+        rec.start();
+      } catch (err: any) {
+        // Already started or other error
+        console.warn('SpeechRecognition start error:', err);
+        // Re-create the recognition instance and try again
+        const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SR && recognitionRef.current) {
+          try {
+            recognitionRef.current.abort();
+          } catch { /* noop */ }
+          setTimeout(() => {
+            try { recognitionRef.current?.start(); } catch { /* noop */ }
+          }, 300);
+        }
+      }
     }
   }, [isListening]);
 
@@ -368,11 +389,11 @@ export default function SophiPage() {
                 <p className="text-sm text-muted-foreground max-w-sm mb-1">
                   Sua CFO virtual com acesso completo aos dados financeiros da empresa.
                 </p>
-                {voiceSupported && (
-                  <p className="text-xs text-muted-foreground mb-4">
-                    💡 Pressione <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-xs font-mono">Espaço</kbd> para falar comigo.
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground mb-4">
+                  {voiceSupported
+                    ? <>Pressione <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-xs font-mono">Espaço</kbd> ou clique no microfone para falar.</>
+                    : <>Clique no microfone <Mic className="inline w-3 h-3" /> para ativar voz (requer Chrome/Edge).</>}
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground max-w-sm">
                   {['Qual o status do caixa hoje?', 'Quais contas vencem esta semana?', 'Tenho risco de inadimplência?', 'Como devo alocar o caixa excedente?'].map(q => (
                     <button key={q} onClick={() => sendMessage(q)}
@@ -441,20 +462,24 @@ export default function SophiPage() {
               )}
             </div>
 
-            {/* Mic button */}
-            {voiceSupported && (
-              <Button
-                type="button"
-                variant={isListening ? 'destructive' : 'outline'}
-                size="icon"
-                onClick={toggleListening}
-                disabled={streaming}
-                title={isListening ? 'Parar (Espaço)' : 'Falar (Espaço)'}
-                className={isListening ? 'animate-pulse' : ''}
-              >
-                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </Button>
-            )}
+            {/* Mic button — always visible; click shows alert if unsupported */}
+            <Button
+              type="button"
+              variant={isListening ? 'destructive' : 'outline'}
+              size="icon"
+              onClick={toggleListening}
+              disabled={streaming}
+              title={
+                !voiceSupported
+                  ? 'Reconhecimento de voz não suportado (use Chrome ou Edge)'
+                  : isListening
+                  ? 'Parar gravação (Espaço)'
+                  : 'Falar com a Sophi (Espaço)'
+              }
+              className={`${isListening ? 'animate-pulse' : ''} ${!voiceSupported ? 'opacity-40' : ''}`}
+            >
+              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
 
             <Button type="submit" disabled={streaming || (!input.trim() && !isListening)} className="gap-2 shrink-0">
               {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
