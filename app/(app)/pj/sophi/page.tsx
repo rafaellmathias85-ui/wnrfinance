@@ -5,17 +5,16 @@ import { apiFetch } from '@/lib/fetch';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import {
   Send, Sparkles, Settings2, Plus, Trash2, Loader2, RotateCcw,
   TrendingUp, AlertTriangle, BarChart3, Target, Brain, Clock,
-  Bell, ListChecks, ChevronRight,
+  Bell, ListChecks, ChevronRight, Mic, MicOff,
 } from 'lucide-react';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Message {
   id: string;
@@ -24,64 +23,41 @@ interface Message {
   ts: number;
 }
 
-interface DailyTask {
-  id: string;
-  task: string;
-  time: string;
-  active: boolean;
-}
-
-interface Reminder {
-  id: string;
-  text: string;
-  active: boolean;
-}
-
-interface AlertRule {
-  id: string;
-  type: 'cashflow_deficit' | 'overdue_payable' | 'overdue_receivable' | 'custom';
-  threshold?: number;
-  description: string;
-  active: boolean;
-}
-
+interface DailyTask  { id: string; task: string; time: string; active: boolean }
+interface Reminder   { id: string; text: string; active: boolean }
 interface SophiConfig {
   extraInstructions: string;
   dailyTasks: DailyTask[];
   reminders: Reminder[];
-  alertRules: AlertRule[];
+  alertRules: any[];
 }
 
 // ─── Quick Actions ────────────────────────────────────────────────────────────
 
 const QUICK_ACTIONS = [
   {
-    icon: BarChart3,
-    label: 'Briefing do Dia',
-    message: 'Faça um briefing completo do dia para mim como CEO. Quero saber: vencimentos críticos hoje, situação do caixa, principais riscos da semana e uma oportunidade que devo aproveitar.',
+    icon: BarChart3, label: 'Briefing do Dia',
     color: 'bg-blue-500/10 text-blue-600 border-blue-200 hover:bg-blue-500/20',
+    message: 'Faça um briefing completo do dia para mim como CEO: vencimentos críticos hoje, situação do caixa, principais riscos da semana e uma oportunidade que devo aproveitar.',
   },
   {
-    icon: TrendingUp,
-    label: 'Análise de Caixa',
-    message: 'Analise meu fluxo de caixa com base nos dados atuais. Onde estou em risco de aperto financeiro? Apresente os três cenários: otimista, realista e pessimista para os próximos 30 dias.',
+    icon: TrendingUp, label: 'Análise de Caixa',
     color: 'bg-green-500/10 text-green-600 border-green-200 hover:bg-green-500/20',
+    message: 'Analise meu fluxo de caixa com base nos dados atuais. Onde estou em risco de aperto financeiro? Apresente os três cenários: otimista, realista e pessimista para os próximos 30 dias.',
   },
   {
-    icon: AlertTriangle,
-    label: 'Riscos e Alertas',
-    message: 'Identifique todos os riscos financeiros que você vê agora na empresa. Classifique por criticidade (alta, média, baixa) e me dê um plano de ação concreto para cada um.',
+    icon: AlertTriangle, label: 'Riscos e Alertas',
     color: 'bg-amber-500/10 text-amber-600 border-amber-200 hover:bg-amber-500/20',
+    message: 'Identifique todos os riscos financeiros que você vê agora na empresa. Classifique por criticidade (alta, média, baixa) e me dê um plano de ação concreto para cada um.',
   },
   {
-    icon: Target,
-    label: 'Oportunidades',
-    message: 'Com base nos dados financeiros atuais, quais oportunidades você identifica? Pode ser otimização de custos, estratégias de faturamento ou melhor alocação do capital disponível.',
+    icon: Target, label: 'Oportunidades',
     color: 'bg-purple-500/10 text-purple-600 border-purple-200 hover:bg-purple-500/20',
+    message: 'Com base nos dados financeiros atuais, quais oportunidades você identifica? Pode ser otimização de custos, estratégias de faturamento ou melhor alocação do capital disponível.',
   },
 ];
 
-// ─── Markdown renderer (basic) ────────────────────────────────────────────────
+// ─── Markdown renderer ────────────────────────────────────────────────────────
 
 function renderMarkdown(text: string): string {
   return text
@@ -104,70 +80,154 @@ export default function SophiPage() {
   const { toast } = useToast();
   const [tab, setTab] = useState<'chat' | 'config'>('chat');
 
-  // Chat state
+  // Chat
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Config state
-  const [config, setConfig] = useState<SophiConfig>({
-    extraInstructions: '',
-    dailyTasks: [],
-    reminders: [],
-    alertRules: [],
-  });
+  // Voice
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [interimText, setInterimText] = useState('');
+  const recognitionRef = useRef<any>(null);
+
+  // Config
+  const [config, setConfig] = useState<SophiConfig>({ extraInstructions: '', dailyTasks: [], reminders: [], alertRules: [] });
   const [configLoading, setConfigLoading] = useState(true);
   const [configSaving, setConfigSaving] = useState(false);
   const [newTask, setNewTask] = useState({ task: '', time: '' });
   const [newReminder, setNewReminder] = useState('');
 
-  // ─── Load config ────────────────────────────────────────────────────────────
+  // ─── Speech Recognition setup ────────────────────────────────────────────────
 
-  const loadConfig = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/pj/sophi/config');
-      if (res.ok) {
-        const { config: c } = await res.json();
-        setConfig(c);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+
+    setVoiceSupported(true);
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = 'pt-BR';
+
+    rec.onstart = () => setIsListening(true);
+
+    rec.onresult = (e: any) => {
+      let interim = '';
+      let final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += t;
+        else interim += t;
       }
-    } catch { /* noop */ } finally {
-      setConfigLoading(false);
+      setInterimText(interim);
+      if (final) {
+        setInput(final.trim());
+        setInterimText('');
+      }
+    };
+
+    rec.onend = () => {
+      setIsListening(false);
+      setInterimText('');
+      // Auto-send if we have text from voice
+      setInput(prev => {
+        if (prev.trim()) {
+          // trigger send via a timeout to let state settle
+          setTimeout(() => {
+            setInput(current => {
+              if (current.trim()) sendMessageRef.current?.(current);
+              return '';
+            });
+          }, 0);
+        }
+        return prev;
+      });
+    };
+
+    rec.onerror = (e: any) => {
+      if (e.error !== 'no-speech') {
+        toast({ title: 'Erro no microfone', description: e.error, variant: 'destructive' });
+      }
+      setIsListening(false);
+      setInterimText('');
+    };
+
+    recognitionRef.current = rec;
+    return () => { try { rec.abort(); } catch { /* noop */ } };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleListening = useCallback(() => {
+    const rec = recognitionRef.current;
+    if (!rec) return;
+    if (isListening) {
+      rec.stop();
+    } else {
+      setInput('');
+      rec.start();
     }
+  }, [isListening]);
+
+  // Expose sendMessage to the onend closure
+  const sendMessageRef = useRef<((content: string) => void) | null>(null);
+
+  // Space bar to toggle voice (only when not typing in an input)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (['INPUT', 'TEXTAREA'].includes(tag)) return;
+      if ((e.target as HTMLElement).isContentEditable) return;
+      e.preventDefault();
+      toggleListening();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [toggleListening]);
+
+  // Auto-scroll
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  // ─── Load config ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    apiFetch('/api/pj/sophi/config')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setConfig(d.config))
+      .catch(() => {})
+      .finally(() => setConfigLoading(false));
   }, []);
 
-  useEffect(() => { loadConfig(); }, [loadConfig]);
-
-  // Auto-scroll to bottom of chat
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  // ─── Send message ────────────────────────────────────────────────────────────
+  // ─── Send message ─────────────────────────────────────────────────────────────
 
   const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || streaming) return;
+    const text = content.trim();
+    if (!text || streaming) return;
 
-    const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', content: content.trim(), ts: Date.now() };
-    const assistantId = `a-${Date.now()}`;
-    const assistantMsg: Message = { id: assistantId, role: 'assistant', content: '', ts: Date.now() };
+    const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', content: text, ts: Date.now() };
+    const aId = `a-${Date.now()}`;
+    const assistantMsg: Message = { id: aId, role: 'assistant', content: '', ts: Date.now() };
 
     setMessages(prev => [...prev, userMsg, assistantMsg]);
     setInput('');
     setStreaming(true);
 
     try {
-      const historyForApi = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
+      const history = [...messages, userMsg].map(m => ({ role: m.role, content: m.content }));
 
-      const res = await fetch('/api/pj/sophi/chat', {
+      const res = await apiFetch('/api/pj/sophi/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: historyForApi }),
-        credentials: 'same-origin',
+        body: JSON.stringify({ messages: history }),
       });
 
-      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok || !res.body) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}${errText ? ` — ${errText.slice(0, 100)}` : ''}`);
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -179,26 +239,21 @@ export default function SophiPage() {
         buf += decoder.decode(value, { stream: true });
         const lines = buf.split('\n');
         buf = lines.pop() || '';
-
+        let finished = false;
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const data = line.slice(6).trim();
-          if (data === '[DONE]') break;
+          if (data === '[DONE]') { finished = true; break; }
           try {
             const { content: chunk } = JSON.parse(data);
-            if (chunk) {
-              setMessages(prev => prev.map(m =>
-                m.id === assistantId ? { ...m, content: m.content + chunk } : m
-              ));
-            }
+            if (chunk) setMessages(prev => prev.map(m => m.id === aId ? { ...m, content: m.content + chunk } : m));
           } catch { /* skip */ }
         }
+        if (finished) break;
       }
     } catch (err: any) {
       setMessages(prev => prev.map(m =>
-        m.id === assistantId
-          ? { ...m, content: `Erro ao conectar com a Sophi: ${err?.message || 'verifique os provedores de IA.'}` }
-          : m
+        m.id === aId ? { ...m, content: `Erro ao conectar com a Sophi: **${err?.message || 'verifique os provedores de IA'}**` } : m
       ));
     } finally {
       setStreaming(false);
@@ -206,12 +261,10 @@ export default function SophiPage() {
     }
   }, [messages, streaming]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(input);
-  };
+  // Keep ref in sync so voice onend can call it
+  useEffect(() => { sendMessageRef.current = sendMessage; }, [sendMessage]);
 
-  const clearChat = () => setMessages([]);
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); sendMessage(input); };
 
   // ─── Save config ─────────────────────────────────────────────────────────────
 
@@ -223,49 +276,30 @@ export default function SophiPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
-      if (res.ok) {
-        toast({ title: 'Configurações salvas com sucesso' });
-      } else {
-        toast({ title: 'Erro ao salvar', variant: 'destructive' });
-      }
-    } catch {
-      toast({ title: 'Erro de rede', variant: 'destructive' });
-    } finally {
-      setConfigSaving(false);
-    }
+      toast(res.ok ? { title: 'Configurações salvas' } : { title: 'Erro ao salvar', variant: 'destructive' });
+    } catch { toast({ title: 'Erro de rede', variant: 'destructive' }); }
+    finally { setConfigSaving(false); }
   };
 
   // ─── Config helpers ──────────────────────────────────────────────────────────
 
   const addTask = () => {
     if (!newTask.task.trim()) return;
-    setConfig(c => ({
-      ...c,
-      dailyTasks: [...c.dailyTasks, { id: `t-${Date.now()}`, task: newTask.task.trim(), time: newTask.time, active: true }],
-    }));
+    setConfig(c => ({ ...c, dailyTasks: [...c.dailyTasks, { id: `t-${Date.now()}`, ...newTask, task: newTask.task.trim(), active: true }] }));
     setNewTask({ task: '', time: '' });
   };
-
   const removeTask = (id: string) => setConfig(c => ({ ...c, dailyTasks: c.dailyTasks.filter(t => t.id !== id) }));
-  const toggleTask = (id: string) => setConfig(c => ({
-    ...c, dailyTasks: c.dailyTasks.map(t => t.id === id ? { ...t, active: !t.active } : t),
-  }));
+  const toggleTask = (id: string) => setConfig(c => ({ ...c, dailyTasks: c.dailyTasks.map(t => t.id === id ? { ...t, active: !t.active } : t) }));
 
   const addReminder = () => {
     if (!newReminder.trim()) return;
-    setConfig(c => ({
-      ...c,
-      reminders: [...c.reminders, { id: `r-${Date.now()}`, text: newReminder.trim(), active: true }],
-    }));
+    setConfig(c => ({ ...c, reminders: [...c.reminders, { id: `r-${Date.now()}`, text: newReminder.trim(), active: true }] }));
     setNewReminder('');
   };
-
   const removeReminder = (id: string) => setConfig(c => ({ ...c, reminders: c.reminders.filter(r => r.id !== id) }));
-  const toggleReminder = (id: string) => setConfig(c => ({
-    ...c, reminders: c.reminders.map(r => r.id === id ? { ...r, active: !r.active } : r),
-  }));
+  const toggleReminder = (id: string) => setConfig(c => ({ ...c, reminders: c.reminders.map(r => r.id === id ? { ...r, active: !r.active } : r) }));
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="h-[calc(100vh-5rem)] flex flex-col">
@@ -285,55 +319,45 @@ export default function SophiPage() {
             <p className="text-xs text-muted-foreground">Sua assistente financeira sênior — análise, estratégia e decisão</p>
           </div>
         </div>
-
-        {/* Tabs */}
         <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-          <button
-            onClick={() => setTab('chat')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tab === 'chat' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" /> Chat
-          </button>
-          <button
-            onClick={() => setTab('config')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              tab === 'config' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Settings2 className="w-3.5 h-3.5" /> Configurar
-          </button>
+          {(['chat', 'config'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === t ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              {t === 'chat' ? <><Sparkles className="w-3.5 h-3.5" /> Chat</> : <><Settings2 className="w-3.5 h-3.5" /> Configurar</>}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ═══ CHAT TAB ══════════════════════════════════════════════════════════ */}
+      {/* ═══ CHAT ═══════════════════════════════════════════════════════════════ */}
       {tab === 'chat' && (
         <div className="flex flex-col flex-1 min-h-0">
           {/* Quick actions */}
           <div className="flex gap-2 flex-wrap mb-3 shrink-0">
             {QUICK_ACTIONS.map(({ icon: Icon, label, message, color }) => (
-              <button
-                key={label}
-                onClick={() => sendMessage(message)}
-                disabled={streaming}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${color}`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
+              <button key={label} onClick={() => sendMessage(message)} disabled={streaming}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${color}`}>
+                <Icon className="w-3.5 h-3.5" />{label}
               </button>
             ))}
             {messages.length > 0 && (
-              <button
-                onClick={clearChat}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border text-muted-foreground hover:text-foreground border-border transition-colors ml-auto"
-              >
+              <button onClick={() => setMessages([])}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border text-muted-foreground hover:text-foreground border-border transition-colors ml-auto">
                 <RotateCcw className="w-3.5 h-3.5" /> Nova conversa
               </button>
             )}
           </div>
 
-          {/* Messages area */}
+          {/* Listening overlay indicator */}
+          {isListening && (
+            <div className="shrink-0 mb-2 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm font-medium animate-pulse">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+              Ouvindo... {interimText && <span className="font-normal text-red-500 truncate max-w-xs">&ldquo;{interimText}&rdquo;</span>}
+              <span className="ml-auto text-xs font-normal opacity-70">Pressione Espaço para parar</span>
+            </div>
+          )}
+
+          {/* Messages */}
           <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border bg-muted/20 p-4 space-y-4">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
@@ -341,19 +365,19 @@ export default function SophiPage() {
                   <Brain className="w-8 h-8 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Olá! Sou a Sophi.</h3>
-                <p className="text-sm text-muted-foreground max-w-sm">
+                <p className="text-sm text-muted-foreground max-w-sm mb-1">
                   Sua CFO virtual com acesso completo aos dados financeiros da empresa.
-                  Use os atalhos acima ou me faça qualquer pergunta sobre finanças, caixa, riscos ou estratégia.
                 </p>
-                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground max-w-sm">
+                {voiceSupported && (
+                  <p className="text-xs text-muted-foreground mb-4">
+                    💡 Pressione <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-xs font-mono">Espaço</kbd> para falar comigo.
+                  </p>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground max-w-sm">
                   {['Qual o status do caixa hoje?', 'Quais contas vencem esta semana?', 'Tenho risco de inadimplência?', 'Como devo alocar o caixa excedente?'].map(q => (
-                    <button
-                      key={q}
-                      onClick={() => sendMessage(q)}
-                      className="flex items-center gap-1 p-2 rounded-lg border border-border hover:bg-muted/50 text-left transition-colors"
-                    >
-                      <ChevronRight className="w-3 h-3 shrink-0 text-primary" />
-                      {q}
+                    <button key={q} onClick={() => sendMessage(q)}
+                      className="flex items-center gap-1 p-2 rounded-lg border border-border hover:bg-muted/50 text-left transition-colors">
+                      <ChevronRight className="w-3 h-3 shrink-0 text-primary" />{q}
                     </button>
                   ))}
                 </div>
@@ -362,35 +386,22 @@ export default function SophiPage() {
 
             {messages.map(msg => (
               <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                {/* Avatar */}
                 {msg.role === 'assistant' && (
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center shrink-0 mt-1">
                     <Brain className="w-4 h-4 text-white" />
                   </div>
                 )}
-
-                <div className={`max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                  <div
-                    className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                        : 'bg-background border border-border rounded-tl-sm shadow-sm'
-                    }`}
-                  >
+                <div className={`max-w-[80%] flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                      : 'bg-background border border-border rounded-tl-sm shadow-sm'
+                  }`}>
                     {msg.role === 'assistant' ? (
-                      msg.content ? (
-                        <div
-                          className="prose prose-sm dark:prose-invert max-w-none"
-                          dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
-                        />
-                      ) : (
-                        <span className="flex items-center gap-2 text-muted-foreground">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Analisando dados...
-                        </span>
-                      )
-                    ) : (
-                      <span className="whitespace-pre-wrap">{msg.content}</span>
-                    )}
+                      msg.content
+                        ? <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                        : <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analisando dados...</span>
+                    ) : <span className="whitespace-pre-wrap">{msg.content}</span>}
                   </div>
                   <span className="text-[10px] text-muted-foreground px-1">
                     {msg.role === 'assistant' ? 'Sophi' : 'Você'} · {new Date(msg.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
@@ -401,26 +412,65 @@ export default function SophiPage() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
+          {/* Input bar */}
           <form onSubmit={handleSubmit} className="flex gap-2 mt-3 shrink-0">
-            <Input
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="Pergunte à Sophi... ex: Qual o risco financeiro mais urgente hoje?"
-              disabled={streaming}
-              className="flex-1"
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-            />
-            <Button type="submit" disabled={streaming || !input.trim()} className="gap-2 shrink-0">
+            <div className="flex-1 relative">
+              <Input
+                ref={inputRef}
+                value={isListening && interimText ? interimText : input}
+                onChange={e => !isListening && setInput(e.target.value)}
+                placeholder={
+                  isListening
+                    ? 'Ouvindo... fale agora'
+                    : voiceSupported
+                    ? 'Digite ou pressione Espaço para falar...'
+                    : 'Pergunte à Sophi...'
+                }
+                disabled={streaming}
+                className={`pr-10 ${isListening ? 'border-red-400 focus-visible:ring-red-400 bg-red-50/30 dark:bg-red-950/20' : ''}`}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
+                }}
+                readOnly={isListening}
+              />
+              {/* Voice indicator inside input */}
+              {isListening && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                </div>
+              )}
+            </div>
+
+            {/* Mic button */}
+            {voiceSupported && (
+              <Button
+                type="button"
+                variant={isListening ? 'destructive' : 'outline'}
+                size="icon"
+                onClick={toggleListening}
+                disabled={streaming}
+                title={isListening ? 'Parar (Espaço)' : 'Falar (Espaço)'}
+                className={isListening ? 'animate-pulse' : ''}
+              >
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
+            )}
+
+            <Button type="submit" disabled={streaming || (!input.trim() && !isListening)} className="gap-2 shrink-0">
               {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               {streaming ? 'Analisando...' : 'Enviar'}
             </Button>
           </form>
+
+          {voiceSupported && !isListening && (
+            <p className="text-center text-[10px] text-muted-foreground mt-1">
+              <kbd className="px-1 py-0.5 rounded border border-border bg-muted font-mono">Espaço</kbd> para ativar/desativar microfone · o resultado é enviado automaticamente
+            </p>
+          )}
         </div>
       )}
 
-      {/* ═══ CONFIG TAB ════════════════════════════════════════════════════════ */}
+      {/* ═══ CONFIG ══════════════════════════════════════════════════════════════ */}
       {tab === 'config' && (
         <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
           {configLoading ? (
@@ -430,132 +480,70 @@ export default function SophiPage() {
               {/* Daily Tasks */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <ListChecks className="w-4 h-4 text-primary" /> Tarefas Diárias
-                  </CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><ListChecks className="w-4 h-4 text-primary" /> Tarefas Diárias</CardTitle>
                   <p className="text-xs text-muted-foreground">A Sophi lembrará dessas tarefas no contexto de cada análise.</p>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {/* Add task row */}
                   <div className="flex gap-2">
-                    <div className="w-24 shrink-0">
-                      <Input
-                        type="time"
-                        value={newTask.time}
-                        onChange={e => setNewTask(p => ({ ...p, time: e.target.value }))}
-                        className="text-sm"
-                        placeholder="Horário"
-                      />
-                    </div>
-                    <Input
-                      value={newTask.task}
-                      onChange={e => setNewTask(p => ({ ...p, task: e.target.value }))}
-                      placeholder="Descrição da tarefa..."
-                      className="flex-1 text-sm"
-                      onKeyDown={e => e.key === 'Enter' && addTask()}
-                    />
-                    <Button type="button" size="sm" onClick={addTask} disabled={!newTask.task.trim()}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
+                    <Input type="time" value={newTask.time} onChange={e => setNewTask(p => ({ ...p, time: e.target.value }))} className="w-28 text-sm shrink-0" />
+                    <Input value={newTask.task} onChange={e => setNewTask(p => ({ ...p, task: e.target.value }))} placeholder="Descrição da tarefa..." className="flex-1 text-sm" onKeyDown={e => e.key === 'Enter' && addTask()} />
+                    <Button type="button" size="sm" onClick={addTask} disabled={!newTask.task.trim()}><Plus className="w-4 h-4" /></Button>
                   </div>
-                  {/* Task list */}
-                  {config.dailyTasks.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">Nenhuma tarefa configurada.</p>
-                  )}
-                  {config.dailyTasks.map(task => (
-                    <div key={task.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-muted/30">
-                      <Switch checked={task.active} onCheckedChange={() => toggleTask(task.id)} />
-                      {task.time && (
-                        <span className="text-xs text-muted-foreground font-mono flex items-center gap-1 shrink-0">
-                          <Clock className="w-3 h-3" />{task.time}
-                        </span>
-                      )}
-                      <span className={`flex-1 text-sm ${!task.active ? 'line-through text-muted-foreground' : ''}`}>{task.task}</span>
-                      <button onClick={() => removeTask(task.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                  {config.dailyTasks.length === 0
+                    ? <p className="text-xs text-muted-foreground text-center py-4">Nenhuma tarefa configurada.</p>
+                    : config.dailyTasks.map(t => (
+                      <div key={t.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-muted/30">
+                        <Switch checked={t.active} onCheckedChange={() => toggleTask(t.id)} />
+                        {t.time && <span className="text-xs text-muted-foreground font-mono flex items-center gap-1 shrink-0"><Clock className="w-3 h-3" />{t.time}</span>}
+                        <span className={`flex-1 text-sm ${!t.active ? 'line-through text-muted-foreground' : ''}`}>{t.task}</span>
+                        <button onClick={() => removeTask(t.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    ))}
                 </CardContent>
               </Card>
 
               {/* Reminders */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-primary" /> Lembretes
-                  </CardTitle>
+                  <CardTitle className="text-base flex items-center gap-2"><Bell className="w-4 h-4 text-primary" /> Lembretes</CardTitle>
                   <p className="text-xs text-muted-foreground">Lembretes que a Sophi levará em conta ao analisar sua situação.</p>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex gap-2">
-                    <Input
-                      value={newReminder}
-                      onChange={e => setNewReminder(e.target.value)}
-                      placeholder="Ex: Verificar prazo de impostos toda segunda-feira..."
-                      className="flex-1 text-sm"
-                      onKeyDown={e => e.key === 'Enter' && addReminder()}
-                    />
-                    <Button type="button" size="sm" onClick={addReminder} disabled={!newReminder.trim()}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
+                    <Input value={newReminder} onChange={e => setNewReminder(e.target.value)} placeholder="Ex: Verificar prazo de impostos toda segunda-feira..." className="flex-1 text-sm" onKeyDown={e => e.key === 'Enter' && addReminder()} />
+                    <Button type="button" size="sm" onClick={addReminder} disabled={!newReminder.trim()}><Plus className="w-4 h-4" /></Button>
                   </div>
-                  {config.reminders.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">Nenhum lembrete configurado.</p>
-                  )}
-                  {config.reminders.map(rem => (
-                    <div key={rem.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-muted/30">
-                      <Switch checked={rem.active} onCheckedChange={() => toggleReminder(rem.id)} />
-                      <span className={`flex-1 text-sm ${!rem.active ? 'line-through text-muted-foreground' : ''}`}>{rem.text}</span>
-                      <button onClick={() => removeReminder(rem.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                  {config.reminders.length === 0
+                    ? <p className="text-xs text-muted-foreground text-center py-4">Nenhum lembrete configurado.</p>
+                    : config.reminders.map(r => (
+                      <div key={r.id} className="flex items-center gap-3 p-2.5 rounded-lg border bg-muted/30">
+                        <Switch checked={r.active} onCheckedChange={() => toggleReminder(r.id)} />
+                        <span className={`flex-1 text-sm ${!r.active ? 'line-through text-muted-foreground' : ''}`}>{r.text}</span>
+                        <button onClick={() => removeReminder(r.id)} className="text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    ))}
                 </CardContent>
               </Card>
 
               {/* Extra Instructions */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-primary" /> Instruções Personalizadas para a Sophi
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground">
-                    Informações adicionais sobre sua empresa, setor, metas ou preferências de análise. A Sophi usará isso em todas as respostas.
-                  </p>
+                  <CardTitle className="text-base flex items-center gap-2"><Brain className="w-4 h-4 text-primary" /> Instruções Personalizadas</CardTitle>
+                  <p className="text-xs text-muted-foreground">Conte à Sophi sobre sua empresa, setor, metas e limites. Ela usará isso em todas as análises.</p>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-                    {[
-                      'Nosso setor é saúde e as margens típicas são entre 15-25%.',
-                      'Temos meta de crescimento de 30% este ano.',
-                      'Priorizamos sempre liquidez antes de rentabilidade.',
-                      'Evitar endividamento acima de 30% do faturamento.',
-                    ].map(example => (
-                      <button
-                        key={example}
-                        onClick={() => setConfig(c => ({ ...c, extraInstructions: c.extraInstructions ? `${c.extraInstructions}\n${example}` : example }))}
-                        className="text-left text-xs p-2 rounded-lg border border-dashed border-border hover:bg-muted/50 text-muted-foreground transition-colors"
-                      >
-                        + {example}
-                      </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {['Nosso setor é saúde — margens típicas entre 15-25%.', 'Meta de crescimento de 30% este ano.', 'Priorizamos liquidez antes de rentabilidade.', 'Evitar endividamento acima de 30% do faturamento.'].map(ex => (
+                      <button key={ex} onClick={() => setConfig(c => ({ ...c, extraInstructions: c.extraInstructions ? `${c.extraInstructions}\n${ex}` : ex }))}
+                        className="text-left text-xs p-2 rounded-lg border border-dashed border-border hover:bg-muted/50 text-muted-foreground transition-colors">+ {ex}</button>
                     ))}
                   </div>
-                  <Textarea
-                    value={config.extraInstructions}
-                    onChange={e => setConfig(c => ({ ...c, extraInstructions: e.target.value }))}
-                    placeholder="Ex: Nossa empresa é do setor de tecnologia. O custo fixo mensal é em torno de R$45.000. Nossa meta é crescer 20% ao trimestre..."
-                    rows={5}
-                    className="text-sm resize-none"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Quanto mais contexto você fornecer, mais precisas e personalizadas serão as análises da Sophi.
-                  </p>
+                  <Textarea value={config.extraInstructions} onChange={e => setConfig(c => ({ ...c, extraInstructions: e.target.value }))}
+                    placeholder="Ex: Nossa empresa é do setor de tecnologia. O custo fixo mensal é em torno de R$45.000..." rows={5} className="text-sm resize-none" />
                 </CardContent>
               </Card>
 
-              {/* Sophi Persona Info */}
+              {/* About Sophi */}
               <Card className="border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-950/20">
                 <CardContent className="pt-4">
                   <div className="flex gap-3">
@@ -565,17 +553,16 @@ export default function SophiPage() {
                     <div>
                       <p className="text-sm font-semibold text-teal-700 dark:text-teal-400">Sobre a Sophi</p>
                       <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        A Sophi é sua CFO &amp; CIO Virtual Sênior. Ela analisa em tempo real os dados financeiros da sua empresa —
-                        contas a pagar e receber, fluxo de caixa, inadimplência e projeções — e atua com base nos 5 pilares:
-                        Diagnóstico de Fluxo de Caixa, Otimização de Custos, Engenharia de Receita, Inteligência de Investimentos
-                        e Gestão de Riscos. Ela acessa seus provedores de IA configurados em Configurações → Provedores de IA.
+                        CFO &amp; CIO Virtual Sênior. Opera nos 5 pilares: Diagnóstico de Caixa, Otimização de Custos,
+                        Engenharia de Receita, Inteligência de Investimentos e Gestão de Riscos. Acessa dados financeiros
+                        reais da empresa e usa os provedores configurados em <strong>Configurações → Provedores de IA</strong>.
+                        Suporte a voz: pressione <kbd className="px-1 py-0.5 rounded border font-mono text-[10px]">Espaço</kbd> fora do campo de texto.
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Save */}
               <div className="flex justify-end pb-4">
                 <Button onClick={saveConfig} disabled={configSaving} className="gap-2">
                   {configSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Settings2 className="w-4 h-4" />}
