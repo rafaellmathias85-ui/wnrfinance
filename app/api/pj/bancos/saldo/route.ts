@@ -12,7 +12,7 @@ export async function GET() {
   if (!companyId) return NextResponse.json({ error: 'Nenhuma empresa ativa' }, { status: 400 });
 
   const accounts = await prisma.bankConnection.findMany({
-    where: { companyId, scope: 'PJ', status: { not: 'DISABLED' } },
+    where: { companyId, personType: 'PJ', status: { not: 'DISABLED' } },
     select: {
       id: true,
       bankName: true,

@@ -184,7 +184,7 @@ export async function GET(req: NextRequest) {
       _sum: { amountReceived: true, amount: true },
     }),
     prisma.bankConnection.aggregate({
-      where: { companyId, scope: 'PJ', status: { not: 'DISABLED' } },
+      where: { companyId, personType: 'PJ', status: { not: 'DISABLED' } },
       _sum: { openingBalance: true },
     }),
   ]);
