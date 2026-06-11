@@ -111,7 +111,7 @@ export default function SophiPage() {
   // ─── Check MediaRecorder support ────────────────────────────────────────────
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+    if (typeof window !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function') {
       setVoiceSupported(true);
     }
   }, []);
