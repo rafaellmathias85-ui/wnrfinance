@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import {
   UserPlus, Crown, Shield, Eye, Calculator, BookOpen, Pencil,
   Lock, Unlock, BarChart2, ShoppingCart, Users, Headphones, GitBranch, Settings,
+  UserCog, Loader2, EyeOff,
 } from 'lucide-react';
 import { usePJ } from '@/lib/pj-context';
 import { apiFetch } from '@/lib/fetch';
@@ -100,9 +101,17 @@ export default function UsuariosPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [permissionsUser, setPermissionsUser] = useState<{ id: string; name: string } | null>(null);
-  /** Map of userId → their derived ModuleAccess */
   const [moduleAccessMap, setModuleAccessMap] = useState<Record<string, ModuleAccess>>({});
+
+  // Create-user form state
+  const [createForm, setCreateForm] = useState({
+    name: '', email: '', password: '', confirmPassword: '',
+    role: 'VIEWER', hasPF: false, hasPJ: true,
+  });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
 
   const canManage = ['OWNER', 'ADMIN'].includes(activeCompanyRole || '');
 
@@ -139,6 +148,31 @@ export default function UsuariosPage() {
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (createForm.password !== createForm.confirmPassword) {
+      toast({ title: 'As senhas não conferem', variant: 'destructive' }); return;
+    }
+    if (!createForm.hasPF && !createForm.hasPJ) {
+      toast({ title: 'Selecione ao menos um tipo de acesso (PF ou PJ)', variant: 'destructive' }); return;
+    }
+    setCreateLoading(true);
+    const res = await apiFetch(`/api/pj/companies/${activeCompanyId}/create-user`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createForm),
+    });
+    if (res.ok) {
+      toast({ title: 'Usuário criado com sucesso' });
+      setShowCreate(false);
+      setCreateForm({ name: '', email: '', password: '', confirmPassword: '', role: 'VIEWER', hasPF: false, hasPJ: true });
+      fetchUsers();
+    } else {
+      const err = await res.json();
+      toast({ title: 'Erro ao criar usuário', description: err.error, variant: 'destructive' });
+    }
+    setCreateLoading(false);
+  };
 
   const handleInvite = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -190,11 +224,117 @@ export default function UsuariosPage() {
           <p className="text-muted-foreground">Gerencie acesso e permissões</p>
         </div>
         {canManage && (
-          <Button onClick={() => setShowInvite(!showInvite)}>
-            <UserPlus className="w-4 h-4 mr-2" />Convidar Usuário
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => { setShowCreate(!showCreate); setShowInvite(false); }}>
+              <UserCog className="w-4 h-4 mr-2" />Criar Usuário
+            </Button>
+            <Button onClick={() => { setShowInvite(!showInvite); setShowCreate(false); }}>
+              <UserPlus className="w-4 h-4 mr-2" />Convidar Usuário
+            </Button>
+          </div>
         )}
       </div>
+
+      {showCreate && (
+        <Card className="border-blue-500">
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><UserCog className="w-4 h-4" />Criar Novo Usuário</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Nome completo *</Label>
+                  <input
+                    required value={createForm.name}
+                    onChange={e => setCreateForm(p => ({ ...p, name: e.target.value }))}
+                    placeholder="João da Silva"
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label>E-mail *</Label>
+                  <input
+                    required type="email" value={createForm.email}
+                    onChange={e => setCreateForm(p => ({ ...p, email: e.target.value }))}
+                    placeholder="joao@empresa.com.br"
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label>Senha * (mín. 6 caracteres)</Label>
+                  <div className="mt-1 relative">
+                    <input
+                      required type={showPwd ? 'text' : 'password'}
+                      value={createForm.password}
+                      onChange={e => setCreateForm(p => ({ ...p, password: e.target.value }))}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm pr-9"
+                    />
+                    <button type="button" onClick={() => setShowPwd(v => !v)}
+                      className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
+                      {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <Label>Confirmar Senha *</Label>
+                  <input
+                    required type={showPwd ? 'text' : 'password'}
+                    value={createForm.confirmPassword}
+                    onChange={e => setCreateForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Cargo na empresa (PJ)</Label>
+                  <select
+                    value={createForm.role}
+                    onChange={e => setCreateForm(p => ({ ...p, role: e.target.value }))}
+                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="VIEWER">Visualizador</option>
+                    <option value="FINANCE">Financeiro</option>
+                    <option value="ACCOUNTANT">Contador</option>
+                    <option value="ADMIN">Administrador</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="mb-2 block">Tipo de acesso *</Label>
+                  <div className="flex gap-6">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input type="checkbox" checked={createForm.hasPF}
+                        onChange={e => setCreateForm(p => ({ ...p, hasPF: e.target.checked }))}
+                        className="w-4 h-4 rounded" />
+                      <span className="text-sm font-medium">PF (Pessoa Física)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input type="checkbox" checked={createForm.hasPJ}
+                        onChange={e => setCreateForm(p => ({ ...p, hasPJ: e.target.checked }))}
+                        className="w-4 h-4 rounded" />
+                      <span className="text-sm font-medium">PJ (Empresa)</span>
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Define quais módulos o usuário poderá acessar após o login.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
+                <Button type="submit" disabled={createLoading} className="gap-2">
+                  {createLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
+                  Criar Usuário
+                </Button>
+              </div>
+            </form>
+            <p className="text-xs text-muted-foreground mt-3">
+              O usuário criado poderá fazer login imediatamente com o e-mail e senha definidos acima.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {showInvite && (
         <Card className="border-primary">
