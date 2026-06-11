@@ -421,6 +421,19 @@ export default function MovimentacoesPage() {
     }
   };
 
+  const handleRowAction = async (rowId: string, action: string) => {
+    try {
+      await apiFetch('/api/pj/movimentacoes/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [rowId], action }),
+      });
+      load();
+    } catch {
+      // silent
+    }
+  };
+
   const CARDS = [
     {
       label: 'Total Saídas',
@@ -867,57 +880,32 @@ export default function MovimentacoesPage() {
                         </button>
                         <button
                           title={m.status === 'pago' || m.status === 'recebido' ? 'Quitado' : 'Quitar'}
-                          onClick={() => handleBatchAction('quitar')}
-                          className={`p-1.5 rounded hover:bg-emerald-600 ${m.status === 'pago' || m.status === 'recebido' ? 'text-green-500' : 'text-red-500'} hover:text-white`}
+                          onClick={() => handleRowAction(m.id, 'quitar')}
+                          className={`p-1.5 rounded hover:bg-emerald-600 ${m.status === 'pago' || m.status === 'recebido' ? 'text-green-500' : 'text-slate-400'} hover:text-white`}
                         >
                           <HandCoins className="w-4 h-4" />
                         </button>
                         <button
                           title={(m as any).reconciledAt ? 'Conciliado' : 'Conciliar'}
-                          onClick={() => handleBatchAction('conciliar')}
+                          onClick={() => handleRowAction(m.id, 'conciliar')}
                           className={`p-1.5 rounded hover:bg-blue-600 ${(m as any).reconciledAt ? 'text-green-500' : 'text-blue-400'} hover:text-white`}
                         >
                           <GitMerge className="w-4 h-4" />
                         </button>
                         <button
                           title="Aprovar"
-                          onClick={() => handleBatchAction('estornar')}
+                          onClick={() => handleRowAction(m.id, 'aprovar')}
                           className="p-1.5 rounded hover:bg-green-600 text-slate-400 hover:text-white"
                         >
                           <ThumbsUp className="w-4 h-4" />
                         </button>
                         <RowMoreMenu
                           item={m}
-                          onDuplicate={async () => {
-                            try {
-                              await apiFetch('/api/pj/movimentacoes/batch', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ ids: [m.id], action: 'duplicate' }),
-                              });
-                              load();
-                            } catch { /* silent */ }
-                          }}
-                          onEstornar={async () => {
-                            try {
-                              await apiFetch('/api/pj/movimentacoes/batch', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ ids: [m.id], action: 'estornar' }),
-                              });
-                              load();
-                            } catch { /* silent */ }
-                          }}
+                          onDuplicate={() => handleRowAction(m.id, 'duplicate')}
+                          onEstornar={() => handleRowAction(m.id, 'estornar')}
                           onDelete={async () => {
                             if (!confirm('Excluir este lançamento?')) return;
-                            try {
-                              await apiFetch('/api/pj/movimentacoes/batch', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ ids: [m.id], action: 'delete' }),
-                              });
-                              load();
-                            } catch { /* silent */ }
+                            handleRowAction(m.id, 'delete');
                           }}
                         />
                       </div>

@@ -51,6 +51,34 @@ export async function POST(req: NextRequest) {
         await prisma.accountsReceivable.deleteMany({ where: { id: { in: ids }, companyId } });
         return NextResponse.json({ ok: true });
 
+      case 'duplicate': {
+        for (const id of ids) {
+          const payable = await prisma.accountsPayable.findFirst({ where: { id, companyId } });
+          if (payable) {
+            const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = payable as any;
+            await prisma.accountsPayable.create({ data: { ...rest, status: 'pendente', paidAt: null, amountPaid: null } });
+            continue;
+          }
+          const receivable = await prisma.accountsReceivable.findFirst({ where: { id, companyId } });
+          if (receivable) {
+            const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = receivable as any;
+            await prisma.accountsReceivable.create({ data: { ...rest, status: 'pendente', receivedAt: null, amountReceived: null } });
+          }
+        }
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'aprovar':
+        await prisma.accountsPayable.updateMany({
+          where: { id: { in: ids }, companyId, status: 'pendente' },
+          data: { status: 'pago', paidAt: new Date() },
+        });
+        await prisma.accountsReceivable.updateMany({
+          where: { id: { in: ids }, companyId, status: 'pendente' },
+          data: { status: 'recebido', receivedAt: new Date() },
+        });
+        return NextResponse.json({ ok: true });
+
       default:
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
     }
