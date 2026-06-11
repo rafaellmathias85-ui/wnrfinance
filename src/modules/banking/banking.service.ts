@@ -205,8 +205,11 @@ export class BankingService {
       });
 
       if (lastImported) {
-        // Re-busca desde o início do último dia importado
+        // Re-busca desde 7 dias antes do último importado para cobrir lacunas
+        // (transações processadas com atraso ou dias nunca sincronizados).
+        // O dedup por hash/externalId evita duplicatas.
         startDate = new Date(lastImported.date);
+        startDate.setDate(startDate.getDate() - 7);
         startDate.setHours(0, 0, 0, 0);
       } else {
         // Primeira importação: usa openingDate da conta ou fallback configurável
