@@ -101,7 +101,7 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
 
   // ── Edit connection state ──────────────────────────────────────────────────
   const [editConnection, setEditConnection] = useState<BankConnection | null>(null);
-  const [editTab, setEditTab] = useState<'basico' | 'bancario' | 'boleto' | 'pix' | 'conciliacao'>('basico');
+  const [editTab, setEditTab] = useState<'basico' | 'bancario' | 'boleto' | 'pix' | 'conciliacao' | 'integracao'>('basico');
   // Dados básicos
   const [editName, setEditName] = useState('');
   const [editOpeningBalance, setEditOpeningBalance] = useState('');
@@ -133,6 +133,19 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
   // Conciliação
   const [editAutoReconcile, setEditAutoReconcile] = useState(false);
   const [editSaveLoading, setEditSaveLoading] = useState(false);
+  // Integração (credentials update)
+  const [editClientId, setEditClientId] = useState('');
+  const [editClientSecret, setEditClientSecret] = useState('');
+  const [editCertFile, setEditCertFile] = useState<File | null>(null);
+  const [editKeyFile, setEditKeyFile] = useState<File | null>(null);
+  const [editAutoExtrato, setEditAutoExtrato] = useState(false);
+  const [editIsPF, setEditIsPF] = useState(false);
+  // Extra banking fields
+  const [editMultaType, setEditMultaType] = useState('Percentual');
+  const [editJurosTipo, setEditJurosTipo] = useState('Mensal');
+  const [editDescontoTipo, setEditDescontoTipo] = useState('');
+  const [editDescontoValue, setEditDescontoValue] = useState('');
+  const [editDaysAntecDesconto, setEditDaysAntecDesconto] = useState('0');
 
   const loadConnections = useCallback(async () => {
     setLoading(true);
@@ -342,6 +355,7 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
     if (!confirm('Remover conexão bancária?')) return;
     setBusy(`delete:${connection.id}`);
     await apiFetch(`/api/banking/connections/${connection.id}`, { method: 'DELETE' });
+    if (editConnection?.id === connection.id) setEditConnection(null);
     await loadConnections();
     setBusy(null);
   };
@@ -377,6 +391,19 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
     setEditPixKey(pix.key || '');
     setEditPixKeyType(pix.keyType || 'cpf');
     setEditAutoReconcile(ex.autoReconciliation?.enabled || false);
+    // Integração
+    setEditClientId('');
+    setEditClientSecret('');
+    setEditCertFile(null);
+    setEditKeyFile(null);
+    setEditAutoExtrato(ex.autoExtrato || false);
+    setEditIsPF(conn.personType === 'PF');
+    // Extra banking fields
+    setEditMultaType(ex.multaType || 'Percentual');
+    setEditJurosTipo(ex.jurosTipo || 'Mensal');
+    setEditDescontoTipo(ex.descontoTipo || '');
+    setEditDescontoValue(String(ex.descontoValue ?? ''));
+    setEditDaysAntecDesconto(String(ex.daysAntecDesconto ?? '0'));
   };
 
   const saveEdit = async () => {
@@ -388,9 +415,16 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
         isDefault: editIsDefault,
         limit: parseFloat(editLimit) || 0,
         finePercent: parseFloat(editFinePercent) || 0,
+        multaType: editMultaType,
         interestPercent: parseFloat(editInterestPercent) || 0,
+        jurosTipo: editJurosTipo,
         discountPercent: parseFloat(editDiscountPercent) || 0,
+        descontoTipo: editDescontoTipo,
+        descontoValue: parseFloat(editDescontoValue) || 0,
         daysBeforeDue: parseInt(editDaysBeforeDue) || 0,
+        daysAntecDesconto: parseInt(editDaysAntecDesconto) || 0,
+        isPF: editIsPF,
+        autoExtrato: editAutoExtrato,
         boleto: {
           enabled: editBoletoEnabled,
           useApi: editBoletoUseApi,
@@ -407,6 +441,9 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
         autoReconciliation: { enabled: editAutoReconcile },
       };
 
+      const certText = editCertFile ? await editCertFile.text() : undefined;
+      const keyText  = editKeyFile  ? await editKeyFile.text()  : undefined;
+
       const res = await apiFetch(`/api/banking/connections/${editConnection.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -420,6 +457,10 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
           allowsReceipts: editAllowsReceipts,
           allowsTransfers: editAllowsTransfers,
           extraConfig,
+          ...(editClientId     && { clientId: editClientId }),
+          ...(editClientSecret && { clientSecret: editClientSecret }),
+          ...(certText         && { certificate: certText }),
+          ...(keyText          && { privateKey: keyText }),
         }),
       });
       if (res.ok) {
@@ -583,6 +624,7 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
               { id: 'boleto', label: 'Boleto' },
               { id: 'pix', label: 'Pix Cobrança' },
               { id: 'conciliacao', label: 'Conciliação' },
+              { id: 'integracao', label: 'Integração' },
             ] as const).map(t => (
               <button
                 key={t.id}
@@ -599,53 +641,50 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
             {/* ── Dados Básicos ───────────────────────────────────── */}
             {editTab === 'basico' && (
               <div className="grid gap-4">
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <Label>Nome da conta</Label>
-                    <Input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1" placeholder="Ex: Conta Principal Itaú" />
+                    <Label>Nome da Conta</Label>
+                    <Input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1" placeholder="Ex: Conta Principal" />
                   </div>
                   <div>
-                    <Label>Data de abertura</Label>
+                    <Label>Data Abertura</Label>
                     <Input type="date" value={editOpeningDate} onChange={e => setEditOpeningDate(e.target.value)} className="mt-1" />
                   </div>
-                </div>
-
-                <div>
-                  <Label className="flex items-center gap-1.5 text-sm font-semibold">
-                    Saldo de Abertura (R$)
-                    <span className="text-xs font-normal text-muted-foreground">— define o saldo inicial para cálculo do extrato real</span>
-                  </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={editOpeningBalance}
-                    onChange={e => setEditOpeningBalance(e.target.value)}
-                    className="mt-1 text-lg font-semibold"
-                    placeholder="0,00"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Informe o saldo da conta na data de abertura. O sistema usará esse valor como base para o fluxo real.
-                  </p>
+                  <div>
+                    <Label>Saldo de Abertura (R$)</Label>
+                    <Input type="number" step="0.01" value={editOpeningBalance} onChange={e => setEditOpeningBalance(e.target.value)} className="mt-1" placeholder="0,00" />
+                  </div>
+                  <div>
+                    <Label>Empresa</Label>
+                    <Input value={editConnection?.personType === 'PF' ? 'Pessoa Física' : 'Empresa'} readOnly className="mt-1 bg-muted cursor-not-allowed text-muted-foreground" />
+                  </div>
                 </div>
 
                 <div className="rounded-lg border p-3 space-y-3">
-                  <p className="text-sm font-medium">Uso da conta</p>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    {[
-                      { key: 'editAllowsPayments', label: 'Pagamentos', val: editAllowsPayments, set: setEditAllowsPayments },
-                      { key: 'editAllowsReceipts', label: 'Recebimentos', val: editAllowsReceipts, set: setEditAllowsReceipts },
-                      { key: 'editAllowsTransfers', label: 'Transferências', val: editAllowsTransfers, set: setEditAllowsTransfers },
-                      { key: 'editIsDefault', label: 'Conta padrão', val: editIsDefault, set: setEditIsDefault },
-                    ].map(item => (
-                      <label key={item.key} className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={item.val}
-                          onChange={e => item.set(e.target.checked)}
-                          className="w-4 h-4 rounded border-border"
-                        />
+                  <p className="text-sm font-medium">Configurações da conta</p>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {([
+                      { label: 'Conta padrão', val: editIsDefault, set: setEditIsDefault },
+                      { label: 'Permite Pagamentos', val: editAllowsPayments, set: setEditAllowsPayments },
+                      { label: 'Permite Recebimentos', val: editAllowsReceipts, set: setEditAllowsReceipts },
+                      { label: 'Permite Transferência', val: editAllowsTransfers, set: setEditAllowsTransfers },
+                      { label: 'Conta Pessoa Física', val: editIsPF, set: setEditIsPF },
+                    ] as const).map(item => (
+                      <div key={item.label} className="flex items-center justify-between gap-2">
                         <span className="text-sm">{item.label}</span>
-                      </label>
+                        <div className="flex rounded-md overflow-hidden border border-border">
+                          <button
+                            type="button"
+                            onClick={() => item.set(true)}
+                            className={`px-3 py-1 text-xs font-medium transition-colors ${item.val ? 'bg-blue-600 text-white' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                          >Sim</button>
+                          <button
+                            type="button"
+                            onClick={() => item.set(false)}
+                            className={`px-3 py-1 text-xs font-medium transition-colors border-l border-border ${!item.val ? 'bg-blue-600 text-white' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                          >Não</button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -655,48 +694,85 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
             {/* ── Conta Bancária ──────────────────────────────────── */}
             {editTab === 'bancario' && (
               <div className="grid gap-4">
-                <div className="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>Banco/Operadora</Label>
+                  <Input value={editConnection?.bankName || ''} readOnly className="mt-1 bg-muted cursor-not-allowed text-muted-foreground" />
+                </div>
+
+                <div className="grid sm:grid-cols-4 gap-3">
                   <div className="sm:col-span-2">
                     <Label>Agência</Label>
                     <Input value={editAgency} onChange={e => setEditAgency(e.target.value)} className="mt-1" placeholder="0001" />
                   </div>
                   <div>
-                    <Label>Dígito ag.</Label>
-                    <Input value={editAccountDigit} onChange={e => setEditAccountDigit(e.target.value)} className="mt-1" placeholder="0" />
-                  </div>
-                </div>
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
-                    <Label>Conta corrente</Label>
+                    <Label>Conta</Label>
                     <Input value={editAccount} onChange={e => setEditAccount(e.target.value)} className="mt-1" placeholder="123456" />
                   </div>
                   <div>
-                    <Label>Dígito cc.</Label>
+                    <Label>Dígito</Label>
                     <Input value={editAccountDigit} onChange={e => setEditAccountDigit(e.target.value)} className="mt-1" placeholder="0" />
                   </div>
                 </div>
+
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
                     <Label>Limite de crédito (R$)</Label>
                     <Input type="number" step="0.01" value={editLimit} onChange={e => setEditLimit(e.target.value)} className="mt-1" placeholder="0,00" />
                   </div>
                   <div>
-                    <Label>Dias de antecedência para boleto</Label>
+                    <Label>Dias antecedência para boleto</Label>
                     <Input type="number" value={editDaysBeforeDue} onChange={e => setEditDaysBeforeDue(e.target.value)} className="mt-1" placeholder="5" />
                   </div>
                 </div>
-                <div className="grid sm:grid-cols-3 gap-3">
+
+                {/* Multa */}
+                <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <Label>Multa (%)</Label>
+                    <Label>Multa</Label>
+                    <select value={editMultaType} onChange={e => setEditMultaType(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="Percentual">Percentual</option>
+                      <option value="Fixo">Fixo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Valor {editMultaType === 'Percentual' ? '(%)' : '(R$)'}</Label>
                     <Input type="number" step="0.01" value={editFinePercent} onChange={e => setEditFinePercent(e.target.value)} className="mt-1" placeholder="2,00" />
                   </div>
+                </div>
+
+                {/* Juros */}
+                <div className="grid sm:grid-cols-2 gap-3">
                   <div>
-                    <Label>Juros ao mês (%)</Label>
-                    <Input type="number" step="0.01" value={editInterestPercent} onChange={e => setEditInterestPercent(e.target.value)} className="mt-1" placeholder="1,00" />
+                    <Label>Juros</Label>
+                    <select value={editJurosTipo} onChange={e => setEditJurosTipo(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="Mensal">Mensal</option>
+                      <option value="Anual">Anual</option>
+                      <option value="Diário">Diário</option>
+                    </select>
                   </div>
                   <div>
-                    <Label>Desconto (%)</Label>
-                    <Input type="number" step="0.01" value={editDiscountPercent} onChange={e => setEditDiscountPercent(e.target.value)} className="mt-1" placeholder="0,00" />
+                    <Label>Valor (%)</Label>
+                    <Input type="number" step="0.01" value={editInterestPercent} onChange={e => setEditInterestPercent(e.target.value)} className="mt-1" placeholder="1,00" />
+                  </div>
+                </div>
+
+                {/* Desconto */}
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div>
+                    <Label>Desconto</Label>
+                    <select value={editDescontoTipo} onChange={e => setEditDescontoTipo(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                      <option value="">Selecione</option>
+                      <option value="Percentual">Percentual</option>
+                      <option value="Fixo">Fixo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Valor {editDescontoTipo === 'Percentual' ? '(%)' : '(R$)'}</Label>
+                    <Input type="number" step="0.01" value={editDescontoValue} onChange={e => setEditDescontoValue(e.target.value)} className="mt-1" placeholder="0,00" disabled={!editDescontoTipo} />
+                  </div>
+                  <div>
+                    <Label>Dias antecedência para desconto</Label>
+                    <Input type="number" value={editDaysAntecDesconto} onChange={e => setEditDaysAntecDesconto(e.target.value)} className="mt-1" placeholder="0" disabled={!editDescontoTipo} />
                   </div>
                 </div>
               </div>
@@ -806,6 +882,109 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                   Regras de conciliação avançadas (por texto, categoria, valor exato) disponíveis na próxima versão.
                 </div>
+              </div>
+            )}
+
+            {/* ── Integração ──────────────────────────────────────── */}
+            {editTab === 'integracao' && editConnection && (
+              <div className="space-y-5">
+                <div className="grid sm:grid-cols-2 gap-5">
+                  {/* Left: Credentials */}
+                  <div className="space-y-4 rounded-lg border p-4">
+                    <p className="text-sm font-semibold">Integração Bancária</p>
+
+                    {editConnection.bankCode?.toUpperCase() === 'INTER' && (
+                      <>
+                        <div>
+                          <Label>Client ID</Label>
+                          <Input value={editClientId} onChange={e => setEditClientId(e.target.value)} placeholder="Informe para atualizar" autoComplete="off" className="mt-1" />
+                        </div>
+                        <div>
+                          <Label>Client Secret</Label>
+                          <Input type="password" value={editClientSecret} onChange={e => setEditClientSecret(e.target.value)} placeholder="Informe para atualizar" autoComplete="new-password" className="mt-1" />
+                        </div>
+                        <div>
+                          <Label>Certificado (.crt)</Label>
+                          <Input type="file" accept=".crt,.cer,.pem" onChange={e => setEditCertFile(e.target.files?.[0] || null)} className="mt-1" />
+                          {editCertFile && <p className="mt-1 text-xs text-muted-foreground">{editCertFile.name}</p>}
+                        </div>
+                        <div>
+                          <Label>Chave privada (.key)</Label>
+                          <Input type="file" accept=".key,.pem" onChange={e => setEditKeyFile(e.target.files?.[0] || null)} className="mt-1" />
+                          {editKeyFile && <p className="mt-1 text-xs text-muted-foreground">{editKeyFile.name}</p>}
+                        </div>
+                      </>
+                    )}
+
+                    {editConnection.bankCode?.toUpperCase() === 'ITAU' && (
+                      <div>
+                        <Label>Id Item</Label>
+                        <Input value={editConnection.id} readOnly className="mt-1 bg-muted cursor-not-allowed font-mono text-xs" />
+                        <p className="mt-1 text-xs text-muted-foreground">Identificador desta conexão para o sistema Itaú.</p>
+                      </div>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeConnection(editConnection)}
+                      className="mt-2 w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Desconectar
+                    </Button>
+                  </div>
+
+                  {/* Right: Services */}
+                  <div className="space-y-4 rounded-lg border p-4">
+                    <p className="text-sm font-semibold">{editConnection.bankName}</p>
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {[
+                          { label: 'Extrato', enabled: true },
+                          { label: 'Boleto', enabled: editBoletoEnabled },
+                          { label: 'Pix', enabled: editPixEnabled },
+                        ].map(row => (
+                          <tr key={row.label} className="border-b last:border-0">
+                            <td className="py-2 text-muted-foreground">{row.label}</td>
+                            <td className={`py-2 text-right font-semibold ${row.enabled ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                              {row.enabled ? 'Sim' : 'Não'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <Button type="button" variant="outline" size="sm" className="w-full gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Atualizar serviços
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Auto extrato toggle (API only) */}
+                {editConnection.connectionMode === 'API' && (
+                  <div className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium">Importação de Extrato automático</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">Sincroniza o extrato bancário automaticamente a cada dia.</p>
+                      </div>
+                      <div className="flex shrink-0 overflow-hidden rounded-md border border-border">
+                        <button
+                          type="button"
+                          onClick={() => setEditAutoExtrato(true)}
+                          className={`px-4 py-1.5 text-xs font-medium transition-colors ${editAutoExtrato ? 'bg-blue-600 text-white' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                        >Sim</button>
+                        <button
+                          type="button"
+                          onClick={() => setEditAutoExtrato(false)}
+                          className={`px-4 py-1.5 text-xs font-medium transition-colors border-l border-border ${!editAutoExtrato ? 'bg-blue-600 text-white' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                        >Não</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

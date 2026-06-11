@@ -4,7 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { bankingController } from '@/src/modules/banking/banking.controller';
+import { BankCredentialsVaultService } from '@/src/modules/banking/bank-credentials-vault.service';
 import { prisma } from '@/lib/prisma';
+
+const vault = new BankCredentialsVaultService();
 
 export async function GET(
   _req: NextRequest,
@@ -80,6 +83,12 @@ export async function PATCH(
   });
   if (!connection) return NextResponse.json({ error: 'Conexão não encontrada' }, { status: 404 });
 
+  const credentialUpdate: Record<string, string> = {};
+  if (body.clientId)     credentialUpdate.clientIdEnc     = vault.encrypt(body.clientId);
+  if (body.clientSecret) credentialUpdate.clientSecretEnc = vault.encrypt(body.clientSecret);
+  if (body.certificate)  credentialUpdate.certificateEnc  = vault.encrypt(body.certificate);
+  if (body.privateKey)   credentialUpdate.privateKeyEnc   = vault.encrypt(body.privateKey);
+
   const updated = await prisma.bankConnection.update({
     where: { id: params.id },
     data: {
@@ -92,6 +101,7 @@ export async function PATCH(
       ...(body.allowsReceipts !== undefined && { allowsReceipts: Boolean(body.allowsReceipts) }),
       ...(body.allowsTransfers !== undefined && { allowsTransfers: Boolean(body.allowsTransfers) }),
       ...(body.extraConfig !== undefined && { extraConfig: body.extraConfig }),
+      ...credentialUpdate,
     },
   });
 
