@@ -227,6 +227,27 @@ export class OfxProvider implements BankProvider {
         if (hash) duplicates.add(hash);
       }
     }
+
+    // Fallback: detecta duplicata por FITID bruto quando o accountId foi formatado
+    // de forma diferente entre importações (ex: "0050212" vs "0263-502122-2").
+    const notYetDetected = transactions.filter(tx => !duplicates.has(tx.checksum) && tx.externalId);
+    if (notYetDetected.length > 0) {
+      const fitidConditions = notYetDetected.map(tx => ({
+        externalId: { endsWith: `:${tx.externalId}` },
+      }));
+      const fitidMatches = await prisma.bankTransaction.findMany({
+        where: { userId: context.userId, OR: fitidConditions },
+        select: { externalId: true },
+      });
+      for (const match of fitidMatches) {
+        for (const tx of notYetDetected) {
+          if (tx.externalId && match.externalId?.endsWith(`:${tx.externalId}`)) {
+            duplicates.add(tx.checksum);
+          }
+        }
+      }
+    }
+
     return duplicates;
   }
 

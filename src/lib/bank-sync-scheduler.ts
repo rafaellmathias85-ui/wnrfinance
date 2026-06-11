@@ -47,7 +47,7 @@ async function runBankSync(): Promise<void> {
       where: {
         connectionMode: 'API',
         personType: 'PJ',
-        status: { notIn: ['DISABLED'] },
+        status: { notIn: ['DISABLED', 'ERROR'] },
       },
       select: { id: true, userId: true, companyId: true, bankName: true, extraConfig: true },
     });
@@ -56,7 +56,9 @@ async function runBankSync(): Promise<void> {
     return;
   }
 
-  const toSync = candidates.filter(c => (c.extraConfig as any)?.autoExtrato === true);
+  // Sync all active API connections. autoExtrato em extraConfig é um opt-out futuro;
+  // por padrão todas as conexões API ativas são sincronizadas.
+  const toSync = candidates.filter(c => (c.extraConfig as any)?.autoExtrato !== false);
 
   if (toSync.length === 0) {
     console.log('[BankSync] Nenhuma conta com autoExtrato habilitado.');

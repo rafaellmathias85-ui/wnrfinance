@@ -71,6 +71,40 @@ export async function POST(req: NextRequest) {
           data: { generateBoleto: false, generatePix: false, generateNfe: false },
         });
         return NextResponse.json({ ok: true, action });
+      case 'reenviar_fatura': {
+        const smtp = await prisma.smtpConfig.findFirst({
+          where: { companyId, isDefault: true, isActive: true },
+        });
+        let queued = 0;
+        for (const item of items) {
+          if (!item.customerEmail) continue;
+          await prisma.emailQueue.create({
+            data: {
+              companyId,
+              smtpConfigId: smtp?.id || null,
+              to: item.customerEmail,
+              subject: `Fatura — ${item.description || 'Cobrança'}`,
+              htmlBody: `<p>Olá ${item.customerName || ''},</p><p>Segue sua fatura referente a: <strong>${item.description || 'Cobrança'}</strong>.</p><p>Vencimento: ${item.dueDate ? new Date(item.dueDate).toLocaleDateString('pt-BR') : '—'}</p>`,
+              contextType: 'receivable',
+              contextId: item.id,
+              priority: 3,
+            },
+          });
+          await prisma.emailLog.create({
+            data: {
+              companyId,
+              smtpConfigId: smtp?.id || null,
+              to: item.customerEmail,
+              subject: `Fatura — ${item.description || 'Cobrança'}`,
+              contextType: 'receivable',
+              contextId: item.id,
+              status: 'sent',
+            },
+          });
+          queued++;
+        }
+        return NextResponse.json({ ok: true, queued });
+      }
       case 'update_nfse_status': {
         // Placeholder — would call fiscal provider API for each
         return NextResponse.json({ ok: true, message: 'Status NFSE atualizado (simulado)' });
