@@ -48,6 +48,8 @@ interface Movement {
   isRecurring: boolean;
   recurrenceId: string | null;
   saldoAcumulado: number;
+  isConciliado: boolean;
+  reconciledAt: string | null;
 }
 
 interface Totals {
@@ -741,8 +743,8 @@ export default function MovimentacoesPage() {
               <th className="text-left px-3 py-3 text-slate-400 font-medium">Descrição</th>
               <th className="text-left px-3 py-3 text-slate-400 font-medium">Cliente / Fornecedor</th>
               <th className="text-left px-3 py-3 text-slate-400 font-medium">Categoria</th>
-              <th className="text-center px-3 py-3 text-slate-400 font-medium w-24">Tipo</th>
-              <th className="text-center px-3 py-3 text-slate-400 font-medium w-24">Status</th>
+              <th className="text-center px-3 py-3 text-slate-400 font-medium w-28">Pago</th>
+              <th className="text-center px-3 py-3 text-slate-400 font-medium w-28">Conciliado</th>
               <th className="text-right px-3 py-3 text-slate-400 font-medium">Valor</th>
               <th className="text-right px-3 py-3 text-slate-400 font-medium">Saldo</th>
               <th className="px-3 py-3 w-32 text-slate-400 font-medium text-center">Ações</th>
@@ -764,7 +766,6 @@ export default function MovimentacoesPage() {
             ) : (
               items.map((m) => {
                 const isSelected = selected.has(m.id);
-                const statusInfo = STATUS_LABELS[m.status] || { label: m.status, cls: 'bg-slate-700 text-slate-300' };
                 const isVencido = m.status === 'pendente' && new Date(m.dueDate) < now;
 
                 return (
@@ -835,24 +836,39 @@ export default function MovimentacoesPage() {
                       {m.category || '—'}
                     </td>
 
-                    {/* Tipo badge */}
+                    {/* Pago */}
                     <td className="px-3 py-3 text-center">
-                      {m.tipo === 'entrada' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-900/30 text-green-300">
-                          <ArrowUpCircle className="w-3 h-3" /> Entrada
+                      {m.status === 'pago' || m.status === 'recebido' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-green-900/30 text-green-300 border border-green-700/40">
+                          <Check className="w-3 h-3" />
+                          {m.tipo === 'entrada' ? 'Recebido' : 'Pago'}
+                        </span>
+                      ) : isVencido ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-red-900/30 text-red-400 border border-red-700/40">
+                          <ArrowDownCircle className="w-3 h-3" /> Vencido
+                        </span>
+                      ) : m.status === 'cancelado' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-slate-700 text-slate-400">
+                          Cancelado
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-900/30 text-red-300">
-                          <ArrowDownCircle className="w-3 h-3" /> Saída
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-yellow-900/30 text-yellow-300 border border-yellow-700/40">
+                          <ArrowUpCircle className="w-3 h-3" /> Pendente
                         </span>
                       )}
                     </td>
 
-                    {/* Status */}
+                    {/* Conciliado */}
                     <td className="px-3 py-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${isVencido ? 'bg-red-900/30 text-red-400' : statusInfo.cls}`}>
-                        {isVencido ? 'Vencido' : statusInfo.label}
-                      </span>
+                      {m.isConciliado ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-blue-900/30 text-blue-300 border border-blue-700/40">
+                          <GitMerge className="w-3 h-3" /> Conciliado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-500 border border-slate-700">
+                          <GitMerge className="w-3 h-3" /> Pendente
+                        </span>
+                      )}
                     </td>
 
                     {/* Valor */}
@@ -886,9 +902,9 @@ export default function MovimentacoesPage() {
                           <HandCoins className="w-4 h-4" />
                         </button>
                         <button
-                          title={(m as any).reconciledAt ? 'Conciliado' : 'Conciliar'}
-                          onClick={() => handleRowAction(m.id, 'conciliar')}
-                          className={`p-1.5 rounded hover:bg-blue-600 ${(m as any).reconciledAt ? 'text-green-500' : 'text-blue-400'} hover:text-white`}
+                          title={m.isConciliado ? 'Desconciliar' : 'Conciliar'}
+                          onClick={() => handleRowAction(m.id, m.isConciliado ? 'desconciliar' : 'conciliar')}
+                          className={`p-1.5 rounded hover:bg-blue-600 ${m.isConciliado ? 'text-blue-400' : 'text-slate-400'} hover:text-white`}
                         >
                           <GitMerge className="w-4 h-4" />
                         </button>

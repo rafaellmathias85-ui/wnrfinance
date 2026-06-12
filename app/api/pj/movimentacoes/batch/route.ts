@@ -17,9 +17,11 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case 'desconciliar':
-        // AccountsPayable/Receivable don't store bankConnectionId directly
-        // Desconciliar = log the action for manual reconciliation review
-        return NextResponse.json({ ok: true, message: 'Desconciliação registrada' });
+        await prisma.pJReconciliation.updateMany({
+          where: { companyId, accountId: { in: ids }, status: 'RECONCILED' },
+          data: { status: 'PENDING', reconciledAt: null, reconciledBy: null },
+        });
+        return NextResponse.json({ ok: true });
 
       case 'estornar':
         await prisma.accountsPayable.updateMany({
@@ -32,8 +34,26 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json({ ok: true });
 
-      case 'conciliar':
-        return NextResponse.json({ ok: true, message: 'Conciliação em lote iniciada' });
+      case 'conciliar': {
+        const userId = session.user.id;
+        for (const id of ids) {
+          await prisma.pJReconciliation.upsert({
+            where: { id: `manual-${id}` },
+            update: { status: 'RECONCILED', reconciledAt: new Date(), reconciledBy: userId, matchMethod: 'manual' },
+            create: {
+              id: `manual-${id}`,
+              companyId,
+              type: 'MANUAL',
+              accountId: id,
+              status: 'RECONCILED',
+              matchMethod: 'manual',
+              reconciledAt: new Date(),
+              reconciledBy: userId,
+            },
+          });
+        }
+        return NextResponse.json({ ok: true });
+      }
 
       case 'quitar':
         await prisma.accountsPayable.updateMany({

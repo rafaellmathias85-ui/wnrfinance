@@ -626,7 +626,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
 
       {/* ======== MAIN CONTENT ======== */}
       <main className="flex-1" style={{ paddingTop: 'var(--nav-height, 60px)' }}>
-        <div className="p-4 lg:p-6 xl:p-8 max-w-[1800px] mx-auto">{children}</div>
+        <div className="px-4 py-4 lg:px-6 lg:py-6">{children}</div>
       </main>
 
       {/* Mega menu backdrop */}

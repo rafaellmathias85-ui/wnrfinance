@@ -111,9 +111,11 @@ export async function GET(req: NextRequest) {
     isRecurring: boolean;
     recurrenceId: string | null;
     bankConnectionId: string | null;
+    isConciliado: boolean;
+    reconciledAt: Date | null;
   };
 
-  const movements: Movement[] = [
+  const rawMovements = [
     ...payables.map((p) => ({
       id: p.id,
       date: p.paidAt ?? p.dueDate,
@@ -151,6 +153,22 @@ export async function GET(req: NextRequest) {
       bankConnectionId: (r as any).bankConnectionId || null,
     })),
   ];
+
+  // Fetch reconciliation status in a single query
+  const allIds = rawMovements.map((m) => m.id);
+  const reconciliations = allIds.length
+    ? await prisma.pJReconciliation.findMany({
+        where: { companyId, accountId: { in: allIds }, status: 'RECONCILED' },
+        select: { accountId: true, reconciledAt: true },
+      })
+    : [];
+  const reconciledMap = new Map(reconciliations.map((r) => [r.accountId, r.reconciledAt]));
+
+  const movements: Movement[] = rawMovements.map((m) => ({
+    ...m,
+    isConciliado: reconciledMap.has(m.id),
+    reconciledAt: reconciledMap.get(m.id) ?? null,
+  }));
 
   movements.sort((a, b) => a.date.getTime() - b.date.getTime());
 
