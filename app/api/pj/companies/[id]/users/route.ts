@@ -15,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: any) {
 
   const users = await prisma.userCompany.findMany({
     where: { companyId: id },
-    include: { user: { select: { id: true, name: true, email: true } } },
+    include: { user: { select: { id: true, name: true, email: true, isBlocked: true, totpEnabled: true, mfaRequired: true } } },
   });
   return NextResponse.json(users.map(u => ({ ...u.user, role: u.role, joinedAt: u.createdAt })));
 }

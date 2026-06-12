@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,8 @@ import {
 import {
   UserPlus, Crown, Shield, Eye, EyeOff, Calculator, BookOpen, Pencil,
   Lock, Unlock, BarChart2, ShoppingCart, Users, Headphones, GitBranch, Settings,
-  UserCog, Loader2,
+  UserCog, Loader2, KeyRound, UserX, UserCheck, ShieldAlert, ShieldCheck,
+  ShieldOff, ChevronDown,
 } from 'lucide-react';
 import { usePJ } from '@/lib/pj-context';
 import { apiFetch } from '@/lib/fetch';
@@ -85,6 +86,48 @@ function ModuleBadge({ label, Icon, hasAccess }: {
   );
 }
 
+// ─── Action confirmation config ───────────────────────────────────────────────
+
+type ActionType = 'reset-password' | 'block' | 'unblock' | 'force-mfa' | 'reset-mfa';
+
+const ACTION_META: Record<ActionType, {
+  title: string;
+  description: (name: string) => string;
+  confirmLabel: string;
+  variant: 'default' | 'destructive';
+}> = {
+  'reset-password': {
+    title: 'Redefinir Senha',
+    description: (name) => `Será enviado um e-mail de redefinição de senha para ${name}. O link expira em 1 hora.`,
+    confirmLabel: 'Enviar E-mail',
+    variant: 'default',
+  },
+  'block': {
+    title: 'Bloquear Usuário',
+    description: (name) => `${name} não conseguirá mais fazer login enquanto estiver bloqueado.`,
+    confirmLabel: 'Bloquear',
+    variant: 'destructive',
+  },
+  'unblock': {
+    title: 'Desbloquear Usuário',
+    description: (name) => `${name} voltará a conseguir fazer login normalmente.`,
+    confirmLabel: 'Desbloquear',
+    variant: 'default',
+  },
+  'force-mfa': {
+    title: 'Obrigar Autenticação de 2 Fatores',
+    description: (name) => `${name} será obrigado a configurar MFA no próximo acesso.`,
+    confirmLabel: 'Obrigar MFA',
+    variant: 'default',
+  },
+  'reset-mfa': {
+    title: 'Revogar MFA',
+    description: (name) => `O MFA de ${name} será desativado e o segredo removido. O usuário precisará reconfigurar.`,
+    confirmLabel: 'Revogar MFA',
+    variant: 'destructive',
+  },
+};
+
 // ─── Create User Dialog ───────────────────────────────────────────────────────
 
 interface CreateUserDialogProps {
@@ -103,7 +146,6 @@ function CreateUserDialog({ open, onOpenChange, companyId, onCreated }: CreateUs
     role: 'VIEWER', hasPF: false, hasPJ: true,
   });
 
-  // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
       setForm({ name: '', email: '', password: '', confirmPassword: '', role: 'VIEWER', hasPF: false, hasPJ: true });
@@ -310,10 +352,79 @@ function CreateUserDialog({ open, onOpenChange, companyId, onCreated }: CreateUs
   );
 }
 
+// ─── MFA Dropdown ─────────────────────────────────────────────────────────────
+
+function MfaDropdown({
+  user,
+  onAction,
+}: {
+  user: any;
+  onAction: (action: ActionType, user: any) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const hasMfa = user.totpEnabled;
+  const mfaRequired = user.mfaRequired;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        title="Opções de MFA"
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-0.5 p-1.5 rounded-md border transition-colors ${
+          mfaRequired && !hasMfa
+            ? 'border-orange-500/40 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20'
+            : hasMfa
+            ? 'border-green-600/40 bg-green-600/10 text-green-600 hover:bg-green-600/20'
+            : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+        }`}
+      >
+        {mfaRequired && !hasMfa ? (
+          <ShieldAlert className="w-3.5 h-3.5" />
+        ) : hasMfa ? (
+          <ShieldCheck className="w-3.5 h-3.5" />
+        ) : (
+          <ShieldOff className="w-3.5 h-3.5" />
+        )}
+        <ChevronDown className="w-3 h-3" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 bottom-full mb-1 z-50 min-w-[160px] bg-popover border border-border rounded-lg shadow-lg py-1 text-sm">
+          <button
+            onClick={() => { setOpen(false); onAction('force-mfa', user); }}
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-foreground transition-colors"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-orange-500" />
+            Obrigar MFA
+          </button>
+          <button
+            onClick={() => { setOpen(false); onAction('reset-mfa', user); }}
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-red-500 dark:text-red-400 transition-colors"
+          >
+            <ShieldOff className="w-3.5 h-3.5" />
+            Revogar MFA
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function UsuariosPage() {
-  const { activeCompanyId, activeCompanyRole } = usePJ();
+  const { activeCompanyId, activeCompanyRole, session: pjSession } = usePJ() as any;
   const { toast } = useToast();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -322,12 +433,17 @@ export default function UsuariosPage() {
   const [permissionsUser, setPermissionsUser] = useState<{ id: string; name: string } | null>(null);
   const [moduleAccessMap, setModuleAccessMap] = useState<Record<string, ModuleAccess>>({});
 
+  // Action confirmation
+  const [confirmAction, setConfirmAction] = useState<{ type: ActionType; user: any } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
   // Invite form state
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('VIEWER');
   const [inviteLoading, setInviteLoading] = useState(false);
 
   const canManage = ['OWNER', 'ADMIN'].includes(activeCompanyRole || '');
+  const currentUserId = (pjSession as any)?.user?.id ?? null;
 
   const fetchAllModuleAccess = useCallback(async (userList: any[]) => {
     const results: Record<string, ModuleAccess> = {};
@@ -411,6 +527,38 @@ export default function UsuariosPage() {
         })
         .catch(() => {});
     }
+  };
+
+  const executeAction = async () => {
+    if (!confirmAction || !activeCompanyId) return;
+    setActionLoading(true);
+    try {
+      const res = await apiFetch(
+        `/api/pj/companies/${activeCompanyId}/users/${confirmAction.user.id}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: confirmAction.type }),
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const meta = ACTION_META[confirmAction.type];
+        toast({ title: data.message || meta.confirmLabel + ' realizado com sucesso' });
+        setConfirmAction(null);
+        fetchUsers();
+      } else {
+        toast({ title: 'Erro', description: data.error || `HTTP ${res.status}`, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro de rede', description: err?.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const requestAction = (type: ActionType, user: any) => {
+    setConfirmAction({ type, user });
   };
 
   if (!activeCompanyId) {
@@ -502,11 +650,19 @@ export default function UsuariosPage() {
           {users.map((u: any) => {
             const RoleIcon = roleIcons[u.role] || Eye;
             const modAccess = moduleAccessMap[u.id];
+            const isSelf = u.id === currentUserId;
+            const canActOnUser = canManage && !isSelf;
+
             return (
-              <Card key={u.id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={u.id}
+                className={`hover:shadow-md transition-shadow ${u.isBlocked ? 'border-red-500/40 opacity-80' : ''}`}
+              >
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${
+                      u.isBlocked ? 'bg-red-500/10 text-red-500' : 'bg-primary/10 text-primary'
+                    }`}>
                       {u.name?.[0]?.toUpperCase() || 'U'}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -519,6 +675,25 @@ export default function UsuariosPage() {
                     </div>
                   </div>
 
+                  {/* Status badges */}
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {u.isBlocked && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-red-500/40 bg-red-500/10 text-red-500">
+                        <Lock className="w-3 h-3" /> Bloqueado
+                      </span>
+                    )}
+                    {u.mfaRequired && !u.totpEnabled && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-orange-500/40 bg-orange-500/10 text-orange-500">
+                        <ShieldAlert className="w-3 h-3" /> MFA Pendente
+                      </span>
+                    )}
+                    {u.totpEnabled && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-green-600/40 bg-green-600/10 text-green-600">
+                        <ShieldCheck className="w-3 h-3" /> MFA Ativo
+                      </span>
+                    )}
+                  </div>
+
                   <div className="mt-3 flex flex-wrap gap-1">
                     {MODULE_BADGES.map(({ id, label, Icon }) => (
                       <ModuleBadge key={id} id={id} label={label} Icon={Icon} hasAccess={modAccess?.[id]} />
@@ -526,7 +701,40 @@ export default function UsuariosPage() {
                   </div>
 
                   {canManage && (
-                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-end">
+                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between gap-2">
+                      {/* Admin actions — not shown for self */}
+                      {canActOnUser ? (
+                        <div className="flex items-center gap-1">
+                          {/* Reset senha */}
+                          <button
+                            title="Redefinir Senha"
+                            onClick={() => requestAction('reset-password', u)}
+                            className="p-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Bloquear / Desbloquear */}
+                          <button
+                            title={u.isBlocked ? 'Desbloquear Usuário' : 'Bloquear Usuário'}
+                            onClick={() => requestAction(u.isBlocked ? 'unblock' : 'block', u)}
+                            className={`p-1.5 rounded-md border transition-colors ${
+                              u.isBlocked
+                                ? 'border-green-600/40 bg-green-600/10 text-green-600 hover:bg-green-600/20'
+                                : 'border-border text-muted-foreground hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/40'
+                            }`}
+                          >
+                            {u.isBlocked ? <UserCheck className="w-3.5 h-3.5" /> : <UserX className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {/* MFA dropdown */}
+                          <MfaDropdown user={u} onAction={requestAction} />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50 italic">Você</span>
+                      )}
+
+                      {/* Permissões */}
                       <button
                         onClick={() => openPermissions(u)}
                         className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border hover:border-primary/50 rounded-md px-2.5 py-1.5 transition-colors"
@@ -543,6 +751,7 @@ export default function UsuariosPage() {
         </div>
       )}
 
+      {/* Permissions modal */}
       {permissionsUser && (
         <UserPermissionsModal
           userId={permissionsUser.id}
@@ -550,6 +759,36 @@ export default function UsuariosPage() {
           onClose={handleModalClose}
         />
       )}
+
+      {/* Confirmation dialog */}
+      {confirmAction && (() => {
+        const meta = ACTION_META[confirmAction.type];
+        const userName = confirmAction.user.name || confirmAction.user.email;
+        return (
+          <Dialog open onOpenChange={() => !actionLoading && setConfirmAction(null)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>{meta.title}</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">{meta.description(userName)}</p>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={actionLoading}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant={meta.variant}
+                  onClick={executeAction}
+                  disabled={actionLoading}
+                  className="gap-2 min-w-[120px]"
+                >
+                  {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {actionLoading ? 'Aguarde...' : meta.confirmLabel}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }

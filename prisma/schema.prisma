@@ -32,6 +32,8 @@ model User {
   totpSecret       String?
   totpEnabled      Boolean           @default(false)
   backupCodes      String?
+  isBlocked        Boolean           @default(false)
+  mfaRequired      Boolean           @default(false)
   hasPF            Boolean           @default(true)
   hasPJ            Boolean           @default(false)
   defaultEnv       String            @default("pf") // pf or pj

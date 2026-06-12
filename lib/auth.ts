@@ -52,6 +52,9 @@ export const authOptions: NextAuthOptions = {
         if (!isValid) {
           throw new Error('Credenciais inválidas');
         }
+        if ((user as any).isBlocked) {
+          throw new Error('Conta bloqueada. Entre em contato com o administrador.');
+        }
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
