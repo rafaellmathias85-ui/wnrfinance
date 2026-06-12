@@ -48,20 +48,26 @@ function FiscalPJContent() {
 
   const loadDAS = useCallback(async () => {
     setLoading(true);
-    const r = await apiFetch(`/api/pj/fiscal?year=${year}&action=calculate&month=${month}`);
-    const d = await r.json();
-    setRecords(d.records || []);
-    setCalc(d.calculation || null);
-    setDueDate(d.dueDate ? new Date(d.dueDate).toLocaleDateString('pt-BR') : '');
-    setLoading(false);
+    try {
+      const r = await apiFetch(`/api/pj/fiscal?year=${year}&action=calculate&month=${month}`);
+      const d = await r.json();
+      setRecords(d.records || []);
+      setCalc(d.calculation || null);
+      setDueDate(d.dueDate ? new Date(d.dueDate).toLocaleDateString('pt-BR') : '');
+    } catch { /* noop */ } finally {
+      setLoading(false);
+    }
   }, [year, month]);
 
   const loadICMS = useCallback(async () => {
     setIcmsLoading(true);
-    const r = await apiFetch(`/api/pj/fiscal?year=${icmsYear}&type=ICMS`);
-    const d = await r.json();
-    setIcmsRecords(d.records || []);
-    setIcmsLoading(false);
+    try {
+      const r = await apiFetch(`/api/pj/fiscal?year=${icmsYear}&type=ICMS`);
+      const d = await r.json();
+      setIcmsRecords(d.records || []);
+    } catch { /* noop */ } finally {
+      setIcmsLoading(false);
+    }
   }, [icmsYear]);
 
   useEffect(() => { if (activeTab === 'das') loadDAS(); }, [activeTab, loadDAS]);
@@ -69,24 +75,30 @@ function FiscalPJContent() {
 
   const loadRules = useCallback(async () => {
     setRulesLoading(true);
-    const r = await apiFetch('/api/pj/fiscal/regras-servico');
-    const d = await r.json();
-    setRules(d.rules || []);
-    setRulesLoading(false);
+    try {
+      const r = await apiFetch('/api/pj/fiscal/regras-servico');
+      const d = await r.json();
+      setRules(d.rules || []);
+    } catch { /* noop */ } finally {
+      setRulesLoading(false);
+    }
   }, []);
 
   useEffect(() => { if (activeTab === 'regras') loadRules(); }, [activeTab, loadRules]);
 
   const generateDAS = async () => {
     setCalcLoading(true);
-    const r = await apiFetch('/api/pj/fiscal', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ generateDAS: true, year, month }),
-    });
-    if (r.ok) { toast.success('DAS gerado e salvo!'); loadDAS(); }
-    else { const d = await r.json(); toast.error(d.error || 'Erro ao gerar DAS'); }
-    setCalcLoading(false);
+    try {
+      const r = await apiFetch('/api/pj/fiscal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ generateDAS: true, year, month }),
+      });
+      if (r.ok) { toast.success('DAS gerado e salvo!'); loadDAS(); }
+      else { const d = await r.json().catch(() => ({})); toast.error((d as any).error || 'Erro ao gerar DAS'); }
+    } catch { toast.error('Erro ao gerar DAS'); } finally {
+      setCalcLoading(false);
+    }
   };
 
   const markPaid = async (record: TaxRecord, paidAmount: string, paidAt: string) => {
