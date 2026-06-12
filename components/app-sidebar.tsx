@@ -256,7 +256,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
           borderBottom: '1px solid hsl(var(--border) / 0.7)',
           boxShadow: '0 1px 3px rgb(0 0 0 / 0.04)',
         }}>
-        <div className="max-w-[1700px] mx-auto flex items-center h-full px-4 gap-1">
+        <div className="flex items-center h-full px-4 gap-1 w-full">
 
           {/* Logo */}
           <Link href={activeEnv === 'pj' ? '/pj/dashboard' : '/dashboard'} className="flex items-center gap-2.5 mr-4 flex-shrink-0 group">
