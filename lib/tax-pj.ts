@@ -122,7 +122,9 @@ export function calculateDAS(
     const faixa = table.find((f) => bruto12Months >= f.min && bruto12Months <= f.max)
       || table[table.length - 1];
 
-    const aliquotaEfetiva = ((bruto12Months * (faixa.aliquota / 100)) - faixa.deducao) / bruto12Months * 100;
+    const aliquotaEfetiva = bruto12Months > 0
+      ? ((bruto12Months * (faixa.aliquota / 100)) - faixa.deducao) / bruto12Months * 100
+      : faixa.aliquota;
     const dasAmount = receitaMes * (aliquotaEfetiva / 100);
 
     return {
@@ -150,7 +152,7 @@ export function calculateDAS(
       bruto12Months,
       receitaMes,
       aliquotaNominal: 0,
-      aliquotaEfetiva: (total / receitaMes) * 100,
+      aliquotaEfetiva: receitaMes > 0 ? (total / receitaMes) * 100 : 0,
       dasAmount: total,
       details: 'Estimativa: PIS 0,65% + COFINS 3% + CSLL 9% (base 12%) + IRPJ 15% (base 8%)',
       breakdown: { PIS: pis, COFINS: cofins, CSLL: csll, IRPJ: irpj },

@@ -10,7 +10,7 @@ interface TaxRecord { id: string; type: string; period: string; year: number; mo
 interface DASCalc { regime: string; anexo?: string; bruto12Months: number; receitaMes: number; aliquotaNominal: number; aliquotaEfetiva: number; dasAmount: number; details: string; breakdown?: Record<string, number>; }
 interface ServiceFiscalRule { id: string; name: string; serviceCodeLc116: string; cnae?: string; providerCityCode: string; providerCityName?: string; customerCityCode?: string; customerCityName?: string; operationNature: string; taxRegime: string; isSimplesNacional: boolean; issRate: number; issWithheld: boolean; isDefault: boolean; isActive: boolean; cbsRate?: number; ibsRate?: number; updatedAt?: string; }
 
-const fmtCurrency = (v: number) => v?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtCurrency = (v: number) => (v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = (v: string) => v ? new Date(v).toLocaleDateString('pt-BR') : '-';
 const now = new Date();
 
@@ -186,7 +186,7 @@ function FiscalPJContent() {
                 </div>
                 <div className="bg-slate-900/60 rounded-lg p-3">
                   <p className="text-slate-400 text-xs">Alíquota Efetiva</p>
-                  <p className="text-white font-semibold mt-1">{calc.aliquotaEfetiva.toFixed(2).replace('.', ',')}%</p>
+                  <p className="text-white font-semibold mt-1">{(calc.aliquotaEfetiva ?? 0).toFixed(2).replace('.', ',')}%</p>
                 </div>
                 <div className="bg-green-900/40 border border-green-700/40 rounded-lg p-3">
                   <p className="text-green-300 text-xs">DAS a Pagar</p>
