@@ -396,6 +396,7 @@ export async function POST(req: NextRequest) {
 
     const bankConnectionId: string | null = body.bankConnectionId || null;
     const bankName: string = body.bankName || 'Extrato PJ';
+    // PJReconciliation.importBatchId não tem FK — agrupador legado (fluxo CSV antigo)
     const importBatchId = randomUUID();
 
     const [reconP2, reconR2, allPay2, allRec2] = await Promise.all([
@@ -486,8 +487,24 @@ export async function POST(req: NextRequest) {
       });
 
       if (matchStatus === 'RECONCILED' && matchId) {
-        if (matchType === 'PAYABLE') await prisma.accountsPayable.update({ where: { id: matchId }, data: { status: 'pago', paidAt: bankDate, amountPaid: absAmount } });
-        else await prisma.accountsReceivable.update({ where: { id: matchId }, data: { status: 'recebido', receivedAt: bankDate, amountReceived: absAmount } });
+        if (matchType === 'PAYABLE') {
+          await prisma.accountsPayable.update({ where: { id: matchId }, data: { status: 'pago', paidAt: bankDate, amountPaid: absAmount } });
+        } else {
+          // Baixa via máquina de estados (mantém billingStatus consistente)
+          const { transitionBillingStatus } = await import('@/lib/billing-state');
+          try {
+            await transitionBillingStatus(matchId, 'QUITADA', {
+              userId: session.user.id,
+              companyId,
+              data: { receivedAt: bankDate, amountReceived: absAmount },
+              notes: 'Conciliação PJ (CSV legado)',
+            });
+            await transitionBillingStatus(matchId, 'CONCILIADA', { userId: session.user.id, companyId });
+          } catch {
+            // fallback legado (recebível já quitado/conciliado)
+            await prisma.accountsReceivable.update({ where: { id: matchId }, data: { status: 'recebido', receivedAt: bankDate, amountReceived: absAmount } }).catch(() => {});
+          }
+        }
       }
 
       results.push(recon);

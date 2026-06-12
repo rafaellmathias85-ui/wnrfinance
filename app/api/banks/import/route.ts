@@ -38,7 +38,6 @@ export async function POST(request: Request) {
     }
 
     const userId = session.user.id;
-    const batchId = `import_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     // Resolve companyId from the bank connection (null = PF context)
     let connectionCompanyId: string | null = null;
@@ -58,6 +57,17 @@ export async function POST(request: Request) {
     let imported = 0;
     let skipped = 0;
     const errors: string[] = [];
+
+    // Lote real de conciliação (FK em import_batches)
+    const { importBatchService } = await import('@/src/modules/reconciliation/import-batch.service');
+    const importBatch = await importBatchService.createBatch({
+      userId,
+      companyId: connectionCompanyId,
+      bankConnectionId: bankConnectionId || null,
+      source: 'OFX',
+      type: 'MANUAL',
+    });
+    const batchId = importBatch.id;
 
     for (const tx of statement.transactions) {
       try {
@@ -106,6 +116,9 @@ export async function POST(request: Request) {
         errors.push(tx.description ?? tx.externalId ?? 'unknown');
       }
     }
+
+    await importBatchService.refreshPeriod(batchId);
+    await importBatchService.refreshCounters(batchId);
 
     await createAuditLog({
       userId,

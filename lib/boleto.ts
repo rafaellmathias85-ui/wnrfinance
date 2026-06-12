@@ -264,10 +264,19 @@ export async function processAsaasWebhook(event: AsaasWebhookEvent): Promise<voi
             status: 'recebido',
             amountReceived: payment.value ?? boleto.amount,
             receivedAt: paidAt,
+            billingStatus: 'QUITADA',
+            boletoStatus: 'pago',
           },
         });
       }
     });
+
+    // Tarifa de liquidação automática (se habilitada na conta) — fora da
+    // transação: falha na tarifa não pode reverter a baixa do pagamento.
+    try {
+      const { registerSettlementFees } = await import('@/lib/bank-fees');
+      await registerSettlementFees(boleto.companyId, boleto.id, paidAt);
+    } catch { /* tarifa é best-effort */ }
   } else if (event.event === 'PAYMENT_OVERDUE') {
     // Não rebaixa cobrança já liquidada (eventos fora de ordem)
     await prisma.boletoCharge.updateMany({

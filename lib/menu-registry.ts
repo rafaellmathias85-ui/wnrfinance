@@ -240,6 +240,7 @@ const PJ_MODULES: ModuleTab[] = [
           { href: '/pj/fluxo-caixa', label: 'Fluxo de Caixa', icon: Activity, description: 'Entradas e saídas' },
           { href: '/pj/dre', label: 'DRE', icon: FileSpreadsheet, description: 'Demonstrativo de resultados' },
           { href: '/pj/conciliacao', label: 'Conciliação', icon: FileCheck, description: 'Conferir extratos' },
+          { href: '/pj/conciliacao/lotes', label: 'Conciliação por Lotes', icon: FileCheck, description: 'Arquivos de conciliação por conta (V2)' },
           { href: '/pj/orcamento', label: 'Previsão Orçamentária', icon: Target, description: 'Planejado vs. realizado por período' },
           { href: '/pj/relatorios/comparativo', label: 'Comparativo de Períodos', icon: BarChart3, description: 'Compare dois períodos lado a lado' },
           { href: '/pj/relatorios', label: 'Relatórios Financeiros', icon: PieChart, description: 'Análise consolidada do período' },

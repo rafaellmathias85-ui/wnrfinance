@@ -136,7 +136,17 @@ export class OfxProvider implements BankProvider {
   ): Promise<StatementImportResult> {
     let imported = 0;
     let skipped = 0;
-    const batchId = `bank_import_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    // Lote real de conciliação (FK em import_batches) — paridade BomControle
+    const { importBatchService } = await import('@/src/modules/reconciliation/import-batch.service');
+    const batch = await importBatchService.createBatch({
+      userId: context.userId,
+      companyId: context.companyId || null,
+      bankConnectionId: context.connection?.id || null,
+      source: 'OFX',
+      type: 'MANUAL',
+    });
+    const batchId = batch.id;
 
     for (const tx of transactions) {
       const duplicate = await this.isDuplicate(tx, context);
@@ -179,6 +189,9 @@ export class OfxProvider implements BankProvider {
         }
       }
     }
+
+    await importBatchService.refreshPeriod(batchId);
+    await importBatchService.refreshCounters(batchId);
 
     return {
       imported,

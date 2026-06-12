@@ -231,13 +231,21 @@ export class BankingService {
         provider.getBalance(),
         provider.getTransactions(startDate, endDate),
       ]);
-      const saved = await this.saveCanonicalTransactions(transactions, connection);
+      const saved = await this.saveCanonicalTransactions(transactions, connection, {
+        automatic: options.automatic,
+      });
       const reconciliation = await reconciliationService.reconcileBankTransactions({
         userId: connection.userId,
         companyId: connection.companyId || null,
         bankConnectionId: connection.id,
         bankTransactionIds: saved.createdIds,
       });
+
+      // Contadores do lote refletem o resultado do auto-match
+      if (saved.importBatchId) {
+        const { importBatchService } = await import('@/src/modules/reconciliation/import-batch.service');
+        await importBatchService.refreshCounters(saved.importBatchId);
+      }
 
       await prisma.bankConnection.update({
         where: { id: connection.id },
@@ -393,11 +401,25 @@ export class BankingService {
     });
   }
 
-  private async saveCanonicalTransactions(transactions: CanonicalTransaction[], connection: BankConnection) {
+  private async saveCanonicalTransactions(
+    transactions: CanonicalTransaction[],
+    connection: BankConnection,
+    options?: { automatic?: boolean },
+  ) {
     let imported = 0;
     let skipped = 0;
     const createdIds: string[] = [];
-    const importBatchId = `sync_${connection.id}_${Date.now()}`;
+
+    // Lote real de conciliação (paridade BomControle: "Arquivos de conciliação")
+    const { importBatchService } = await import('@/src/modules/reconciliation/import-batch.service');
+    const batch = await importBatchService.createBatch({
+      userId: connection.userId,
+      companyId: connection.companyId || null,
+      bankConnectionId: connection.id,
+      source: `API_${connection.bankCode || connection.provider || 'BANK'}`.toUpperCase(),
+      type: options?.automatic ? 'AUTOMATICO' : 'MANUAL',
+    });
+    const importBatchId = batch.id;
 
     for (const tx of transactions) {
       const dbExternalId = buildDatabaseExternalId(tx);
@@ -459,7 +481,11 @@ export class BankingService {
       }
     }
 
-    return { imported, skipped, createdIds };
+    // Período real + contadores iniciais do lote
+    await importBatchService.refreshPeriod(importBatchId);
+    await importBatchService.refreshCounters(importBatchId);
+
+    return { imported, skipped, createdIds, importBatchId };
   }
 
   private async getConnectionForUser(params: {

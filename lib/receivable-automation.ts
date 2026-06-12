@@ -182,7 +182,7 @@ async function generateCharge(
   };
 
   const chargeResult = await createCharge(companyId, payload);
-  const charge = await prisma.boletoCharge.create({
+  const chargeRecord = await prisma.boletoCharge.create({
     data: {
       companyId,
       receivableId: receivable.id,
@@ -204,9 +204,17 @@ async function generateCharge(
     },
   });
 
+  // Tarifa de emissão automática (se habilitada na conta de cobrança)
+  if (chargeResult.success) {
+    try {
+      const { registerIssueFee } = await import('@/lib/bank-fees');
+      await registerIssueFee(companyId, chargeRecord.id);
+    } catch { /* tarifa é best-effort */ }
+  }
+
   return {
-    id: charge.id,
-    status: charge.status,
+    id: chargeRecord.id,
+    status: chargeRecord.status,
     errorMessage: chargeResult.success ? undefined : chargeResult.errorMessage,
   };
 }

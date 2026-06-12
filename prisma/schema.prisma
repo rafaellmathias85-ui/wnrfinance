@@ -303,6 +303,24 @@ model BankConnection {
   accessTokenEnc   String?           @map("access_token_encrypted")
   refreshTokenEnc  String?           @map("refresh_token_encrypted")
   extraConfig      Json?             @map("extra_config") // bank-specific fields (convenio, cooperativa, etc.)
+  // ── Defaults de cobrança da conta (paridade BomControle: conta = hub de config) ──
+  finePercent            Float?  @map("fine_percent") // multa % (ex.: 2.0)
+  monthlyInterestPercent Float?  @map("monthly_interest_percent") // juros % a.m. (ex.: 1.0)
+  discountValue          Float?  @map("discount_value") // desconto até o vencimento (R$)
+  discountPercent        Float?  @map("discount_percent") // ou desconto percentual
+  discountDaysBefore     Int?    @map("discount_days_before") // dias de antecedência p/ desconto
+  settlementBusinessDays Int?    @map("settlement_business_days") // D+N: dias úteis p/ banco liberar o dinheiro
+  minPaymentValue        Float?  @map("min_payment_value") // valor mínimo de pagamento
+  writeOffDays           Int?    @map("write_off_days") // prazo p/ baixa automática após vencimento
+  boletoInstructions     String? @map("boleto_instructions") @db.Text // instruções impressas no boleto
+  pixKey                 String? @map("pix_key")
+  boletoEnabled          Boolean @default(false) @map("boleto_enabled")
+  pixEnabled             Boolean @default(false) @map("pix_enabled")
+  // Geração automática de taxas: cria AccountsPayable da tarifa na emissão/cancelamento/quitação
+  autoFeeEnabled         Boolean @default(false) @map("auto_fee_enabled")
+  feeIssueAmount         Float?  @map("fee_issue_amount") // tarifa de emissão/registro
+  feeSettleAmount        Float?  @map("fee_settle_amount") // tarifa de liquidação
+  feePixAmount           Float?  @map("fee_pix_amount") // tarifa pix cobrança
   expenses         Expense[]
   incomes          Income[]
   creditCards      CreditCard[]
@@ -362,6 +380,7 @@ model BankTransaction {
   rawData          Json?           @map("raw_payload")
   status           String          @default("PENDING") @map("reconciliation_status") // PENDING, SUGGESTED, RECONCILED, IGNORED
   importBatchId    String?         @map("import_batch_id")
+  importBatch      ImportBatch?    @relation("BatchTransactions", fields: [importBatchId], references: [id], onDelete: SetNull)
   reconciliation   Reconciliation? @relation("ReconBankTx")
   createdAt        DateTime        @default(now()) @map("created_at")
   updatedAt        DateTime        @updatedAt @map("updated_at")
@@ -639,6 +658,17 @@ model AccountsReceivable {
   generateBoleto Boolean                 @default(true)
   generatePix    Boolean                 @default(true)
   generateNfe    Boolean                 @default(true)
+  // ── Pipeline de faturamento (máquina de estados — lib/billing-state.ts) ──
+  // PREVISTA → FATURADA → QUITADA → CONCILIADA | FATURADA → VENCIDA | * → CANCELADA
+  billingStatus  String                  @default("FATURADA") @map("billing_status")
+  billingDate    DateTime?               @map("billing_date") // data planejada de faturamento (venc - leadDays)
+  billedAt       DateTime?               @map("billed_at") // quando o pipeline faturou de fato
+  invoiceSentAt  DateTime?               @map("invoice_sent_at") // último envio de fatura por e-mail/whats
+  reconciledAt   DateTime?               @map("reconciled_at") // quando conciliou com o extrato
+  // Status por artefato (paridade BomControle: cada artefato tem ciclo próprio)
+  nfeStatus      String?                 @map("nfe_status") // null=n/a, pendente, emitida, cancelada, erro
+  boletoStatus   String?                 @map("boleto_status") // null=n/a, pendente, registrado, pago, cancelado, erro
+  emailStatus    String?                 @map("email_status") // null=n/a, pendente, enviado, erro
   createdAt      DateTime                @default(now())
   updatedAt      DateTime                @updatedAt
 
@@ -649,6 +679,8 @@ model AccountsReceivable {
   @@index([sourceId])
   @@index([sourceId, billingPeriod])
   @@index([fiscalRuleId])
+  @@index([billingStatus])
+  @@index([billingDate])
 }
 
 model ReceivableNegotiation {
@@ -1586,6 +1618,8 @@ model NFe {
   validationErrors Json?
   providerKey      String? // which NF provider (nfe_io, focusnfe, etc.)
   providerNFeId    String? // external NF-e ID
+  rpsNumber        String? @map("rps_number") // número do RPS retornado pela prefeitura
+  rpsSeries        String? @map("rps_series")
   accessKey        String? // chave de acesso (44 chars)
   xmlUrl           String?
   pdfUrl           String? // DANFE URL
@@ -1638,6 +1672,103 @@ model BoletoCharge {
   @@index([status])
   @@index([receivableId])
   @@index([dueDate])
+}
+
+// ═══════════════ CONCILIAÇÃO V2 (paridade BomControle) ═══════════════
+
+// Lote de importação de extrato: 1 lote por execução de sync (API) ou por arquivo (OFX/CSV).
+// Tela "Arquivos de conciliação": contadores Conciliados/Ignorados/Pendentes/Total por lote.
+model ImportBatch {
+  id               String            @id @default(cuid())
+  companyId        String?           @map("company_id") // null = PF
+  userId           String            @map("user_id")
+  bankConnectionId String?           @map("bank_connection_id")
+  source           String // API_INTER, API_ITAU, OFX, CSV, MANUAL
+  type             String            @default("AUTOMATICO") // AUTOMATICO, MANUAL
+  status           String            @default("PENDENTE") // PENDENTE, PARCIAL, CONCILIADO
+  periodStart      DateTime?         @map("period_start")
+  periodEnd        DateTime?         @map("period_end")
+  totalCount       Int               @default(0) @map("total_count")
+  reconciledCount  Int               @default(0) @map("reconciled_count")
+  ignoredCount     Int               @default(0) @map("ignored_count")
+  pendingCount     Int               @default(0) @map("pending_count")
+  fileName         String?           @map("file_name") // OFX/CSV manual
+  transactions     BankTransaction[] @relation("BatchTransactions")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  finishedAt       DateTime?         @map("finished_at")
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([bankConnectionId])
+  @@index([status])
+  @@map("import_batches")
+}
+
+// Regras de autocategorização/conciliação por conta bancária (paridade BomControle:
+// "Texto Conciliação" no cadastro da conta). Aplicadas na importação e no matching.
+model BankReconciliationRule {
+  id               String   @id @default(cuid())
+  companyId        String?  @map("company_id") // null = PF (escopo userId)
+  userId           String   @map("user_id")
+  bankConnectionId String?  @map("bank_connection_id") // null = vale para todas as contas
+  type             String // RECEITA, DESPESA
+  matchText        String   @map("match_text")
+  exactMatch       Boolean  @default(false) @map("exact_match")
+  categoryId       String?  @map("category_id") // BusinessCategory (PJ) ou categoria PF
+  clientId         String?  @map("client_id")
+  supplierId       String?  @map("supplier_id")
+  costCenterId     String?  @map("cost_center_id")
+  paymentMethod    String?  @map("payment_method")
+  priority         Int      @default(0)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdBy        String?  @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId, isActive])
+  @@index([bankConnectionId])
+  @@map("bank_reconciliation_rules")
+}
+
+// Anexos categorizados por entidade (paridade BomControle: Fatura/Comprovante/NF/Outros,
+// com opção de aplicar a todas as parcelas da recorrência).
+model Attachment {
+  id                     String   @id @default(cuid())
+  companyId              String?  @map("company_id")
+  userId                 String   @map("user_id")
+  entityType             String   @map("entity_type") // receivable, payable, contract, boleto, nfe
+  entityId               String   @map("entity_id")
+  category               String   @default("OUTROS") // FATURA, COMPROVANTE, NOTA_FISCAL, OUTROS
+  fileName               String   @map("file_name")
+  fileUrl                String   @map("file_url")
+  fileSize               Int?     @map("file_size")
+  mimeType               String?  @map("mime_type")
+  appliedToAllInstallments Boolean @default(false) @map("applied_to_all_installments")
+  uploadedBy             String?  @map("uploaded_by")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([companyId])
+  @@map("attachments")
+}
+
+// Histórico de reajustes de contrato (paridade BomControle: data, usuário, índice,
+// valor anterior → valor após).
+model ContractAdjustmentLog {
+  id            String   @id @default(cuid())
+  contractId    String   @map("contract_id")
+  contract      Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  appliedBy     String?  @map("applied_by")
+  indexUsed     String   @map("index_used") // MANUAL, IGPM, IPCA
+  percentApplied Float   @map("percent_applied")
+  valueBefore   Float    @map("value_before")
+  valueAfter    Float    @map("value_after")
+  installmentsAffected Int @default(0) @map("installments_affected")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([contractId])
+  @@map("contract_adjustment_logs")
 }
 
 // Registro de eventos de webhook recebidos (idempotência + auditoria)
@@ -1818,7 +1949,13 @@ model Contract {
   requiresNFe       Boolean            @default(false) // gera NF-e em cada faturamento
   requiresBoleto    Boolean            @default(false) // gera boleto/PIX em cada faturamento
   billingDay        Int?
+  billingLeadDays   Int                @default(4) // faturar N dias antes do vencimento (paridade BomControle)
   chargeType        String             @default("boleto_pix") // boleto, pix, boleto_pix, link
+  // Reajuste contratual
+  adjustmentIndex   String?            @default("NENHUM") // NENHUM, IGPM, IPCA, MANUAL
+  adjustmentPeriod  String?            @default("ANUAL") // MENSAL, ANUAL
+  nextAdjustmentDate DateTime?
+  adjustmentLogs    ContractAdjustmentLog[]
   fiscalRuleId      String?
   fiscalRule        ServiceFiscalRule? @relation("ContractFiscalRule", fields: [fiscalRuleId], references: [id], onDelete: SetNull)
   autoSendEmail     Boolean            @default(false)

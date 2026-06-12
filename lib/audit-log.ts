@@ -74,6 +74,7 @@ export async function getAuditLogs(opts: {
   userId?: string;
   companyId?: string;
   entity?: string;
+  entityId?: string;
   action?: string;
   startDate?: Date;
   endDate?: Date;
@@ -86,6 +87,7 @@ export async function getAuditLogs(opts: {
   if (opts.userId) where.userId = opts.userId;
   if (opts.companyId) where.companyId = opts.companyId;
   if (opts.entity) where.entity = opts.entity;
+  if (opts.entityId) where.entityId = opts.entityId;
   if (opts.action) where.action = opts.action;
   if (opts.startDate || opts.endDate) {
     where.createdAt = {};

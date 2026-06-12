@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { signOut } from 'next-auth/react';
 import { useHideAmounts } from '@/lib/hide-amounts-context';
+import { FiscalMonitorBadge } from '@/components/pj/fiscal-monitor-badge';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -302,6 +303,13 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
               <span className="hidden md:inline">PJ</span>
             </button>
           </div>
+
+          {/* Monitor fiscal (badge SEFAZ — paridade BomControle) */}
+          {activeEnv === 'pj' && (
+            <div className="mr-1 flex-shrink-0 hidden md:block">
+              <FiscalMonitorBadge />
+            </div>
+          )}
 
           {/* Company Selector */}
           {activeEnv === 'pj' && companies.length > 0 && (

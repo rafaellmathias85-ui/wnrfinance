@@ -25,36 +25,85 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case 'cancel_nfe': {
-        // Cancel NFes linked to the selected receivables
-        await prisma.nFe.updateMany({
-          where: { receivableId: { in: ids }, companyId, status: { notIn: ['cancelada'] } },
-          data: { status: 'cancelada', canceledAt: new Date(), cancelReason: 'Cancelamento em lote' },
+        // Cancela NF-e no PROVEDOR (Sefaz/prefeitura) e só então no banco local.
+        // Nunca marcar cancelada localmente com nota viva no provedor (furo fiscal).
+        const { cancelNFe } = await import('@/lib/nfe');
+        const justification = body.justification || 'Cancelamento solicitado pelo emissor';
+        const nfes = await prisma.nFe.findMany({
+          where: { receivableId: { in: ids }, companyId, status: { notIn: ['cancelada', 'rejeitada'] } },
         });
-        return NextResponse.json({ ok: true, action });
+        const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+        for (const nfe of nfes) {
+          try {
+            if (nfe.providerNFeId && ['enviada', 'autorizada'].includes(nfe.status)) {
+              const r = await cancelNFe(companyId, nfe.providerNFeId, justification);
+              if (!r.success) {
+                results.push({ id: nfe.id, ok: false, error: r.errorMessage });
+                continue;
+              }
+            }
+            await prisma.nFe.update({
+              where: { id: nfe.id },
+              data: { status: 'cancelada', canceledAt: new Date(), cancelReason: justification },
+            });
+            if (nfe.receivableId) {
+              await prisma.accountsReceivable.update({
+                where: { id: nfe.receivableId },
+                data: { nfeStatus: 'cancelada' },
+              }).catch(() => {});
+            }
+            results.push({ id: nfe.id, ok: true });
+          } catch (err: any) {
+            results.push({ id: nfe.id, ok: false, error: err?.message });
+          }
+        }
+        return NextResponse.json({ ok: true, action, results });
       }
       case 'cancel_boleto': {
-        await prisma.boletoCharge.updateMany({
+        // Cancela a cobrança no PROVEDOR (Asaas/Inter) antes do banco local —
+        // boleto cancelado só localmente continuaria pagável pelo cliente.
+        const { cancelCharge } = await import('@/lib/boleto');
+        const charges = await prisma.boletoCharge.findMany({
           where: { receivableId: { in: ids }, companyId, status: { notIn: ['cancelado', 'pago'] } },
-          data: { status: 'cancelado' },
         });
-        return NextResponse.json({ ok: true, action });
+        const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+        for (const charge of charges) {
+          try {
+            if (charge.providerChargeId) {
+              const r = await cancelCharge(companyId, charge.providerChargeId);
+              if (!r.success) {
+                results.push({ id: charge.id, ok: false, error: r.errorMessage });
+                continue;
+              }
+            }
+            await prisma.boletoCharge.update({ where: { id: charge.id }, data: { status: 'cancelado' } });
+            if (charge.receivableId) {
+              await prisma.accountsReceivable.update({
+                where: { id: charge.receivableId },
+                data: { boletoStatus: 'cancelado' },
+              }).catch(() => {});
+            }
+            results.push({ id: charge.id, ok: true });
+          } catch (err: any) {
+            results.push({ id: charge.id, ok: false, error: err?.message });
+          }
+        }
+        return NextResponse.json({ ok: true, action, results });
       }
       case 'faturar_agora': {
-        const pendingItems = items.filter(i => i.status === 'pendente');
-        // Mark as "em processamento" — real generation would be a background job
-        for (const item of pendingItems) {
-          await prisma.auditLog.create({
-            data: {
-              userId: session.user.id,
-              companyId,
-              action: 'UPDATE',
-              entity: 'AccountsReceivable',
-              entityId: item.id,
-              metadata: { description: 'Faturamento imediato solicitado via lote', userName: session.user.name },
-            },
-          });
+        // Pipeline real: NFS-e + boleto/pix + e-mail por parcela (idempotente)
+        const { faturarParcela } = await import('@/lib/billing-pipeline');
+        const eligible = items.filter((i) =>
+          ['PREVISTA', 'FATURADA', 'VENCIDA'].includes((i as any).billingStatus || 'FATURADA') &&
+          i.status !== 'cancelado' && i.status !== 'recebido',
+        );
+        const results = [] as any[];
+        for (const item of eligible) {
+          const r = await faturarParcela(item.id, { userId: session.user.id });
+          results.push(r);
         }
-        return NextResponse.json({ ok: true, processed: pendingItems.length });
+        const succeeded = results.filter((r) => r.ok).length;
+        return NextResponse.json({ ok: true, processed: results.length, succeeded, results });
       }
       case 'no_boleto':
         await prisma.accountsReceivable.updateMany({ where: { id: { in: ids }, companyId }, data: { generateBoleto: false } });
@@ -106,8 +155,53 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, queued });
       }
       case 'update_nfse_status': {
-        // Placeholder — would call fiscal provider API for each
-        return NextResponse.json({ ok: true, message: 'Status NFSE atualizado (simulado)' });
+        // Polling real no provedor fiscal (Focus NFe) — paridade BomControle
+        // "Atualizar Status": complementa o webhook como mecanismo de reconciliação fiscal.
+        const { queryNFeStatus } = await import('@/lib/nfe');
+        const nfes = await prisma.nFe.findMany({
+          where: {
+            receivableId: { in: ids },
+            companyId,
+            providerNFeId: { not: null },
+            status: { in: ['enviada', 'rascunho'] },
+          },
+        });
+        const statusMap: Record<string, string> = {
+          autorizado: 'autorizada',
+          emitida: 'autorizada',
+          cancelado: 'cancelada',
+          erro_autorizacao: 'rejeitada',
+          rejeitada: 'rejeitada',
+          denegada: 'rejeitada',
+          processando_autorizacao: 'enviada',
+        };
+        const results: Array<{ id: string; status?: string; error?: string }> = [];
+        for (const nfe of nfes) {
+          try {
+            const remote = await queryNFeStatus(companyId, nfe.providerNFeId!);
+            const newStatus = statusMap[remote.status] || remote.status;
+            await prisma.nFe.update({
+              where: { id: nfe.id },
+              data: {
+                status: newStatus,
+                accessKey: remote.accessKey || nfe.accessKey,
+                pdfUrl: remote.pdfUrl || nfe.pdfUrl,
+                xmlUrl: remote.xmlUrl || nfe.xmlUrl,
+                ...(newStatus === 'autorizada' && !nfe.issuedAt ? { issuedAt: new Date() } : {}),
+              },
+            });
+            if (nfe.receivableId) {
+              await prisma.accountsReceivable.update({
+                where: { id: nfe.receivableId },
+                data: { nfeStatus: newStatus === 'autorizada' ? 'emitida' : newStatus === 'enviada' ? 'pendente' : 'erro' },
+              }).catch(() => {});
+            }
+            results.push({ id: nfe.id, status: newStatus });
+          } catch (err: any) {
+            results.push({ id: nfe.id, error: err?.message });
+          }
+        }
+        return NextResponse.json({ ok: true, updated: results.length, results });
       }
       default:
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });

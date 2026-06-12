@@ -13,6 +13,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const entity = searchParams.get('entity') || undefined;
+    const entityId = searchParams.get('entityId') || undefined;
     const action = searchParams.get('action') || undefined;
     const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined;
     const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined;
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
       userId: isAdmin ? undefined : session.user.id, // admins see all, regular users see own
       companyId: isAdmin ? undefined : companyId,
       entity,
+      entityId,
       action,
       startDate,
       endDate,

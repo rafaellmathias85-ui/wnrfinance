@@ -52,7 +52,15 @@ export async function POST(req: NextRequest) {
 
     let imported = 0;
     let skipped = 0;
-    const importBatchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const { importBatchService } = await import('@/src/modules/reconciliation/import-batch.service');
+    const batch = await importBatchService.createBatch({
+      userId: session.user.id,
+      companyId: null,
+      bankConnectionId: bankConnectionId || null,
+      source: 'MANUAL',
+      type: 'MANUAL',
+    });
+    const importBatchId = batch.id;
 
     for (const tx of transactions) {
       if (!tx.description || tx.amount === undefined || !tx.date || !tx.type) {

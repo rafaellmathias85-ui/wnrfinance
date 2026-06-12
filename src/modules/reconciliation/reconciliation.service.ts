@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { reconciliationRulesService, type MatchCandidate } from './reconciliation-rules.service';
+import { normalizeTransactionDescription } from '@/src/modules/banking/bank-transaction-hash';
 
 interface ReconcileParams {
   userId: string;
@@ -41,7 +42,35 @@ export class ReconciliationService {
     let suggested = 0;
     let pending = 0;
 
+    // Regras de conciliação por conta (paridade BomControle: "Texto Conciliação")
+    const accountRules = await prisma.bankReconciliationRule.findMany({
+      where: {
+        userId: params.userId,
+        isActive: true,
+        OR: [
+          { bankConnectionId: params.bankConnectionId || undefined },
+          { bankConnectionId: null },
+        ],
+        ...(params.companyId !== undefined ? { companyId: params.companyId } : {}),
+      },
+      orderBy: { priority: 'desc' },
+    });
+
     for (const tx of bankTransactions) {
+      // Aplica a primeira regra que casar: categoriza a transação do extrato
+      const txType = tx.type === 'debit' ? 'DESPESA' : 'RECEITA';
+      const normalizedDesc = normalizeTransactionDescription(tx.description || '');
+      const rule = accountRules.find((r) => {
+        if (r.type !== txType) return false;
+        const ruleText = normalizeTransactionDescription(r.matchText);
+        return r.exactMatch ? normalizedDesc === ruleText : normalizedDesc.includes(ruleText);
+      });
+      if (rule && !tx.category) {
+        await prisma.bankTransaction.update({
+          where: { id: tx.id },
+          data: { category: rule.categoryId || rule.paymentMethod || null },
+        }).catch(() => {});
+      }
       const relevant = candidates.filter((candidate) =>
         tx.type === 'debit' ? candidate.type === 'expense' : candidate.type === 'income',
       );
@@ -228,6 +257,36 @@ export class ReconciliationService {
         data: { status: bankStatus },
       });
     });
+
+    // Conciliação confirmada de RECEITA PJ → recebível QUITADA → CONCILIADA
+    // (máquina de estados mantém billingStatus/status legado e auditoria em sincronia)
+    if (status === 'RECONCILED' && candidate.type === 'income' && tx.companyId) {
+      try {
+        const { transitionBillingStatus } = await import('@/lib/billing-state');
+        const receivable = await prisma.accountsReceivable.findUnique({
+          where: { id: candidate.id },
+          select: { id: true, billingStatus: true },
+        });
+        if (receivable) {
+          if (receivable.billingStatus === 'FATURADA' || receivable.billingStatus === 'VENCIDA') {
+            await transitionBillingStatus(candidate.id, 'QUITADA', {
+              companyId: tx.companyId,
+              data: { receivedAt: tx.date, amountReceived: tx.amount },
+              notes: 'Auto-match de extrato bancário',
+            });
+          }
+          const after = await prisma.accountsReceivable.findUnique({
+            where: { id: candidate.id },
+            select: { billingStatus: true },
+          });
+          if (after?.billingStatus === 'QUITADA') {
+            await transitionBillingStatus(candidate.id, 'CONCILIADA', { companyId: tx.companyId });
+          }
+        }
+      } catch (err: any) {
+        console.error('[Reconciliation] transição de estado falhou:', err?.message);
+      }
+    }
   }
 
   private async persistPending(tx: any): Promise<void> {
