@@ -150,9 +150,24 @@ async function buildFinancialContext(companyId: string): Promise<string> {
   ].sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime());
 
   if (allPending.length > 0) {
-    ctx += '\nLANÇAMENTOS PENDENTES COM IDs (use para conciliar):\n';
+    ctx += '\nLANÇAMENTOS PENDENTES COM IDs (use para conciliar/excluir):\n';
     allPending.slice(0, 20).forEach(x =>
       ctx += `  [${x.kind}] id="${x.id}" | ${x.desc}${x.name ? ` / ${x.name}` : ''} | ${brl(x.amount)} | vcto: ${new Date(x.due).toLocaleDateString('pt-BR')}\n`
+    );
+  }
+
+  // Reconciliation items needing action
+  const reconcItems = await prisma.pJReconciliation.findMany({
+    where: { companyId, status: { in: ['PENDING', 'SUGGESTED', 'DIVERGENT', 'BANK_ONLY'] } },
+    select: { id: true, status: true, type: true, bankAmount: true, bankDate: true, bankReference: true, divergenceNote: true },
+    orderBy: { bankDate: 'desc' },
+    take: 15,
+  });
+
+  if (reconcItems.length > 0) {
+    ctx += '\nITENS DE CONCILIAÇÃO BANCÁRIA (aguardando ação):\n';
+    reconcItems.forEach(r =>
+      ctx += `  id="${r.id}" | ${r.status} | ${r.type} | ${brl(r.bankAmount ?? 0)} | ${r.bankDate ? new Date(r.bankDate).toLocaleDateString('pt-BR') : '?'}${r.bankReference ? ` | ref: ${r.bankReference}` : ''}${r.divergenceNote ? ` | nota: ${r.divergenceNote}` : ''}\n`
     );
   }
 
@@ -208,6 +223,14 @@ Use o ID da seção "LANÇAMENTOS PENDENTES COM IDs" abaixo. Exige identificaç�
 AÇÃO 5 — EXCLUIR CONTA A RECEBER
 Use o ID da seção "LANÇAMENTOS PENDENTES COM IDs" abaixo. Exige identificação única e clara.
 [ACTION]{"type":"delete_receivable","data":{"id":"id-exato","description":"descrição para confirmação"}}[/ACTION]
+
+AÇÃO 6 — APROVAR CONCILIAÇÃO BANCÁRIA (PENDING ou SUGGESTED → RECONCILED)
+Use o ID da seção "ITENS DE CONCILIAÇÃO BANCÁRIA" acima.
+[ACTION]{"type":"reconcile_approve","data":{"reconciliationId":"id-exato","summary":"descrição do lançamento bancário"}}[/ACTION]
+
+AÇÃO 7 — IGNORAR LANÇAMENTO BANCÁRIO (marca como IGNORED — não precisa de contrapartida)
+Use o ID da seção "ITENS DE CONCILIAÇÃO BANCÁRIA" acima.
+[ACTION]{"type":"reconcile_ignore","data":{"reconciliationId":"id-exato","summary":"descrição do lançamento bancário"}}[/ACTION]
 
 REGRAS OBRIGATÓRIAS:
 1. Inclua [ACTION] SOMENTE quando houver ordem explícita. Para análises e perguntas, NUNCA inclua.

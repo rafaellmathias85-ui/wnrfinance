@@ -61,7 +61,9 @@ export async function GET() {
   // calculatedBalance = openingBalance + imported credits − imported debits
   const enriched = accounts.map(a => ({
     ...a,
-    calculatedBalance: (a.openingBalance ?? 0) + (creditMap.get(a.id) ?? 0) - (debitMap.get(a.id) ?? 0),
+    totalCredits:       Number(creditMap.get(a.id) ?? 0),
+    totalDebits:        Number(debitMap.get(a.id) ?? 0),
+    calculatedBalance:  Number(a.openingBalance ?? 0) + Number(creditMap.get(a.id) ?? 0) - Number(debitMap.get(a.id) ?? 0),
   }));
 
   const bancaria = enriched.filter(a => !a.accountType || ['checking', 'savings'].includes(a.accountType ?? ''));

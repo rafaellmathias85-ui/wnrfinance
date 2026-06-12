@@ -93,12 +93,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         const baseUrl = decrypted.environment === 'producao'
           ? 'https://api.focusnfe.com.br'
           : 'https://homologacao.focusnfe.com.br';
-        const encoded = Buffer.from(`${decrypted.apiKey}:`).toString('base64');
+        const focusToken = decrypted.token || decrypted.apiKey || '';
+        const encoded = Buffer.from(`${focusToken}:`).toString('base64');
         const res = await fetch(`${baseUrl}/v2/emitentes`, {
           headers: { Authorization: `Basic ${encoded}` },
         });
-        if (!res.ok) { status = 'erro'; error = `Focus NFe retornou ${res.status}`; message = error; }
-        else message = 'Focus NFe conectado com sucesso!';
+        if (!res.ok) { status = 'erro'; error = `Focus NFe retornou HTTP ${res.status} — verifique o token e o ambiente (homologação/produção)`; message = error; }
+        else {
+          const emitentes = await res.json().catch(() => []);
+          const count = Array.isArray(emitentes) ? emitentes.length : 0;
+          message = `Focus NFe conectado! ${count > 0 ? `${count} emitente(s) cadastrado(s).` : 'Token válido, nenhum emitente cadastrado ainda.'}`;
+        }
       } else if (connection.providerKey === 'pluggy') {
         const res = await fetch(`${process.env.PLUGGY_API_URL || 'https://api.pluggy.ai'}/auth`, {
           method: 'POST',

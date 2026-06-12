@@ -489,7 +489,7 @@ export default function ContasReceber() {
                   <Label className="flex items-center gap-1">Categoria <button type="button" onClick={() => { setQuickAdd({ type: 'category', name: '' }); setQuickName(''); }} className="text-primary hover:text-primary/80"><PlusCircle className="w-4 h-4" /></button></Label>
                   <select name="categoryId" defaultValue={editing?.categoryId || ''} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
                     <option value="">Sem categoria</option>
-                    {categories.filter((c: any) => c.type === 'INCOME').map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {categories.filter((c: any) => c.isActive !== false && (c.type === 'INCOME' || c.type === 'receita' || c.type === 'ambos' || c.type === 'BOTH')).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>

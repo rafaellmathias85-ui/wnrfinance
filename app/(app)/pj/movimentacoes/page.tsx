@@ -523,60 +523,75 @@ export default function MovimentacoesPage() {
       {showSaldoPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowSaldoPopup(false)}>
           <div className="absolute inset-0 bg-black/60" />
-          <div className="relative bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
-              <span className="font-semibold text-white">Saldo Bancário</span>
+              <div>
+                <span className="font-semibold text-white text-base">Posição de Caixa</span>
+                <span className="text-slate-400 text-xs ml-2">{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+              </div>
               <button onClick={() => setShowSaldoPopup(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
+            {/* Tabs */}
             <div className="flex border-b border-slate-700">
               {(['bancaria', 'credito'] as const).map(t => (
                 <button key={t} onClick={() => setSaldoTab(t)}
                   className={`flex-1 py-2.5 text-sm font-medium transition-colors ${saldoTab === t ? 'text-white border-b-2 border-blue-500' : 'text-slate-400 hover:text-slate-200'}`}>
-                  {t === 'bancaria' ? 'Bancária' : 'Crédito'}
+                  {t === 'bancaria' ? 'Contas Bancárias' : 'Cartão de Crédito'}
                 </button>
               ))}
             </div>
-            <div className="p-5 space-y-3 max-h-80 overflow-y-auto">
+            {/* Body */}
+            <div className="p-4 space-y-3 max-h-[420px] overflow-y-auto">
               {loadingSaldo ? (
                 <div className="flex justify-center py-8"><RefreshCw className="w-5 h-5 animate-spin text-slate-400" /></div>
               ) : !bancoSaldos ? (
                 <p className="text-slate-400 text-sm text-center py-4">Não foi possível carregar os saldos.</p>
               ) : (() => {
-                const list = saldoTab === 'bancaria' ? bancoSaldos.bancaria?.accounts : bancoSaldos.credito?.accounts;
-                const total = saldoTab === 'bancaria' ? bancoSaldos.bancaria?.total : bancoSaldos.credito?.total;
-                if (!list?.length) return <p className="text-slate-400 text-sm text-center py-4">Nenhuma conta cadastrada nesta categoria.</p>;
+                const list: any[] = saldoTab === 'bancaria' ? bancoSaldos.bancaria?.accounts ?? [] : bancoSaldos.credito?.accounts ?? [];
+                const total: number = saldoTab === 'bancaria' ? bancoSaldos.bancaria?.total ?? 0 : bancoSaldos.credito?.total ?? 0;
+                if (!list.length) return <p className="text-slate-400 text-sm text-center py-4">Nenhuma conta cadastrada nesta categoria.</p>;
                 return (
                   <>
-                    {list.map((acc: any) => (
-                      <div key={acc.id} className="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
-                        <p className="font-semibold text-white mb-3">{acc.bankName}</p>
-                        <div className="space-y-1.5 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Saldo</span>
-                            <span className="text-white font-medium">{fmt(acc.calculatedBalance ?? acc.openingBalance ?? 0)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Saldo de Abertura</span>
-                            <span className="text-slate-300">{fmt(acc.openingBalance ?? 0)}</span>
-                          </div>
-                          {saldoTab === 'credito' && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-400">Limite</span>
-                              <span className="text-slate-300">R$ 0,00</span>
+                    {list.map((acc: any) => {
+                      const balance = acc.calculatedBalance ?? acc.openingBalance ?? 0;
+                      const positive = balance >= 0;
+                      return (
+                        <div key={acc.id} className="bg-slate-700/40 rounded-xl border border-slate-600 overflow-hidden">
+                          {/* Bank header */}
+                          <div className="flex items-center justify-between px-4 py-3 bg-slate-700/60">
+                            <div>
+                              <p className="font-semibold text-white text-sm">{acc.bankName}</p>
+                              {acc.accountNumber && <p className="text-slate-400 text-xs">cc {acc.accountNumber}{acc.agency ? ` · ag ${acc.agency}` : ''}</p>}
                             </div>
-                          )}
-                          <div className="flex justify-between pt-1.5 border-t border-slate-600 font-semibold">
-                            <span className="text-slate-300">TOTAL</span>
-                            <span className="text-white">{fmt(acc.calculatedBalance ?? acc.openingBalance ?? 0)}</span>
+                            <span className={`text-lg font-bold ${positive ? 'text-green-400' : 'text-red-400'}`}>
+                              {fmt(balance)}
+                            </span>
+                          </div>
+                          {/* Running balance detail */}
+                          <div className="grid grid-cols-3 divide-x divide-slate-600 text-xs">
+                            <div className="px-3 py-2">
+                              <p className="text-slate-500 mb-0.5">Saldo inicial</p>
+                              <p className="text-slate-300 font-medium">{fmt(acc.openingBalance ?? 0)}</p>
+                            </div>
+                            <div className="px-3 py-2">
+                              <p className="text-green-500/70 mb-0.5">+ Entradas</p>
+                              <p className="text-green-400 font-medium">{fmt(acc.totalCredits ?? 0)}</p>
+                            </div>
+                            <div className="px-3 py-2">
+                              <p className="text-red-500/70 mb-0.5">− Saídas</p>
+                              <p className="text-red-400 font-medium">{fmt(acc.totalDebits ?? 0)}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    <div className="flex justify-between pt-2 font-bold text-base">
+                      );
+                    })}
+                    {/* Total */}
+                    <div className={`flex items-center justify-between px-4 py-3 rounded-xl border font-bold text-sm ${total >= 0 ? 'bg-green-900/20 border-green-700/50' : 'bg-red-900/20 border-red-700/50'}`}>
                       <span className="text-slate-300">Total {saldoTab === 'bancaria' ? 'Bancário' : 'Crédito'}</span>
-                      <span className="text-white">{fmt(total ?? 0)}</span>
+                      <span className={total >= 0 ? 'text-green-400' : 'text-red-400'}>{fmt(total)}</span>
                     </div>
                   </>
                 );

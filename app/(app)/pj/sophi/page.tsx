@@ -34,7 +34,7 @@ interface SophiConfig {
 }
 
 interface SophiAction {
-  type: 'create_payable' | 'create_receivable' | 'reconcile_accounts' | 'delete_payable' | 'delete_receivable';
+  type: 'create_payable' | 'create_receivable' | 'reconcile_accounts' | 'delete_payable' | 'delete_receivable' | 'reconcile_approve' | 'reconcile_ignore';
   data: Record<string, any>;
 }
 interface PendingAction {
@@ -94,6 +94,12 @@ function getActionSuccessMessage(action: SophiAction): string {
   if (action.type === 'delete_receivable') {
     return `🗑️ **Conta a receber excluída!**\n\n**${d.description}** foi removida permanentemente.`;
   }
+  if (action.type === 'reconcile_approve') {
+    return `✅ **Conciliação aprovada!**\n\n**${d.summary ?? d.reconciliationId}** marcado como conciliado.\n\nVerifique em **Conciliação Bancária**.`;
+  }
+  if (action.type === 'reconcile_ignore') {
+    return `✅ **Lançamento ignorado.**\n\n**${d.summary ?? d.reconciliationId}** não será cobrado de nenhuma conta.`;
+  }
   return '✅ Ação executada com sucesso!';
 }
 
@@ -110,8 +116,10 @@ function ActionCard({ action, status, errorMsg, onConfirm, onCancel }: {
     create_payable:    { title: 'Lançar Conta a Pagar',  Icon: ArrowDownCircle, color: 'border-red-200   bg-red-50/60   dark:border-red-800   dark:bg-red-950/20',     iconCls: 'text-red-500'    },
     create_receivable: { title: 'Lançar Conta a Receber', Icon: ArrowUpCircle,   color: 'border-green-200 bg-green-50/60 dark:border-green-800 dark:bg-green-950/20',   iconCls: 'text-green-500'  },
     reconcile_accounts:{ title: 'Conciliar Lançamentos',  Icon: GitMerge,        color: 'border-blue-200  bg-blue-50/60  dark:border-blue-800  dark:bg-blue-950/20',    iconCls: 'text-blue-500'   },
-    delete_payable:    { title: 'Excluir Conta a Pagar',  Icon: Trash,           color: 'border-red-300   bg-red-100/60  dark:border-red-700   dark:bg-red-900/30',     iconCls: 'text-red-700'    },
-    delete_receivable: { title: 'Excluir Conta a Receber',Icon: Trash,           color: 'border-orange-200 bg-orange-50/60 dark:border-orange-700 dark:bg-orange-950/20', iconCls: 'text-orange-600' },
+    delete_payable:      { title: 'Excluir Conta a Pagar',    Icon: Trash,    color: 'border-red-300    bg-red-100/60    dark:border-red-700    dark:bg-red-900/30',      iconCls: 'text-red-700'    },
+    delete_receivable:   { title: 'Excluir Conta a Receber',  Icon: Trash,    color: 'border-orange-200  bg-orange-50/60  dark:border-orange-700  dark:bg-orange-950/20',  iconCls: 'text-orange-600' },
+    reconcile_approve:   { title: 'Aprovar Conciliação',      Icon: Check,    color: 'border-teal-200    bg-teal-50/60    dark:border-teal-800    dark:bg-teal-950/20',    iconCls: 'text-teal-500'   },
+    reconcile_ignore:    { title: 'Ignorar Lançamento Banco', Icon: X,        color: 'border-slate-300   bg-slate-50/60   dark:border-slate-700   dark:bg-slate-900/40',   iconCls: 'text-slate-500'  },
   }[action.type];
 
   const d = action.data;
@@ -126,6 +134,8 @@ function ActionCard({ action, status, errorMsg, onConfirm, onCancel }: {
   if (d.notes)                            rows.push(['Obs.',        d.notes]);
   if (d.ids?.length)                      rows.push(['Lançamentos', `${d.ids.length} selecionado(s)`]);
   if (d.id && !d.ids)                     rows.push(['ID', d.id.slice(0, 12) + '…']);
+  if (d.reconciliationId)                 rows.push(['ID Conciliação', d.reconciliationId.slice(0, 12) + '…']);
+  if (d.summary)                          rows.push(['Lançamento', d.summary]);
 
   return (
     <div className={`mt-2 w-full rounded-xl border p-4 text-sm ${meta.color}`}>
@@ -529,7 +539,7 @@ export default function SophiPage() {
       if (actionMatch) {
         try {
           const actionPayload: SophiAction = JSON.parse(actionMatch[1].trim());
-          if (['create_payable', 'create_receivable', 'reconcile_accounts', 'delete_payable', 'delete_receivable'].includes(actionPayload.type)) {
+          if (['create_payable', 'create_receivable', 'reconcile_accounts', 'delete_payable', 'delete_receivable', 'reconcile_approve', 'reconcile_ignore'].includes(actionPayload.type)) {
             setPendingActions(prev => [...prev, { msgId: aId, action: actionPayload, status: 'pending' }]);
           }
         } catch { /* skip malformed JSON */ }
@@ -584,6 +594,12 @@ export default function SophiPage() {
       } else if (action.type === 'delete_payable' || action.type === 'delete_receivable') {
         endpoint = '/api/pj/movimentacoes/batch';
         body = { ids: [action.data.id], action: 'delete' };
+      } else if (action.type === 'reconcile_approve') {
+        endpoint = '/api/pj/reconciliation';
+        body = { action: 'approve', reconciliationId: action.data.reconciliationId };
+      } else if (action.type === 'reconcile_ignore') {
+        endpoint = '/api/pj/reconciliation';
+        body = { action: 'ignore', reconciliationId: action.data.reconciliationId };
       }
 
       const res = await apiFetch(endpoint, {
