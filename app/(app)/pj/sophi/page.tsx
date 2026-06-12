@@ -12,6 +12,7 @@ import {
   Send, Sparkles, Settings2, Plus, Trash2, Loader2, RotateCcw,
   TrendingUp, AlertTriangle, BarChart3, Target, Brain, Clock,
   Bell, ListChecks, ChevronRight, Mic, MicOff, Loader, Paperclip,
+  Check, X, CheckCircle2, XCircle, GitMerge, ArrowDownCircle, ArrowUpCircle,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -30,6 +31,17 @@ interface SophiConfig {
   dailyTasks: DailyTask[];
   reminders: Reminder[];
   alertRules: any[];
+}
+
+interface SophiAction {
+  type: 'create_payable' | 'create_receivable' | 'reconcile_accounts';
+  data: Record<string, any>;
+}
+interface PendingAction {
+  msgId: string;
+  action: SophiAction;
+  status: 'pending' | 'executing' | 'done' | 'cancelled' | 'error';
+  errorMsg?: string;
 }
 
 // ─── Quick Actions ────────────────────────────────────────────────────────────
@@ -57,10 +69,105 @@ const QUICK_ACTIONS = [
   },
 ];
 
+// ─── Action helpers ───────────────────────────────────────────────────────────
+
+const fmtBRL = (n: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+
+const fmtDatePT = (iso: string) =>
+  new Date(iso + (iso.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('pt-BR');
+
+function getActionSuccessMessage(action: SophiAction): string {
+  const d = action.data;
+  if (action.type === 'create_payable') {
+    return `✅ **Conta a pagar lançada!**\n\n**${d.description}** · ${fmtBRL(d.amount)} · vcto ${fmtDatePT(d.dueDate)}${d.supplierName ? `\n**Fornecedor:** ${d.supplierName}` : ''}\n\nDisponível em **Contas a Pagar**.`;
+  }
+  if (action.type === 'create_receivable') {
+    return `✅ **Conta a receber lançada!**\n\n**${d.description}** · ${fmtBRL(d.amount)} · vcto ${fmtDatePT(d.dueDate)}${d.customerName ? `\n**Cliente:** ${d.customerName}` : ''}\n\nDisponível em **Contas a Receber**.`;
+  }
+  if (action.type === 'reconcile_accounts') {
+    return `✅ **${d.ids?.length ?? 0} lançamento(s) conciliado(s)!**\n\nVerifique em **Movimentação Financeira**.`;
+  }
+  return '✅ Ação executada com sucesso!';
+}
+
+// ─── Action Card ──────────────────────────────────────────────────────────────
+
+function ActionCard({ action, status, errorMsg, onConfirm, onCancel }: {
+  action: SophiAction;
+  status: PendingAction['status'];
+  errorMsg?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const meta = {
+    create_payable:    { title: 'Lançar Conta a Pagar',  Icon: ArrowDownCircle, color: 'border-red-200   bg-red-50/60   dark:border-red-800   dark:bg-red-950/20',   iconCls: 'text-red-500'   },
+    create_receivable: { title: 'Lançar Conta a Receber', Icon: ArrowUpCircle,   color: 'border-green-200 bg-green-50/60 dark:border-green-800 dark:bg-green-950/20', iconCls: 'text-green-500' },
+    reconcile_accounts:{ title: 'Conciliar Lançamentos',  Icon: GitMerge,        color: 'border-blue-200  bg-blue-50/60  dark:border-blue-800  dark:bg-blue-950/20',  iconCls: 'text-blue-500'  },
+  }[action.type];
+
+  const d = action.data;
+  const rows: Array<[string, string]> = [];
+  if (d.description)                      rows.push(['Descrição',   d.description]);
+  if (d.supplierName)                     rows.push(['Fornecedor',  d.supplierName]);
+  if (d.customerName)                     rows.push(['Cliente',     d.customerName]);
+  if (d.amount != null)                   rows.push(['Valor',       fmtBRL(Number(d.amount))]);
+  if (d.dueDate)                          rows.push(['Vencimento',  fmtDatePT(d.dueDate)]);
+  if (d.launchType)                       rows.push(['Tipo',        d.launchType]);
+  if (d.status && d.status !== 'pendente') rows.push(['Status',     d.status]);
+  if (d.notes)                            rows.push(['Obs.',        d.notes]);
+  if (d.ids?.length)                      rows.push(['Lançamentos', `${d.ids.length} selecionado(s)`]);
+
+  return (
+    <div className={`mt-2 w-full rounded-xl border p-4 text-sm ${meta.color}`}>
+      <div className="flex items-center gap-2 mb-3">
+        <meta.Icon className={`w-4 h-4 ${meta.iconCls}`} />
+        <span className="font-semibold">{meta.title}</span>
+        {status === 'done'      && <span className="ml-auto flex items-center gap-1 text-green-600 text-xs font-medium"><CheckCircle2 className="w-3.5 h-3.5" /> Executado</span>}
+        {status === 'error'     && <span className="ml-auto flex items-center gap-1 text-red-600   text-xs font-medium"><XCircle      className="w-3.5 h-3.5" /> Erro{errorMsg ? `: ${errorMsg}` : ''}</span>}
+        {status === 'cancelled' && <span className="ml-auto text-muted-foreground text-xs">Cancelado</span>}
+      </div>
+
+      <div className="space-y-1 mb-3">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex gap-2">
+            <span className="text-muted-foreground w-24 shrink-0 text-xs">{label}</span>
+            <span className={`font-medium text-xs ${label === 'Valor' ? 'text-foreground font-semibold' : ''}`}>{value}</span>
+          </div>
+        ))}
+      </div>
+
+      {status === 'pending' && (
+        <div className="flex gap-2">
+          <button
+            onClick={onConfirm}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
+          >
+            <Check className="w-3 h-3" /> Confirmar e executar
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors"
+          >
+            <X className="w-3 h-3" /> Cancelar
+          </button>
+        </div>
+      )}
+      {status === 'executing' && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Executando...
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Markdown renderer ────────────────────────────────────────────────────────
 
 function renderMarkdown(text: string): string {
-  return text
+  // Strip action blocks — rendered as ActionCard components separately
+  const clean = text.replace(/\[ACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+  return clean
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -109,6 +216,9 @@ export default function SophiPage() {
   const [configSaving, setConfigSaving] = useState(false);
   const [newTask, setNewTask] = useState({ task: '', time: '' });
   const [newReminder, setNewReminder] = useState('');
+
+  // Action cards
+  const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
 
   // sendMessage ref (for voice auto-send after transcription)
   const sendMessageRef = useRef<((content: string) => void) | null>(null);
@@ -381,6 +491,7 @@ export default function SophiPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
+      let fullContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -395,10 +506,24 @@ export default function SophiPage() {
           if (data === '[DONE]') { finished = true; break; }
           try {
             const { content: chunk } = JSON.parse(data);
-            if (chunk) setMessages(prev => prev.map(m => m.id === aId ? { ...m, content: m.content + chunk } : m));
+            if (chunk) {
+              fullContent += chunk;
+              setMessages(prev => prev.map(m => m.id === aId ? { ...m, content: fullContent } : m));
+            }
           } catch { /* skip */ }
         }
         if (finished) break;
+      }
+
+      // Parse action block after stream ends
+      const actionMatch = fullContent.match(/\[ACTION\]([\s\S]*?)\[\/ACTION\]/);
+      if (actionMatch) {
+        try {
+          const actionPayload: SophiAction = JSON.parse(actionMatch[1].trim());
+          if (['create_payable', 'create_receivable', 'reconcile_accounts'].includes(actionPayload.type)) {
+            setPendingActions(prev => [...prev, { msgId: aId, action: actionPayload, status: 'pending' }]);
+          }
+        } catch { /* skip malformed JSON */ }
       }
     } catch (err: any) {
       setMessages(prev => prev.map(m =>
@@ -429,6 +554,57 @@ export default function SophiPage() {
     } catch { toast({ title: 'Erro de rede', variant: 'destructive' }); }
     finally { setConfigSaving(false); }
   };
+
+  // ─── Action execution ────────────────────────────────────────────────────────
+
+  const executeAction = useCallback(async (action: SophiAction, msgId: string) => {
+    setPendingActions(prev => prev.map(a => a.msgId === msgId ? { ...a, status: 'executing' } : a));
+    try {
+      let endpoint = '';
+      let body: Record<string, any> = {};
+
+      if (action.type === 'create_payable') {
+        endpoint = '/api/pj/accounts-payable';
+        body = action.data;
+      } else if (action.type === 'create_receivable') {
+        endpoint = '/api/pj/accounts-receivable';
+        body = action.data;
+      } else if (action.type === 'reconcile_accounts') {
+        endpoint = '/api/pj/movimentacoes/batch';
+        body = { ids: action.data.ids, action: 'conciliar' };
+      }
+
+      const res = await apiFetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        setPendingActions(prev => prev.map(a => a.msgId === msgId ? { ...a, status: 'done' } : a));
+        const successMsg: Message = {
+          id: `s-${Date.now()}`,
+          role: 'assistant',
+          content: getActionSuccessMessage(action),
+          ts: Date.now(),
+        };
+        setMessages(prev => [...prev, successMsg]);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setPendingActions(prev => prev.map(a =>
+          a.msgId === msgId ? { ...a, status: 'error', errorMsg: errData.error || `HTTP ${res.status}` } : a
+        ));
+      }
+    } catch (err: any) {
+      setPendingActions(prev => prev.map(a =>
+        a.msgId === msgId ? { ...a, status: 'error', errorMsg: err?.message || 'Erro de rede' } : a
+      ));
+    }
+  }, []);
+
+  const cancelAction = useCallback((msgId: string) => {
+    setPendingActions(prev => prev.map(a => a.msgId === msgId ? { ...a, status: 'cancelled' } : a));
+  }, []);
 
   // ─── Config helpers ──────────────────────────────────────────────────────────
 
@@ -498,7 +674,7 @@ export default function SophiPage() {
               </button>
             ))}
             {messages.length > 0 && (
-              <button onClick={() => setMessages([])}
+              <button onClick={() => { setMessages([]); setPendingActions([]); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border text-muted-foreground hover:text-foreground border-border transition-colors ml-auto">
                 <RotateCcw className="w-3.5 h-3.5" /> Nova conversa
               </button>
@@ -565,31 +741,43 @@ export default function SophiPage() {
               </div>
             )}
 
-            {messages.map(msg => (
-              <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                {msg.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center shrink-0 mt-1">
-                    <Brain className="w-4 h-4 text-white" />
+            {messages.map(msg => {
+              const pa = msg.role === 'assistant' ? pendingActions.find(a => a.msgId === msg.id) : null;
+              return (
+                <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  {msg.role === 'assistant' && (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center shrink-0 mt-1">
+                      <Brain className="w-4 h-4 text-white" />
+                    </div>
+                  )}
+                  <div className={`max-w-[85%] flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                        : 'bg-background border border-border rounded-tl-sm shadow-sm'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        msg.content
+                          ? <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                          : <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analisando dados...</span>
+                      ) : <span className="whitespace-pre-wrap">{msg.content}</span>}
+                    </div>
+                    {pa && (
+                      <ActionCard
+                        action={pa.action}
+                        status={pa.status}
+                        errorMsg={pa.errorMsg}
+                        onConfirm={() => executeAction(pa.action, msg.id)}
+                        onCancel={() => cancelAction(msg.id)}
+                      />
+                    )}
+                    <span className="text-[10px] text-muted-foreground px-1">
+                      {msg.role === 'assistant' ? 'Sophi' : 'Você'} · {new Date(msg.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
-                )}
-                <div className={`max-w-[80%] flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                      : 'bg-background border border-border rounded-tl-sm shadow-sm'
-                  }`}>
-                    {msg.role === 'assistant' ? (
-                      msg.content
-                        ? <div className="prose prose-sm dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                        : <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analisando dados...</span>
-                    ) : <span className="whitespace-pre-wrap">{msg.content}</span>}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground px-1">
-                    {msg.role === 'assistant' ? 'Sophi' : 'Você'} · {new Date(msg.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
 

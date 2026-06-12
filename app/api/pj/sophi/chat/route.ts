@@ -128,6 +128,34 @@ async function buildFinancialContext(companyId: string): Promise<string> {
   ctx += `  Despesas pagas   : ${brl(monthExp)}\n`;
   ctx += `  Resultado líquido: ${brl(monthRev - monthExp)} ${(monthRev - monthExp) < 0 ? '⚠️ prejuízo' : '✅ lucro'}\n`;
 
+  // Pending accounts with IDs — needed for reconciliation actions
+  const [pendingP, pendingR] = await Promise.all([
+    prisma.accountsPayable.findMany({
+      where: { companyId, status: 'pendente' },
+      select: { id: true, description: true, amount: true, dueDate: true, supplierName: true },
+      orderBy: { dueDate: 'asc' },
+      take: 15,
+    }),
+    prisma.accountsReceivable.findMany({
+      where: { companyId, status: 'pendente' },
+      select: { id: true, description: true, amount: true, dueDate: true, customerName: true },
+      orderBy: { dueDate: 'asc' },
+      take: 15,
+    }),
+  ]);
+
+  const allPending = [
+    ...pendingP.map(p => ({ id: p.id, kind: 'PAGAR', desc: p.description, name: p.supplierName, amount: Number(p.amount), due: p.dueDate })),
+    ...pendingR.map(r => ({ id: r.id, kind: 'RECEBER', desc: r.description, name: r.customerName, amount: Number(r.amount), due: r.dueDate })),
+  ].sort((a, b) => new Date(a.due).getTime() - new Date(b.due).getTime());
+
+  if (allPending.length > 0) {
+    ctx += '\nLANÇAMENTOS PENDENTES COM IDs (use para conciliar):\n';
+    allPending.slice(0, 20).forEach(x =>
+      ctx += `  [${x.kind}] id="${x.id}" | ${x.desc}${x.name ? ` / ${x.name}` : ''} | ${brl(x.amount)} | vcto: ${new Date(x.due).toLocaleDateString('pt-BR')}\n`
+    );
+  }
+
   return ctx;
 }
 
@@ -157,6 +185,28 @@ Regras de comportamento:
 - Trate o interlocutor como CEO. Seja direta e encorajadora. Aponte riscos sem rodeios.
 - Responda em português brasileiro. Use markdown para clareza (negrito, listas, cabeçalhos).
 ${extraInstructions ? `\nInstruções adicionais do usuário:\n${extraInstructions}` : ''}
+
+=== CAPACIDADES DE AÇÃO ===
+Quando o usuário ORDENAR explicitamente (usar palavras como "lança", "cria", "registra", "faz", "cadastra", "concilia"), você pode e DEVE executar as ações abaixo incluindo um bloco JSON no final da resposta.
+
+AÇÃO 1 — LANÇAR CONTA A PAGAR
+[ACTION]{"type":"create_payable","data":{"description":"OBRIGATÓRIO","supplierName":"nome do fornecedor","amount":0.00,"dueDate":"YYYY-MM-DD","launchType":"fornecedor","status":"pendente","notes":"opcional"}}[/ACTION]
+launchType válidos: fornecedor | funcionario | impostos | transferencia | lucros
+
+AÇÃO 2 — LANÇAR CONTA A RECEBER
+[ACTION]{"type":"create_receivable","data":{"description":"OBRIGATÓRIO","customerName":"nome do cliente","amount":0.00,"dueDate":"YYYY-MM-DD","launchType":"venda","status":"pendente","notes":"opcional"}}[/ACTION]
+launchType válidos: venda | contrato | aporte | outros
+
+AÇÃO 3 — CONCILIAR LANÇAMENTOS
+Use os IDs da seção "LANÇAMENTOS PENDENTES COM IDs" abaixo.
+[ACTION]{"type":"reconcile_accounts","data":{"ids":["id1","id2"]}}[/ACTION]
+
+REGRAS OBRIGATÓRIAS:
+1. Inclua [ACTION] SOMENTE quando houver ordem explícita. Para análises e perguntas, NUNCA inclua.
+2. Se faltar description, amount ou dueDate, PERGUNTE antes de gerar o bloco.
+3. Inclua APENAS UM bloco [ACTION] por resposta, sempre no FINAL.
+4. amount SEMPRE como número decimal (ex: 1500.00). dueDate SEMPRE em YYYY-MM-DD.
+5. Após o bloco, informe que o usuário deve clicar em "Confirmar e executar" para efetivar.
 
 === CONTEXTO FINANCEIRO ATUAL (${new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}) ===
 ${financialCtx}
