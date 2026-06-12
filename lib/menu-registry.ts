@@ -438,51 +438,8 @@ const PJ_MODULES: ModuleTab[] = [
     id: 'pj-alertas',
     label: 'Alertas',
     icon: Bell,
-    singleLink: '/alertas',
+    singleLink: '/pj/alertas',
     columns: [],
-  },
-  {
-    id: 'pj-ia',
-    label: 'IA',
-    icon: Sparkles,
-    singleLink: '/assistente',
-    columns: [],
-  },
-  {
-    id: 'pj-config',
-    label: 'Configurações',
-    icon: Settings,
-    columns: [
-      {
-        title: 'Geral',
-        items: [
-          { href: '/configuracoes', label: 'Preferências', icon: Settings, description: 'Configurações gerais' },
-          { href: '/configuracoes/chaves-api', label: 'Chaves de API', icon: Key, description: 'Provedores de IA', adminOnly: true },
-          { href: '/configuracoes/integracoes', label: 'Integrações', icon: Link2, description: 'Serviços conectados', adminOnly: true },
-          { href: '/configuracoes/sessoes', label: 'Sessões Ativas', icon: Laptop, description: 'Dispositivos conectados' },
-        ],
-      },
-      {
-        title: 'Automações & Canais',
-        items: [
-          { href: '/configuracoes/smtp', label: 'E-mail SMTP', icon: Mail, description: 'Configurar servidor de e-mail' },
-          { href: '/configuracoes/whatsapp', label: 'WhatsApp', icon: MessageCircle, description: 'Configurar WhatsApp Business' },
-          { href: '/configuracoes/whatsapp-financeiro', label: 'WhatsApp Financeiro', icon: MessageCircle, description: 'Enviar NFS-e, boletos e PIX' },
-        ],
-      },
-      {
-        title: 'Personalização',
-        items: [
-          { href: '/pj/campos-customizados', label: 'Campos Customizados', icon: Layers, description: 'Campos extras para clientes, contas e produtos' },
-        ],
-      },
-      {
-        title: 'Segurança',
-        items: [
-          { href: '/pj/audit-log', label: 'Log de Auditoria', icon: Shield, description: 'Histórico de ações e alterações', adminOnly: true },
-        ],
-      },
-    ],
   },
 ];
 

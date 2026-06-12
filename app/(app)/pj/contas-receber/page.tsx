@@ -6,7 +6,7 @@ import { usePJ } from '@/lib/pj-context';
 import { ExportButton } from '@/components/export-button';
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Check, ExternalLink, FileText, FileUp, Pencil, Plus, PlusCircle, QrCode, Repeat, Search, Sparkles, Square, Trash2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ExternalLink, FileText, FileUp, Pencil, Plus, PlusCircle, QrCode, Repeat, Search, Sparkles, Square, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -331,17 +331,45 @@ export default function ContasReceber() {
           <div className="flex flex-wrap gap-3 items-end">
             <div>
               <Label className="text-xs">Período</Label>
-              <select value={year === 0 ? 'todos' : `${year}-${month}`} onChange={e => {
-                if (e.target.value === 'todos') { setYear(0); setMonth(0); }
-                else { const [y, m] = e.target.value.split('-'); setYear(Number(y)); setMonth(Number(m)); }
-              }} className="w-full px-3 py-2 border rounded-lg text-sm bg-background min-w-[160px]">
-                <option value="todos">Todos os períodos</option>
-                {Array.from({ length: 24 }, (_, i) => {
-                  const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                  const y = d.getFullYear(); const m = d.getMonth() + 1;
-                  return <option key={`${y}-${m}`} value={`${y}-${m}`}>{d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</option>;
-                })}
-              </select>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (month === 0) return;
+                    const d = new Date(year, month - 2, 1);
+                    setYear(d.getFullYear()); setMonth(d.getMonth() + 1);
+                  }}
+                  disabled={month === 0}
+                  className="p-2 rounded-lg border bg-background hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Mês anterior"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <select value={year === 0 ? 'todos' : `${year}-${month}`} onChange={e => {
+                  if (e.target.value === 'todos') { setYear(0); setMonth(0); }
+                  else { const [y, m] = e.target.value.split('-'); setYear(Number(y)); setMonth(Number(m)); }
+                }} className="px-3 py-2 border rounded-lg text-sm bg-background min-w-[160px]">
+                  <option value="todos">Todos os períodos</option>
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    const y = d.getFullYear(); const m = d.getMonth() + 1;
+                    return <option key={`${y}-${m}`} value={`${y}-${m}`}>{d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</option>;
+                  })}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (month === 0) return;
+                    const d = new Date(year, month, 1);
+                    setYear(d.getFullYear()); setMonth(d.getMonth() + 1);
+                  }}
+                  disabled={month === 0}
+                  className="p-2 rounded-lg border bg-background hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Próximo mês"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             <div>
               <Label className="text-xs">Status</Label>

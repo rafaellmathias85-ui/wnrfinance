@@ -29,6 +29,7 @@ const ContaReceberSchema = z.object({
   fiscalRuleId: z.string().optional().nullable(),
   billingPeriod: z.string().max(7).optional().nullable(),
   launchType: z.enum(['venda', 'contrato', 'aporte', 'outros']).optional().nullable(),
+  recurrenceMonths: z.preprocess(Number, z.number().int().min(1).max(60)).optional().nullable(),
 });
 
 export async function GET(req: NextRequest) {
@@ -159,6 +160,39 @@ export async function POST(req: NextRequest) {
   // Disparar automação em background (não bloqueia a resposta)
   if (item.autoNfe || item.autoBoleto) {
     runReceivableAutomation(item.id, companyId).catch(() => {});
+  }
+
+  // Generate future monthly instances for recurring entries
+  if (body.isRecurring && body.recurrenceMonths && body.recurrenceMonths > 0) {
+    const baseDate = new Date(body.dueDate);
+    for (let i = 1; i <= body.recurrenceMonths; i++) {
+      const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+      await prisma.accountsReceivable.create({
+        data: {
+          companyId,
+          description: body.description,
+          customerName: body.customerName || null,
+          customerDoc: body.customerDoc || null,
+          customerEmail: body.customerEmail || null,
+          amount: body.amount,
+          dueDate: futureDate,
+          status: 'pendente',
+          categoryId: body.categoryId || null,
+          costCenterId: body.costCenterId || null,
+          notes: body.notes || null,
+          isRecurring: true,
+          recurrenceType: body.recurrenceType || 'monthly',
+          sourceType: body.sourceType || 'manual',
+          autoNfe: false,
+          autoBoleto: false,
+          chargeType: body.chargeType || 'boleto_pix',
+          fiscalRuleId: body.fiscalRuleId || null,
+          billingPeriod: body.billingPeriod || null,
+          launchType: body.launchType || null,
+          createdBy: session.user.id,
+        },
+      });
+    }
   }
 
   return NextResponse.json(item, { status: 201 });

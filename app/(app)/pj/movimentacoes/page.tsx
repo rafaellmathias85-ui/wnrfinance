@@ -8,6 +8,8 @@ import {
   ArrowUpCircle,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronsUpDown,
   Copy,
   Download,
@@ -299,6 +301,7 @@ function BatchBar({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function MovimentacoesPage() {
+  const router = useRouter();
   const [items, setItems] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
   const [totals, setTotals] = useState<Totals>({
@@ -601,21 +604,57 @@ export default function MovimentacoesPage() {
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">De</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-              className="bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
-            />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                title="Mês anterior"
+                onClick={() => {
+                  const d = new Date(startDate + 'T00:00:00');
+                  const prev = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+                  const lastDay = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate();
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  setStartDate(`${prev.getFullYear()}-${pad(prev.getMonth() + 1)}-01`);
+                  setEndDate(`${prev.getFullYear()}-${pad(prev.getMonth() + 1)}-${pad(lastDay)}`);
+                  setPage(1);
+                }}
+                className="p-2 rounded-lg border border-slate-600 bg-slate-900 hover:bg-slate-700 text-white"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+                className="bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Até</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-              className="bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
-            />
+            <div className="flex items-center gap-1">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+                className="bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                title="Próximo mês"
+                onClick={() => {
+                  const d = new Date(startDate + 'T00:00:00');
+                  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+                  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  setStartDate(`${next.getFullYear()}-${pad(next.getMonth() + 1)}-01`);
+                  setEndDate(`${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(lastDay)}`);
+                  setPage(1);
+                }}
+                className="p-2 rounded-lg border border-slate-600 bg-slate-900 hover:bg-slate-700 text-white"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Tipo</label>
@@ -888,7 +927,7 @@ export default function MovimentacoesPage() {
                           title="Visualizar"
                           onClick={() => {
                             const path = m.tipo === 'entrada' ? '/pj/contas-receber' : '/pj/contas-pagar';
-                            window.open(`${path}?id=${m.id}`, '_self');
+                            router.push(`${path}?id=${m.id}`);
                           }}
                           className="p-1.5 rounded hover:bg-slate-600 text-slate-400 hover:text-white"
                         >

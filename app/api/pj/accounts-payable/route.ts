@@ -29,6 +29,7 @@ const ContaPagarSchema = z.object({
   transferAccountType: z.string().max(20).optional().nullable(),
   tagIds: z.array(z.string()).optional().default([]),
   launchType: z.enum(['fornecedor', 'funcionario', 'impostos', 'transferencia', 'lucros']).optional().nullable(),
+  recurrenceMonths: z.preprocess(Number, z.number().int().min(1).max(60)).optional().nullable(),
 });
 
 export async function GET(req: NextRequest) {
@@ -143,5 +144,40 @@ export async function POST(req: NextRequest) {
     },
     include: { tags: { include: { tag: true } } },
   });
+  // Generate future monthly instances for recurring entries
+  if (body.isRecurring && body.recurrenceMonths && body.recurrenceMonths > 0) {
+    const baseDate = new Date(body.dueDate);
+    for (let i = 1; i <= body.recurrenceMonths; i++) {
+      const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+      await prisma.accountsPayable.create({
+        data: {
+          companyId,
+          description: body.description,
+          supplierName: body.supplierName || null,
+          amount: body.amount,
+          dueDate: futureDate,
+          status: 'pendente',
+          categoryId: body.categoryId || null,
+          costCenterId: body.costCenterId || null,
+          notes: body.notes || null,
+          isRecurring: true,
+          recurrenceType: body.recurrenceType || 'monthly',
+          paymentMethod: body.paymentMethod || null,
+          pixKey: body.pixKey || null,
+          boletoCode: body.boletoCode || null,
+          transferBank: body.transferBank || null,
+          transferAgency: body.transferAgency || null,
+          transferAccount: body.transferAccount || null,
+          transferName: body.transferName || null,
+          transferDoc: body.transferDoc || null,
+          transferAccountType: body.transferAccountType || null,
+          launchType: body.launchType || null,
+          createdBy: session.user.id,
+          ...(tagIds.length > 0 ? { tags: { create: tagIds.map((tagId: string) => ({ tagId })) } } : {}),
+        },
+      });
+    }
+  }
+
   return NextResponse.json(item, { status: 201 });
 }

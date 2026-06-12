@@ -201,12 +201,21 @@ AÇÃO 3 — CONCILIAR LANÇAMENTOS
 Use os IDs da seção "LANÇAMENTOS PENDENTES COM IDs" abaixo.
 [ACTION]{"type":"reconcile_accounts","data":{"ids":["id1","id2"]}}[/ACTION]
 
+AÇÃO 4 — EXCLUIR CONTA A PAGAR
+Use o ID da seção "LANÇAMENTOS PENDENTES COM IDs" abaixo. Exige identificação única e clara.
+[ACTION]{"type":"delete_payable","data":{"id":"id-exato","description":"descrição para confirmação"}}[/ACTION]
+
+AÇÃO 5 — EXCLUIR CONTA A RECEBER
+Use o ID da seção "LANÇAMENTOS PENDENTES COM IDs" abaixo. Exige identificação única e clara.
+[ACTION]{"type":"delete_receivable","data":{"id":"id-exato","description":"descrição para confirmação"}}[/ACTION]
+
 REGRAS OBRIGATÓRIAS:
 1. Inclua [ACTION] SOMENTE quando houver ordem explícita. Para análises e perguntas, NUNCA inclua.
 2. Se faltar description, amount ou dueDate, PERGUNTE antes de gerar o bloco.
 3. Inclua APENAS UM bloco [ACTION] por resposta, sempre no FINAL.
 4. amount SEMPRE como número decimal (ex: 1500.00). dueDate SEMPRE em YYYY-MM-DD.
 5. Após o bloco, informe que o usuário deve clicar em "Confirmar e executar" para efetivar.
+6. Para exclusões, use SEMPRE o id exato da seção LANÇAMENTOS PENDENTES. Se não encontrar o ID, pergunte ao usuário.
 
 === CONTEXTO FINANCEIRO ATUAL (${new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}) ===
 ${financialCtx}
