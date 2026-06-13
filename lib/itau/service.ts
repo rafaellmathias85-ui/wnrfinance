@@ -397,25 +397,34 @@ export class ItauBoletoService {
     url: string,
     options: { method: string; headers?: Record<string, string>; body?: string }
   ): Promise<T> {
-    const { default: fetch } = await import('node-fetch');
-
-    const response = await (fetch as unknown as typeof globalThis.fetch)(url, {
-      method:  options.method,
-      headers: options.headers,
-      body:    options.body,
-      // @ts-expect-error – node-fetch aceita agent
-      agent:   this.httpsAgent,
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(url);
+      const reqOptions: https.RequestOptions = {
+        hostname: parsed.hostname,
+        port:     parseInt(parsed.port) || 443,
+        path:     parsed.pathname + (parsed.search || ''),
+        method:   options.method,
+        headers:  options.headers,
+        agent:    this.httpsAgent,
+      };
+      const req = https.request(reqOptions, (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf-8');
+          let json: unknown;
+          try { json = JSON.parse(text); } catch { json = text; }
+          if (!res.statusCode || res.statusCode >= 400) {
+            reject(new ItauApiError(res.statusCode ?? 0, url, json));
+          } else {
+            resolve(json as T);
+          }
+        });
+      });
+      req.on('error', reject);
+      if (options.body) req.write(options.body);
+      req.end();
     });
-
-    const text = await response.text();
-    let json: unknown;
-    try { json = JSON.parse(text); } catch { json = text; }
-
-    if (!response.ok) {
-      throw new ItauApiError(response.status, url, json);
-    }
-
-    return json as T;
   }
 }
 
