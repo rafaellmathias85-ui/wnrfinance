@@ -57,24 +57,33 @@ function normalizeDate(d: string): string {
   return new Date().toISOString().split('T')[0];
 }
 
-// Parse OFX content
-function parseOFXContent(text: string): Array<{date: string; reference: string; amount: number; type: string; fitid?: string}> {
-  const entries: Array<{date: string; reference: string; amount: number; type: string; fitid?: string}> = [];
-  // Match STMTTRN blocks
-  const txRegex = /<STMTTRN>[\s\S]*?<\/STMTTRN>/gi;
-  const matches = text.match(txRegex) || [];
+// Parse OFX content — extrai MEMO, NAME, TRNTYPE e FITID separadamente
+function parseOFXContent(text: string): Array<{date: string; reference: string; amount: number; type: string; fitid?: string; trntype?: string; payerName?: string}> {
+  const entries: Array<{date: string; reference: string; amount: number; type: string; fitid?: string; trntype?: string; payerName?: string}> = [];
+  // Suporta OFX 1.x SGML (sem fechamento de tags) e 2.x XML (com </>)
+  const txRegex = /<STMTTRN[\s>]([\s\S]*?)(?:<\/STMTTRN>|(?=<STMTTRN))/gi;
+  const rawBlocks = text.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/gi)
+    || text.match(/<STMTTRN>([\s\S]*?)(?=<STMTTRN>|<\/BANKTRANLIST>)/gi)
+    || [];
 
-  for (const block of matches) {
-    const getTag = (tag: string) => {
-      const m = block.match(new RegExp(`<${tag}>([^<\n]+)`, 'i'));
+  for (const block of rawBlocks) {
+    const getTag = (tag: string): string => {
+      const m = block.match(new RegExp(`<${tag}>([^<\n\r]+)`, 'i'));
       return m ? m[1].trim() : '';
     };
 
-    const dtStr = getTag('DTPOSTED');
-    const amtStr = getTag('TRNAMT');
-    const fitid = getTag('FITID');
-    // Use FITID as fallback reference so (date+amount+reference) is always unique
-    const memo = getTag('MEMO') || getTag('NAME') || fitid || 'SEM_REF';
+    const dtStr   = getTag('DTPOSTED') || getTag('DTAVAIL');
+    const amtStr  = getTag('TRNAMT');
+    const fitid   = getTag('FITID');
+    const trntype = getTag('TRNTYPE') || undefined;
+    const memo    = getTag('MEMO');
+    const name    = getTag('NAME');
+    const checkNum = getTag('CHECKNUM');
+
+    // Descrição: combina MEMO + NAME para máxima informação
+    // Remove duplicação caso MEMO e NAME sejam iguais
+    const parts = [memo, name !== memo ? name : ''].filter(Boolean);
+    const reference = parts.join(' — ').trim() || fitid || checkNum || 'SEM_REF';
 
     const amount = parseFloat(amtStr.replace(',', '.'));
     if (isNaN(amount) || amount === 0) continue;
@@ -84,7 +93,15 @@ function parseOFXContent(text: string): Array<{date: string; reference: string; 
       date = `${dtStr.slice(0,4)}-${dtStr.slice(4,6)}-${dtStr.slice(6,8)}`;
     }
 
-    entries.push({ date, reference: memo, amount, type: amount < 0 ? 'DEBIT' : 'CREDIT', fitid: fitid || undefined });
+    entries.push({
+      date,
+      reference,
+      amount,
+      type: amount < 0 ? 'DEBIT' : 'CREDIT',
+      fitid: fitid || undefined,
+      trntype,
+      payerName: name || undefined,
+    });
   }
   return entries;
 }
@@ -232,6 +249,11 @@ export async function POST(req: NextRequest) {
       count: entries.length,
       filename: file.name,
       format: ext.toUpperCase(),
+      // Estatísticas de classificação para debug/UI
+      stats: {
+        debits: entries.filter(e => e.type === 'DEBIT').length,
+        credits: entries.filter(e => e.type === 'CREDIT').length,
+      },
     });
   } catch (error: any) {
     console.error('[parse-file] Error:', error);

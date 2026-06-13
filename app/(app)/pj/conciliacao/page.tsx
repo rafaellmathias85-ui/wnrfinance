@@ -241,16 +241,28 @@ export default function ConciliacaoPJ() {
              parsedFilename.toLowerCase().includes('inter') ? 'Inter' : parsedFilename)
           : 'Extrato PJ');
     try {
-      const res = await apiFetch('/api/pj/reconciliation', {
+      const res = await apiFetch('/api/pj/reconciliation/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'auto-match', bankEntries: entries, bankConnectionId: selectedBankId || null, bankName }),
+        body: JSON.stringify({
+          entries,
+          bankConnectionId: selectedBankId || null,
+          bankName,
+          fileName: parsedFilename || null,
+        }),
       });
       const d = await res.json();
       if (res.ok) {
-        setImportResult({ imported: d.summary.reconciled, divergent: d.summary.divergent, bankOnly: d.summary.bankOnly });
+        setImportResult({
+          imported: d.summary.imported,
+          reconciled: d.summary.reconciled,
+          divergent: d.summary.suggested,
+          bankOnly: d.summary.bankOnly,
+          skipped: d.summary.skippedDuplicates,
+          batchId: d.batchId,
+        });
         setBankText(''); setParsedEntries([]);
-        setTimeout(() => { setShowImport(false); setImportResult(null); load(); }, 1500);
+        setTimeout(() => { setShowImport(false); setImportResult(null); load(); }, 2000);
       } else {
         setImportResult({ error: d.error });
       }
@@ -954,7 +966,7 @@ export default function ConciliacaoPJ() {
 
               {importResult && (
                 <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
-                  {importResult.error ? `Erro: ${importResult.error}` : `Conciliados: ${importResult.imported} | Divergentes: ${importResult.divergent} | Só no Banco: ${importResult.bankOnly}`}
+                  {importResult.error ? `Erro: ${importResult.error}` : `Importadas: ${importResult.imported} | Conciliadas: ${importResult.reconciled ?? importResult.imported} | Sugeridas: ${importResult.divergent} | Não encontradas: ${importResult.bankOnly}${importResult.skipped ? ` | Duplicatas ignoradas: ${importResult.skipped}` : ''}`}
                 </div>
               )}
 
@@ -983,7 +995,7 @@ export default function ConciliacaoPJ() {
               </div>
               {importResult && (
                 <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
-                  {importResult.error ? `Erro: ${importResult.error}` : `Conciliados: ${importResult.imported} | Divergentes: ${importResult.divergent} | Só no Banco: ${importResult.bankOnly}`}
+                  {importResult.error ? `Erro: ${importResult.error}` : `Importadas: ${importResult.imported} | Conciliadas: ${importResult.reconciled ?? importResult.imported} | Sugeridas: ${importResult.divergent} | Não encontradas: ${importResult.bankOnly}${importResult.skipped ? ` | Duplicatas ignoradas: ${importResult.skipped}` : ''}`}
                 </div>
               )}
               <div className="flex justify-end gap-2">

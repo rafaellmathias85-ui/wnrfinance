@@ -86,6 +86,7 @@ export class ReconciliationService {
             description: tx.description,
             documentNumber: tx.documentNumber,
             counterpartyTaxId: tx.payerDocument,
+            paymentMethod: tx.category || null, // category armazena o método classificado
           },
           candidate,
         );
@@ -95,13 +96,14 @@ export class ReconciliationService {
         }
       }
 
-      if (best && bestScore >= 90) {
+      // ≥75 → concilia automaticamente; ≥50 → sugere para revisão manual
+      if (best && bestScore >= 75) {
         await this.persistMatch(tx, best, bestScore, 'RECONCILED');
         reconciled++;
         continue;
       }
 
-      if (best && bestScore >= 60) {
+      if (best && bestScore >= 50) {
         await this.persistMatch(tx, best, bestScore, 'SUGGESTED');
         suggested++;
         continue;
@@ -121,8 +123,9 @@ export class ReconciliationService {
 
   private async loadCandidates(params: ReconcileParams, bankTransactions: any[]): Promise<MatchCandidate[]> {
     const dates = bankTransactions.map((tx) => new Date(tx.date).getTime());
-    const minDate = new Date(Math.min(...dates) - 7 * 86400000);
-    const maxDate = new Date(Math.max(...dates) + 7 * 86400000);
+    // Janela de 45 dias para capturar pagamentos com atraso ou antecipados
+    const minDate = new Date(Math.min(...dates) - 45 * 86400000);
+    const maxDate = new Date(Math.max(...dates) + 45 * 86400000);
 
     if (params.companyId) {
       const [payables, receivables] = await Promise.all([
@@ -135,6 +138,7 @@ export class ReconciliationService {
             amount: true,
             dueDate: true,
             transferDoc: true,
+            paymentMethod: true,
           },
         }),
         prisma.accountsReceivable.findMany({
@@ -158,6 +162,7 @@ export class ReconciliationService {
           date: item.dueDate,
           description: `${item.description} ${item.supplierName || ''}`,
           taxId: item.transferDoc,
+          paymentMethod: item.paymentMethod || null,
         })),
         ...receivables.map((item) => ({
           id: item.id,
@@ -166,6 +171,7 @@ export class ReconciliationService {
           date: item.dueDate,
           description: `${item.description} ${item.customerName || ''}`,
           taxId: item.customerDoc,
+          paymentMethod: null,
         })),
       ];
     }
