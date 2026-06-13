@@ -38,9 +38,20 @@ const URLS = {
 
 export class ItauBoletoService {
   private config: ItauAuthConfig;
-  private httpsAgent: https.Agent;
+  private _httpsAgent?: https.Agent;
   private cachedToken: string | null = null;
   private tokenExpiresAt: number = 0;
+
+  private get httpsAgent(): https.Agent {
+    if (!this._httpsAgent) {
+      this._httpsAgent = new https.Agent({
+        cert: fs.readFileSync(this.config.certPath),
+        key:  fs.readFileSync(this.config.keyPath),
+        rejectUnauthorized: true,
+      });
+    }
+    return this._httpsAgent;
+  }
 
   /**
    * @param config  Credenciais e caminhos de certificado
@@ -55,13 +66,6 @@ export class ItauBoletoService {
    */
   constructor(config: ItauAuthConfig) {
     this.config = config;
-
-    // mTLS: o Itaú exige apresentação do certificado em TODAS as chamadas
-    this.httpsAgent = new https.Agent({
-      cert: fs.readFileSync(config.certPath),
-      key:  fs.readFileSync(config.keyPath),
-      rejectUnauthorized: true,
-    });
   }
 
   // =========================================================
