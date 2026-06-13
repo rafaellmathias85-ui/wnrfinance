@@ -6,7 +6,7 @@
 
 import https from 'https';
 import fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import {
   ItauAuthConfig,
   ItauAccessTokenResponse,
@@ -89,7 +89,7 @@ export class ItauBoletoService {
       headers: {
         'Content-Type':       'application/x-www-form-urlencoded',
         'x-itau-flowID':      '1',
-        'x-itau-correlationID': uuidv4(),
+        'x-itau-correlationID': randomUUID(),
       },
       body,
     });
@@ -388,8 +388,8 @@ export class ItauBoletoService {
       'Content-Type':         'application/json',
       'Authorization':        `Bearer ${token}`,
       'x-itau-apikey':        this.config.clientId,
-      'x-itau-correlationID': uuidv4(),
-      'x-itau-flowID':        uuidv4(),
+      'x-itau-correlationID': randomUUID(),
+      'x-itau-flowID':        randomUUID(),
     };
   }
 
