@@ -94,7 +94,7 @@ export default function ContasReceber() {
         apiFetch('/api/pj/tags'),
         apiFetch('/api/pj/clients'),
         apiFetch('/api/pj/fiscal/regras-servico'),
-        apiFetch('/api/banks'),
+        apiFetch('/api/banking/connections?personType=PJ'),
       ]);
       setItems(await itemsRes.json());
       setCategories(await catsRes.json());
@@ -234,15 +234,19 @@ export default function ContasReceber() {
 
     const url = editing ? `/api/pj/accounts-receivable/${editing.id}` : '/api/pj/accounts-receivable';
     const method = editing ? 'PUT' : 'POST';
-    const res = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    if (res.ok) {
-      toast({ title: editing ? 'Conta atualizada' : 'Conta criada' });
-      setShowForm(false);
-      setEditing(null);
-      fetchData();
-    } else {
-      const err = await res.json();
-      toast({ title: 'Erro', description: err.error, variant: 'destructive' });
+    try {
+      const res = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.ok) {
+        toast({ title: editing ? 'Conta atualizada' : 'Conta criada' });
+        setShowForm(false);
+        setEditing(null);
+        fetchData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Erro ao salvar', description: err.error || `HTTP ${res.status}`, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err?.message || 'Erro desconhecido', variant: 'destructive' });
     }
   };
 
@@ -447,7 +451,7 @@ export default function ContasReceber() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form key={editing?.id ?? 'new'} onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2">
                   <Label>Descricao *</Label>
