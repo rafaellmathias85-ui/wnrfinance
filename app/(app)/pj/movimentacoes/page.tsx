@@ -317,7 +317,7 @@ export default function MovimentacoesPage() {
   // Filters
   const [startDate, setStartDate] = useState(DEFAULT_START);
   const [endDate, setEndDate] = useState(DEFAULT_END);
-  const [tipoData, setTipoData] = useState('pagamento');
+  const [tipoData, setTipoData] = useState('vencimento');
   const [tipo, setTipo] = useState('all');
   const [busca, setBusca] = useState('');
   const [categoriaId, setCategoriaId] = useState('');

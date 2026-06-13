@@ -36,6 +36,8 @@ export async function PUT(req: NextRequest, { params }: any) {
   if (body.transferDoc !== undefined) data.transferDoc = body.transferDoc || null;
   if (body.transferAccountType !== undefined) data.transferAccountType = body.transferAccountType || null;
   if (body.launchType !== undefined) data.launchType = body.launchType || null;
+  if (body.isRecurring !== undefined) data.isRecurring = !!body.isRecurring;
+  if (body.recurrenceType !== undefined) data.recurrenceType = body.recurrenceType || null;
 
   // Handle tags update
   if (body.tagIds !== undefined) {
@@ -52,6 +54,42 @@ export async function PUT(req: NextRequest, { params }: any) {
     data,
     include: { tags: { include: { tag: true } } },
   });
+
+  // Gera entradas futuras apenas quando a recorrência está sendo ATIVADA nesta edição
+  const recurrenceMonths = body.recurrenceMonths ? parseInt(body.recurrenceMonths, 10) : 0;
+  if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
+    const baseDate = updated.dueDate;
+    for (let i = 1; i <= recurrenceMonths; i++) {
+      const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+      await prisma.accountsPayable.create({
+        data: {
+          companyId,
+          description: updated.description,
+          supplierName: updated.supplierName || null,
+          amount: updated.amount,
+          dueDate: futureDate,
+          status: 'pendente',
+          categoryId: updated.categoryId || null,
+          costCenterId: updated.costCenterId || null,
+          notes: updated.notes || null,
+          isRecurring: true,
+          recurrenceType: updated.recurrenceType || 'monthly',
+          paymentMethod: updated.paymentMethod || null,
+          pixKey: updated.pixKey || null,
+          boletoCode: updated.boletoCode || null,
+          transferBank: updated.transferBank || null,
+          transferAgency: updated.transferAgency || null,
+          transferAccount: updated.transferAccount || null,
+          transferName: updated.transferName || null,
+          transferDoc: updated.transferDoc || null,
+          transferAccountType: updated.transferAccountType || null,
+          launchType: updated.launchType || null,
+          createdBy: session.user.id,
+        },
+      });
+    }
+  }
+
   return NextResponse.json(updated);
 }
 
