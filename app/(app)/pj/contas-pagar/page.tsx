@@ -511,12 +511,12 @@ export default function ContasPagar() {
                   </select>
                 </div>
                 <div>
-                  <Label>Banco de Débito</Label>
+                  <Label>Conta</Label>
                   <select value={bankConnectionId} onChange={e => setBankConnectionId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
-                    <option value="">— Nenhum banco vinculado</option>
+                    <option value="">— Nenhuma conta vinculada</option>
                     {bankConnections.map((b: any) => (
                       <option key={b.id} value={b.id}>
-                        {b.bankName}{b.accountNumber ? ` — CC ${b.accountNumber}` : ''}{b.agency ? ` / Ag ${b.agency}` : ''}
+                        {b.bankName}{b.agency ? ` — Agência: ${b.agency}` : ''}{b.accountNumber ? ` Conta: ${b.accountNumber}` : (!b.agency ? ' — Sem agência e conta cadastradas' : '')}
                       </option>
                     ))}
                   </select>
