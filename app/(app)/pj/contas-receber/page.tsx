@@ -46,6 +46,8 @@ export default function ContasReceber() {
   const [quickName, setQuickName] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceMonths, setRecurrenceMonths] = useState(2);
+  const [bankConnections, setBankConnections] = useState<any[]>([]);
+  const [bankConnectionId, setBankConnectionId] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [autoNfe, setAutoNfe] = useState(false);
   const [autoBoleto, setAutoBoleto] = useState(false);
@@ -85,13 +87,14 @@ export default function ContasReceber() {
     if (!activeCompanyId) return;
     setLoading(true);
     try {
-      const [itemsRes, catsRes, ccRes, tagsRes, clientsRes, rulesRes] = await Promise.all([
+      const [itemsRes, catsRes, ccRes, tagsRes, clientsRes, rulesRes, banksRes] = await Promise.all([
         apiFetch(`/api/pj/accounts-receivable?${buildQueryString(advancedFilters)}`),
         apiFetch('/api/pj/categories'),
         apiFetch('/api/pj/cost-centers'),
         apiFetch('/api/pj/tags'),
         apiFetch('/api/pj/clients'),
         apiFetch('/api/pj/fiscal/regras-servico'),
+        apiFetch('/api/banks'),
       ]);
       setItems(await itemsRes.json());
       setCategories(await catsRes.json());
@@ -103,6 +106,8 @@ export default function ContasReceber() {
       setClients(Array.isArray(clientsData) ? clientsData : []);
       const rulesData = await rulesRes.json();
       setFiscalRules(rulesData.rules || []);
+      const banksData = await banksRes.json();
+      setBankConnections(Array.isArray(banksData?.connections) ? banksData.connections : []);
     } catch { /* ignore */ }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +138,7 @@ export default function ContasReceber() {
     setSelectedTags([]);
     setAutoNfe(false);
     setAutoBoleto(false);
+    setBankConnectionId('');
     aiClear();
     setShowForm(true);
   };
@@ -195,6 +201,7 @@ export default function ContasReceber() {
     setSelectedTags(item.tags?.map((t: any) => t.tagId) || []);
     setAutoNfe(!!item.autoNfe);
     setAutoBoleto(!!item.autoBoleto);
+    setBankConnectionId(item.bankConnectionId || '');
     setShowForm(true);
   };
 
@@ -216,6 +223,7 @@ export default function ContasReceber() {
       recurrenceType: isRecurring ? 'monthly' : null,
       recurrenceMonths: isRecurring ? recurrenceMonths : null,
       tagIds: selectedTags,
+      bankConnectionId: bankConnectionId || null,
       autoNfe,
       autoBoleto,
       chargeType: fd.get('chargeType') || 'boleto_pix',
@@ -350,8 +358,8 @@ export default function ContasReceber() {
                   else { const [y, m] = e.target.value.split('-'); setYear(Number(y)); setMonth(Number(m)); }
                 }} className="px-3 py-2 border rounded-lg text-sm bg-background min-w-[160px]">
                   <option value="todos">Todos os períodos</option>
-                  {Array.from({ length: 24 }, (_, i) => {
-                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                  {Array.from({ length: 37 }, (_, i) => {
+                    const d = new Date(now.getFullYear(), now.getMonth() + 12 - i, 1);
                     const y = d.getFullYear(); const m = d.getMonth() + 1;
                     return <option key={`${y}-${m}`} value={`${y}-${m}`}>{d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</option>;
                   })}
@@ -543,6 +551,17 @@ export default function ContasReceber() {
                     <option value="boleto">Boleto</option>
                     <option value="pix">PIX</option>
                     <option value="link">Link de pagamento</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>Banco de Crédito</Label>
+                  <select value={bankConnectionId} onChange={e => setBankConnectionId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
+                    <option value="">— Nenhum banco vinculado</option>
+                    {bankConnections.map((b: any) => (
+                      <option key={b.id} value={b.id}>
+                        {b.bankName}{b.accountNumber ? ` — CC ${b.accountNumber}` : ''}{b.agency ? ` / Ag ${b.agency}` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

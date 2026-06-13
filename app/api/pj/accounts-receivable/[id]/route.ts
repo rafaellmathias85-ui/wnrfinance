@@ -25,6 +25,7 @@ export async function PUT(req: NextRequest, { params }: any) {
   if (body.status !== undefined) data.status = body.status;
   if (body.categoryId !== undefined) data.categoryId = body.categoryId || null;
   if (body.costCenterId !== undefined) data.costCenterId = body.costCenterId || null;
+  if (body.bankConnectionId !== undefined) data.bankConnectionId = body.bankConnectionId || null;
   if (body.notes !== undefined) data.notes = body.notes;
   if (body.customerDoc !== undefined) data.customerDoc = body.customerDoc || null;
   if (body.customerEmail !== undefined) data.customerEmail = body.customerEmail || null;
@@ -39,9 +40,12 @@ export async function PUT(req: NextRequest, { params }: any) {
 
   const updated = await prisma.accountsReceivable.update({ where: { id }, data });
 
-  // Gera entradas futuras apenas quando a recorrência está sendo ATIVADA nesta edição
   const recurrenceMonths = body.recurrenceMonths ? parseInt(body.recurrenceMonths, 10) : 0;
+
+  // ── Ativação de recorrência pela primeira vez ──────────────────────────────
   if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
+    const seriesId = id;
+    await prisma.accountsReceivable.update({ where: { id }, data: { recurrenceId: seriesId } });
     const baseDate = updated.dueDate;
     for (let i = 1; i <= recurrenceMonths; i++) {
       const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
@@ -57,9 +61,58 @@ export async function PUT(req: NextRequest, { params }: any) {
           status: 'pendente',
           categoryId: updated.categoryId || null,
           costCenterId: updated.costCenterId || null,
+          bankConnectionId: updated.bankConnectionId || null,
           notes: updated.notes || null,
           isRecurring: true,
           recurrenceType: updated.recurrenceType || 'monthly',
+          recurrenceId: seriesId,
+          sourceType: updated.sourceType || 'manual',
+          autoNfe: false,
+          autoBoleto: false,
+          chargeType: updated.chargeType || 'boleto_pix',
+          fiscalRuleId: updated.fiscalRuleId || null,
+          billingPeriod: updated.billingPeriod || null,
+          launchType: updated.launchType || null,
+          createdBy: session.user.id,
+        },
+      });
+    }
+  }
+
+  // ── Alteração do número de parcelas em série já ativa ──────────────────────
+  if (existing.isRecurring && body.isRecurring !== false && recurrenceMonths > 0) {
+    const seriesId = existing.recurrenceId || id;
+
+    await prisma.accountsReceivable.deleteMany({
+      where: {
+        companyId,
+        recurrenceId: seriesId,
+        id: { not: id },
+        dueDate: { gt: existing.dueDate },
+        status: 'pendente',
+      },
+    });
+
+    const baseDate = updated.dueDate;
+    for (let i = 1; i <= recurrenceMonths; i++) {
+      const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+      await prisma.accountsReceivable.create({
+        data: {
+          companyId,
+          description: updated.description,
+          customerName: updated.customerName || null,
+          customerDoc: updated.customerDoc || null,
+          customerEmail: updated.customerEmail || null,
+          amount: updated.amount,
+          dueDate: futureDate,
+          status: 'pendente',
+          categoryId: updated.categoryId || null,
+          costCenterId: updated.costCenterId || null,
+          bankConnectionId: updated.bankConnectionId || null,
+          notes: updated.notes || null,
+          isRecurring: true,
+          recurrenceType: 'monthly',
+          recurrenceId: seriesId,
           sourceType: updated.sourceType || 'manual',
           autoNfe: false,
           autoBoleto: false,

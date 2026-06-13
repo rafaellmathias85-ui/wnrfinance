@@ -15,6 +15,7 @@ const ContaPagarSchema = z.object({
   status: z.enum(['pendente', 'pago', 'vencido', 'cancelado']).optional().default('pendente'),
   categoryId: z.string().optional().nullable(),
   costCenterId: z.string().optional().nullable(),
+  bankConnectionId: z.string().optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
   isRecurring: z.boolean().optional().default(false),
   recurrenceType: z.string().max(20).optional().nullable(),
@@ -42,17 +43,17 @@ export async function GET(req: NextRequest) {
   const month = url.searchParams.get('month');
   const year = url.searchParams.get('year');
   const status = url.searchParams.get('status');
-  const statusMulti = url.searchParams.get('statusMulti'); // comma-separated
+  const statusMulti = url.searchParams.get('statusMulti');
   const categoryId = url.searchParams.get('categoryId');
   const costCenterId = url.searchParams.get('costCenterId');
   const dateFrom = url.searchParams.get('dateFrom');
   const dateTo = url.searchParams.get('dateTo');
-  const dateType = url.searchParams.get('dateType') || 'vencimento'; // vencimento|competencia|pagamento
+  const dateType = url.searchParams.get('dateType') || 'vencimento';
   const counterpart = url.searchParams.get('counterpart');
   const minValue = url.searchParams.get('minValue');
   const maxValue = url.searchParams.get('maxValue');
   const paymentMethod = url.searchParams.get('paymentMethod');
-  const tagIds = url.searchParams.get('tagIds'); // comma-separated
+  const tagIds = url.searchParams.get('tagIds');
 
   const where: any = { companyId };
   if (statusMulti) {
@@ -70,7 +71,6 @@ export async function GET(req: NextRequest) {
     if (maxValue) where.amount.lte = parseFloat(maxValue);
   }
 
-  // Date filter (dateFrom/dateTo take priority over month/year)
   if (dateFrom || dateTo) {
     const dateField = dateType === 'pagamento' ? 'paidAt' : 'dueDate';
     where[dateField] = {};
@@ -88,8 +88,13 @@ export async function GET(req: NextRequest) {
 
   const items = await prisma.accountsPayable.findMany({
     where,
-    include: { category: true, costCenter: true, tags: { include: { tag: true } } },
-    orderBy: { dueDate: 'desc' },
+    include: {
+      category: true,
+      costCenter: true,
+      tags: { include: { tag: true } },
+      bankConnection: { select: { id: true, bankName: true, accountNumber: true, agency: true } },
+    },
+    orderBy: { dueDate: 'asc' },
   });
   return NextResponse.json(items);
 }
@@ -126,6 +131,7 @@ export async function POST(req: NextRequest) {
       status: body.status || 'pendente',
       categoryId: body.categoryId || null,
       costCenterId: body.costCenterId || null,
+      bankConnectionId: body.bankConnectionId || null,
       notes: body.notes || null,
       isRecurring: body.isRecurring || false,
       recurrenceType: body.recurrenceType || null,
@@ -144,9 +150,17 @@ export async function POST(req: NextRequest) {
     },
     include: { tags: { include: { tag: true } } },
   });
+
   // Generate future monthly instances for recurring entries
   if (body.isRecurring && body.recurrenceMonths && body.recurrenceMonths > 0) {
     const baseDate = new Date(body.dueDate);
+    // recurrenceId = id do item original — vincula a série
+    const seriesId = item.id;
+    // Atualiza o item original com seu próprio id como recurrenceId
+    await prisma.accountsPayable.update({
+      where: { id: item.id },
+      data: { recurrenceId: seriesId },
+    });
     for (let i = 1; i <= body.recurrenceMonths; i++) {
       const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
       await prisma.accountsPayable.create({
@@ -159,9 +173,11 @@ export async function POST(req: NextRequest) {
           status: 'pendente',
           categoryId: body.categoryId || null,
           costCenterId: body.costCenterId || null,
+          bankConnectionId: body.bankConnectionId || null,
           notes: body.notes || null,
           isRecurring: true,
           recurrenceType: body.recurrenceType || 'monthly',
+          recurrenceId: seriesId,
           paymentMethod: body.paymentMethod || null,
           pixKey: body.pixKey || null,
           boletoCode: body.boletoCode || null,

@@ -47,6 +47,8 @@ export default function ContasPagar() {
   const [quickName, setQuickName] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceMonths, setRecurrenceMonths] = useState(2);
+  const [bankConnections, setBankConnections] = useState<any[]>([]);
+  const [bankConnectionId, setBankConnectionId] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilterValues>(EMPTY_FILTERS);
@@ -84,12 +86,13 @@ export default function ContasPagar() {
     if (!activeCompanyId) return;
     setLoading(true);
     try {
-      const [itemsRes, catsRes, ccRes, tagsRes, suppRes] = await Promise.all([
+      const [itemsRes, catsRes, ccRes, tagsRes, suppRes, banksRes] = await Promise.all([
         apiFetch(`/api/pj/accounts-payable?${buildQueryString(advancedFilters)}`),
         apiFetch('/api/pj/categories'),
         apiFetch('/api/pj/cost-centers'),
         apiFetch('/api/pj/tags'),
         apiFetch('/api/pj/suppliers'),
+        apiFetch('/api/banks'),
       ]);
       setItems(await itemsRes.json());
       setCategories(await catsRes.json());
@@ -99,6 +102,8 @@ export default function ContasPagar() {
       setTags(Array.isArray(tagsData) ? tagsData : []);
       const suppData = await suppRes.json();
       setSuppliers(Array.isArray(suppData) ? suppData : []);
+      const banksData = await banksRes.json();
+      setBankConnections(Array.isArray(banksData?.connections) ? banksData.connections : []);
     } catch { /* ignore */ }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,6 +132,7 @@ export default function ContasPagar() {
     setSelectedTags([]);
     setIsRecurring(false);
     setRecurrenceMonths(2);
+    setBankConnectionId('');
     aiClear();
     setShowForm(true);
   };
@@ -188,6 +194,7 @@ export default function ContasPagar() {
     setSelectedTags(item.tags?.map((t: any) => t.tagId) || []);
     setIsRecurring(!!item.isRecurring);
     setRecurrenceMonths(item.recurrenceMonths || 2);
+    setBankConnectionId(item.bankConnectionId || '');
     setShowForm(true);
   };
 
@@ -206,6 +213,7 @@ export default function ContasPagar() {
       paymentMethod: paymentMethod || null,
       launchType: fd.get('launchType') || null,
       tagIds: selectedTags,
+      bankConnectionId: bankConnectionId || null,
       isRecurring,
       recurrenceType: isRecurring ? 'monthly' : null,
       recurrenceMonths: isRecurring ? recurrenceMonths : null,
@@ -333,8 +341,9 @@ export default function ContasPagar() {
                   else { const [y, m] = e.target.value.split('-'); setYear(Number(y)); setMonth(Number(m)); }
                 }} className="px-3 py-2 border rounded-lg text-sm bg-background min-w-[160px]">
                   <option value="todos">Todos os períodos</option>
-                  {Array.from({ length: 24 }, (_, i) => {
-                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                  {Array.from({ length: 37 }, (_, i) => {
+                    // +12 meses futuros até -24 meses passados (índice 0 = +12, índice 12 = atual, índice 36 = -24)
+                    const d = new Date(now.getFullYear(), now.getMonth() + 12 - i, 1);
                     const y = d.getFullYear(); const m = d.getMonth() + 1;
                     return <option key={`${y}-${m}`} value={`${y}-${m}`}>{d.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}</option>;
                   })}
@@ -499,6 +508,17 @@ export default function ContasPagar() {
                     <option value="impostos">Impostos</option>
                     <option value="transferencia">Transferência</option>
                     <option value="lucros">Divisão de Lucros</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>Banco de Débito</Label>
+                  <select value={bankConnectionId} onChange={e => setBankConnectionId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-background">
+                    <option value="">— Nenhum banco vinculado</option>
+                    {bankConnections.map((b: any) => (
+                      <option key={b.id} value={b.id}>
+                        {b.bankName}{b.accountNumber ? ` — CC ${b.accountNumber}` : ''}{b.agency ? ` / Ag ${b.agency}` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

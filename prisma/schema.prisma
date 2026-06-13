@@ -327,9 +327,11 @@ model BankConnection {
   incomes          Income[]
   creditCards      CreditCard[]
   investments      Investment[]
-  bankTransactions BankTransaction[] @relation("BankTxConn")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
+  bankTransactions BankTransaction[]   @relation("BankTxConn")
+  payables         AccountsPayable[]   @relation("BankConnectionPayables")
+  receivables      AccountsReceivable[] @relation("BankConnectionReceivables")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
 
   @@unique([provider, connectionId])
   @@index([userId])
@@ -603,6 +605,8 @@ model AccountsPayable {
   transferDoc         String?
   transferAccountType String?
   attachmentUrl       String?
+  bankConnectionId    String?
+  bankConnection      BankConnection?     @relation("BankConnectionPayables", fields: [bankConnectionId], references: [id], onDelete: SetNull)
   isRecurring         Boolean             @default(false)
   recurrenceType      String?
   recurrenceId        String?
@@ -618,6 +622,7 @@ model AccountsPayable {
   @@index([dueDate])
   @@index([status])
   @@index([recurrenceId])
+  @@index([bankConnectionId])
 }
 
 model AccountsReceivable {
@@ -641,6 +646,8 @@ model AccountsReceivable {
   recurrenceType String?
   recurrenceId   String?
   recurrence     Recurrence?             @relation("RecurrenceReceivables", fields: [recurrenceId], references: [id], onDelete: SetNull)
+  bankConnectionId String?
+  bankConnection   BankConnection?         @relation("BankConnectionReceivables", fields: [bankConnectionId], references: [id], onDelete: SetNull)
   notes          String?
   createdBy      String?
   // Origem do lançamento
@@ -683,6 +690,7 @@ model AccountsReceivable {
   @@index([fiscalRuleId])
   @@index([billingStatus])
   @@index([billingDate])
+  @@index([bankConnectionId])
 }
 
 model ReceivableNegotiation {

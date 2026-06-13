@@ -18,6 +18,7 @@ const ContaReceberSchema = z.object({
   status: z.enum(['pendente', 'recebido', 'vencido', 'cancelado']).optional().default('pendente'),
   categoryId: z.string().optional().nullable(),
   costCenterId: z.string().optional().nullable(),
+  bankConnectionId: z.string().optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
   isRecurring: z.boolean().optional().default(false),
   recurrenceType: z.string().max(20).optional().nullable(),
@@ -80,11 +81,15 @@ export async function GET(req: NextRequest) {
 
   const items = await prisma.accountsReceivable.findMany({
     where,
-    include: { category: true, costCenter: true, fiscalRule: true },
-    orderBy: { dueDate: 'desc' },
+    include: {
+      category: true,
+      costCenter: true,
+      fiscalRule: true,
+      bankConnection: { select: { id: true, bankName: true, accountNumber: true, agency: true } },
+    },
+    orderBy: { dueDate: 'asc' },
   });
 
-  // Enriquecer com status de NF-e e Boleto para exibição
   const ids = items.map(i => i.id);
   const [nfes, boletos] = await Promise.all([
     prisma.nFe.findMany({
@@ -142,6 +147,7 @@ export async function POST(req: NextRequest) {
       status: body.status || 'pendente',
       categoryId: body.categoryId || null,
       costCenterId: body.costCenterId || null,
+      bankConnectionId: body.bankConnectionId || null,
       notes: body.notes || null,
       isRecurring: body.isRecurring || false,
       recurrenceType: body.recurrenceType || null,
@@ -157,7 +163,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Disparar automação em background (não bloqueia a resposta)
   if (item.autoNfe || item.autoBoleto) {
     runReceivableAutomation(item.id, companyId).catch(() => {});
   }
@@ -165,6 +170,8 @@ export async function POST(req: NextRequest) {
   // Generate future monthly instances for recurring entries
   if (body.isRecurring && body.recurrenceMonths && body.recurrenceMonths > 0) {
     const baseDate = new Date(body.dueDate);
+    const seriesId = item.id;
+    await prisma.accountsReceivable.update({ where: { id: item.id }, data: { recurrenceId: seriesId } });
     for (let i = 1; i <= body.recurrenceMonths; i++) {
       const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
       await prisma.accountsReceivable.create({
@@ -179,9 +186,11 @@ export async function POST(req: NextRequest) {
           status: 'pendente',
           categoryId: body.categoryId || null,
           costCenterId: body.costCenterId || null,
+          bankConnectionId: body.bankConnectionId || null,
           notes: body.notes || null,
           isRecurring: true,
           recurrenceType: body.recurrenceType || 'monthly',
+          recurrenceId: seriesId,
           sourceType: body.sourceType || 'manual',
           autoNfe: false,
           autoBoleto: false,

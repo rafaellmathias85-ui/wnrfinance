@@ -25,6 +25,7 @@ export async function PUT(req: NextRequest, { params }: any) {
   if (body.status !== undefined) data.status = body.status;
   if (body.categoryId !== undefined) data.categoryId = body.categoryId || null;
   if (body.costCenterId !== undefined) data.costCenterId = body.costCenterId || null;
+  if (body.bankConnectionId !== undefined) data.bankConnectionId = body.bankConnectionId || null;
   if (body.notes !== undefined) data.notes = body.notes;
   if (body.paymentMethod !== undefined) data.paymentMethod = body.paymentMethod || null;
   if (body.pixKey !== undefined) data.pixKey = body.pixKey || null;
@@ -39,7 +40,6 @@ export async function PUT(req: NextRequest, { params }: any) {
   if (body.isRecurring !== undefined) data.isRecurring = !!body.isRecurring;
   if (body.recurrenceType !== undefined) data.recurrenceType = body.recurrenceType || null;
 
-  // Handle tags update
   if (body.tagIds !== undefined) {
     await prisma.accountPayableTag.deleteMany({ where: { payableId: id } });
     if (body.tagIds.length > 0) {
@@ -55,9 +55,12 @@ export async function PUT(req: NextRequest, { params }: any) {
     include: { tags: { include: { tag: true } } },
   });
 
-  // Gera entradas futuras apenas quando a recorrência está sendo ATIVADA nesta edição
   const recurrenceMonths = body.recurrenceMonths ? parseInt(body.recurrenceMonths, 10) : 0;
+
+  // ── Ativação de recorrência pela primeira vez ──────────────────────────────
   if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
+    const seriesId = id;
+    await prisma.accountsPayable.update({ where: { id }, data: { recurrenceId: seriesId } });
     const baseDate = updated.dueDate;
     for (let i = 1; i <= recurrenceMonths; i++) {
       const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
@@ -71,9 +74,61 @@ export async function PUT(req: NextRequest, { params }: any) {
           status: 'pendente',
           categoryId: updated.categoryId || null,
           costCenterId: updated.costCenterId || null,
+          bankConnectionId: updated.bankConnectionId || null,
           notes: updated.notes || null,
           isRecurring: true,
           recurrenceType: updated.recurrenceType || 'monthly',
+          recurrenceId: seriesId,
+          paymentMethod: updated.paymentMethod || null,
+          pixKey: updated.pixKey || null,
+          boletoCode: updated.boletoCode || null,
+          transferBank: updated.transferBank || null,
+          transferAgency: updated.transferAgency || null,
+          transferAccount: updated.transferAccount || null,
+          transferName: updated.transferName || null,
+          transferDoc: updated.transferDoc || null,
+          transferAccountType: updated.transferAccountType || null,
+          launchType: updated.launchType || null,
+          createdBy: session.user.id,
+        },
+      });
+    }
+  }
+
+  // ── Alteração do número de parcelas em série já ativa ──────────────────────
+  if (existing.isRecurring && body.isRecurring !== false && recurrenceMonths > 0) {
+    const seriesId = existing.recurrenceId || id;
+
+    // Deleta futuras parcelas pendentes da série (dueDate > data atual)
+    await prisma.accountsPayable.deleteMany({
+      where: {
+        companyId,
+        recurrenceId: seriesId,
+        id: { not: id },
+        dueDate: { gt: existing.dueDate },
+        status: 'pendente',
+      },
+    });
+
+    // Recria as novas parcelas
+    const baseDate = updated.dueDate;
+    for (let i = 1; i <= recurrenceMonths; i++) {
+      const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+      await prisma.accountsPayable.create({
+        data: {
+          companyId,
+          description: updated.description,
+          supplierName: updated.supplierName || null,
+          amount: updated.amount,
+          dueDate: futureDate,
+          status: 'pendente',
+          categoryId: updated.categoryId || null,
+          costCenterId: updated.costCenterId || null,
+          bankConnectionId: updated.bankConnectionId || null,
+          notes: updated.notes || null,
+          isRecurring: true,
+          recurrenceType: 'monthly',
+          recurrenceId: seriesId,
           paymentMethod: updated.paymentMethod || null,
           pixKey: updated.pixKey || null,
           boletoCode: updated.boletoCode || null,
