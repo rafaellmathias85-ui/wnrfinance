@@ -4,7 +4,7 @@ import { CheckSquare } from 'lucide-react';
 import { useAiCategorize } from '@/hooks/use-ai-categorize';
 import { usePJ } from '@/lib/pj-context';
 import { ExportButton } from '@/components/export-button';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Check, ChevronLeft, ChevronRight, ExternalLink, FileText, FileUp, Pencil, Plus, PlusCircle, QrCode, Repeat, Search, Sparkles, Square, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,7 @@ export default function ContasReceber() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilterValues>(EMPTY_FILTERS);
   const [showImport, setShowImport] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const { suggestion: aiSuggestion, loading: aiLoading, categorize: aiCategorize, clear: aiClear } = useAiCategorize();
 
   const now = new Date();
@@ -205,9 +206,9 @@ export default function ContasReceber() {
     setShowForm(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+  const handleSave = async () => {
+    if (!formRef.current) return;
+    const fd = new FormData(formRef.current);
     const body: any = {
       description: fd.get('description'),
       customerName: fd.get('customerName'),
@@ -451,7 +452,7 @@ export default function ContasReceber() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form key={editing?.id ?? 'new'} onSubmit={handleSubmit} className="space-y-4">
+            <form key={editing?.id ?? 'new'} ref={formRef} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2">
                   <Label>Descricao *</Label>
@@ -605,7 +606,7 @@ export default function ContasReceber() {
               <div><Label>Observacoes</Label><Input name="notes" defaultValue={editing?.notes} /></div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditing(null); }}>Cancelar</Button>
-                <Button type="submit">{editing ? 'Salvar' : 'Criar'}</Button>
+                <Button type="button" onClick={handleSave}>{editing ? 'Salvar' : 'Criar'}</Button>
               </div>
             </form>
           </CardContent>
