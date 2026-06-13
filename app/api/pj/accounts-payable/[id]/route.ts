@@ -49,103 +49,115 @@ export async function PUT(req: NextRequest, { params }: any) {
     }
   }
 
-  const updated = await prisma.accountsPayable.update({
-    where: { id },
-    data,
-    include: { tags: { include: { tag: true } } },
-  });
-
-  const recurrenceMonths = body.recurrenceMonths ? parseInt(body.recurrenceMonths, 10) : 0;
-
-  // ── Ativação de recorrência pela primeira vez ──────────────────────────────
-  if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
-    const seriesId = id;
-    await prisma.accountsPayable.update({ where: { id }, data: { recurrenceId: seriesId } });
-    const baseDate = updated.dueDate;
-    for (let i = 1; i <= recurrenceMonths; i++) {
-      const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
-      await prisma.accountsPayable.create({
-        data: {
-          companyId,
-          description: updated.description,
-          supplierName: updated.supplierName || null,
-          amount: updated.amount,
-          dueDate: futureDate,
-          status: 'pendente',
-          categoryId: updated.categoryId || null,
-          costCenterId: updated.costCenterId || null,
-          bankConnectionId: updated.bankConnectionId || null,
-          notes: updated.notes || null,
-          isRecurring: true,
-          recurrenceType: updated.recurrenceType || 'monthly',
-          recurrenceId: seriesId,
-          paymentMethod: updated.paymentMethod || null,
-          pixKey: updated.pixKey || null,
-          boletoCode: updated.boletoCode || null,
-          transferBank: updated.transferBank || null,
-          transferAgency: updated.transferAgency || null,
-          transferAccount: updated.transferAccount || null,
-          transferName: updated.transferName || null,
-          transferDoc: updated.transferDoc || null,
-          transferAccountType: updated.transferAccountType || null,
-          launchType: updated.launchType || null,
-          createdBy: session.user.id,
-        },
-      });
-    }
-  }
-
-  // ── Alteração do número de parcelas em série já ativa ──────────────────────
-  if (existing.isRecurring && body.isRecurring !== false && recurrenceMonths > 0) {
-    const seriesId = existing.recurrenceId || id;
-
-    // Deleta futuras parcelas pendentes da série (dueDate > data atual)
-    await prisma.accountsPayable.deleteMany({
-      where: {
-        companyId,
-        recurrenceId: seriesId,
-        id: { not: id },
-        dueDate: { gt: existing.dueDate },
-        status: 'pendente',
-      },
+  try {
+    const updated = await prisma.accountsPayable.update({
+      where: { id },
+      data,
+      include: { tags: { include: { tag: true } } },
     });
 
-    // Recria as novas parcelas
-    const baseDate = updated.dueDate;
-    for (let i = 1; i <= recurrenceMonths; i++) {
-      const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
-      await prisma.accountsPayable.create({
-        data: {
+    const recurrenceMonths = body.recurrenceMonths ? parseInt(body.recurrenceMonths, 10) : 0;
+
+    // ── Ativação de recorrência pela primeira vez ──────────────────────────────
+    if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
+      const seriesId = id;
+      await prisma.accountsPayable.update({ where: { id }, data: { recurrenceId: seriesId } });
+      const baseDate = updated.dueDate;
+      for (let i = 1; i <= recurrenceMonths; i++) {
+        const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+        await prisma.accountsPayable.create({
+          data: {
+            companyId,
+            description: updated.description,
+            supplierName: updated.supplierName || null,
+            amount: updated.amount,
+            dueDate: futureDate,
+            status: 'pendente',
+            categoryId: updated.categoryId || null,
+            costCenterId: updated.costCenterId || null,
+            bankConnectionId: updated.bankConnectionId || null,
+            notes: updated.notes || null,
+            isRecurring: true,
+            recurrenceType: updated.recurrenceType || 'monthly',
+            recurrenceId: seriesId,
+            paymentMethod: updated.paymentMethod || null,
+            pixKey: updated.pixKey || null,
+            boletoCode: updated.boletoCode || null,
+            transferBank: updated.transferBank || null,
+            transferAgency: updated.transferAgency || null,
+            transferAccount: updated.transferAccount || null,
+            transferName: updated.transferName || null,
+            transferDoc: updated.transferDoc || null,
+            transferAccountType: updated.transferAccountType || null,
+            launchType: updated.launchType || null,
+            createdBy: session.user.id,
+          },
+        });
+      }
+    }
+
+    // ── Alteração do número de parcelas em série já ativa ──────────────────────
+    if (existing.isRecurring && body.isRecurring !== false && recurrenceMonths > 0) {
+      let seriesId = existing.recurrenceId || id;
+
+      // Garante que a raiz da série ainda existe; se não, usa o registro atual como raiz
+      if (seriesId !== id) {
+        const seriesRoot = await prisma.accountsPayable.findUnique({ where: { id: seriesId } });
+        if (!seriesRoot) {
+          seriesId = id;
+          await prisma.accountsPayable.update({ where: { id }, data: { recurrenceId: id } });
+        }
+      }
+
+      await prisma.accountsPayable.deleteMany({
+        where: {
           companyId,
-          description: updated.description,
-          supplierName: updated.supplierName || null,
-          amount: updated.amount,
-          dueDate: futureDate,
-          status: 'pendente',
-          categoryId: updated.categoryId || null,
-          costCenterId: updated.costCenterId || null,
-          bankConnectionId: updated.bankConnectionId || null,
-          notes: updated.notes || null,
-          isRecurring: true,
-          recurrenceType: 'monthly',
           recurrenceId: seriesId,
-          paymentMethod: updated.paymentMethod || null,
-          pixKey: updated.pixKey || null,
-          boletoCode: updated.boletoCode || null,
-          transferBank: updated.transferBank || null,
-          transferAgency: updated.transferAgency || null,
-          transferAccount: updated.transferAccount || null,
-          transferName: updated.transferName || null,
-          transferDoc: updated.transferDoc || null,
-          transferAccountType: updated.transferAccountType || null,
-          launchType: updated.launchType || null,
-          createdBy: session.user.id,
+          id: { not: id },
+          dueDate: { gt: existing.dueDate },
+          status: 'pendente',
         },
       });
-    }
-  }
 
-  return NextResponse.json(updated);
+      const baseDate = updated.dueDate;
+      for (let i = 1; i <= recurrenceMonths; i++) {
+        const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+        await prisma.accountsPayable.create({
+          data: {
+            companyId,
+            description: updated.description,
+            supplierName: updated.supplierName || null,
+            amount: updated.amount,
+            dueDate: futureDate,
+            status: 'pendente',
+            categoryId: updated.categoryId || null,
+            costCenterId: updated.costCenterId || null,
+            bankConnectionId: updated.bankConnectionId || null,
+            notes: updated.notes || null,
+            isRecurring: true,
+            recurrenceType: 'monthly',
+            recurrenceId: seriesId,
+            paymentMethod: updated.paymentMethod || null,
+            pixKey: updated.pixKey || null,
+            boletoCode: updated.boletoCode || null,
+            transferBank: updated.transferBank || null,
+            transferAgency: updated.transferAgency || null,
+            transferAccount: updated.transferAccount || null,
+            transferName: updated.transferName || null,
+            transferDoc: updated.transferDoc || null,
+            transferAccountType: updated.transferAccountType || null,
+            launchType: updated.launchType || null,
+            createdBy: session.user.id,
+          },
+        });
+      }
+    }
+
+    return NextResponse.json(updated);
+  } catch (err: any) {
+    console.error('[accounts-payable PUT]', err?.message ?? err);
+    return NextResponse.json({ error: err?.message ?? 'Erro interno' }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: any) {
