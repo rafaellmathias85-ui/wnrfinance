@@ -9,6 +9,10 @@ out/
 build/
 dist/
 
+# ─── Certificados Itaú (NUNCA commitar — dados sensíveis) ────────
+ITAU/certs/
+scripts/create-user-alessandra.mjs
+
 # ─── Variáveis de ambiente (NUNCA commitar) ──────────────────────
 .env
 .env.local
