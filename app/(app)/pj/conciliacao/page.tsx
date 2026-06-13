@@ -253,16 +253,22 @@ export default function ConciliacaoPJ() {
       });
       const d = await res.json();
       if (res.ok) {
-        setImportResult({
-          imported: d.summary.imported,
-          reconciled: d.summary.reconciled,
-          divergent: d.summary.suggested,
-          bankOnly: d.summary.bankOnly,
-          skipped: d.summary.skippedDuplicates,
-          batchId: d.batchId,
-        });
-        setBankText(''); setParsedEntries([]);
-        setTimeout(() => { setShowImport(false); setImportResult(null); load(); }, 2000);
+        if (d.summary?.allDuplicates) {
+          setImportResult({ allDuplicates: true, skipped: d.summary.skippedDuplicates });
+          setBankText(''); setParsedEntries([]);
+          setTimeout(() => { setShowImport(false); setImportResult(null); }, 3500);
+        } else {
+          setImportResult({
+            imported: d.summary.imported,
+            reconciled: d.summary.reconciled,
+            divergent: d.summary.suggested,
+            bankOnly: d.summary.bankOnly,
+            skipped: d.summary.skippedDuplicates,
+            batchId: d.batchId,
+          });
+          setBankText(''); setParsedEntries([]);
+          setTimeout(() => { setShowImport(false); setImportResult(null); load(); }, 2000);
+        }
       } else {
         setImportResult({ error: d.error });
       }
@@ -965,8 +971,12 @@ export default function ConciliacaoPJ() {
               )}
 
               {importResult && (
-                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
-                  {importResult.error ? `Erro: ${importResult.error}` : `Importadas: ${importResult.imported} | Conciliadas: ${importResult.reconciled ?? importResult.imported} | Sugeridas: ${importResult.divergent} | Não encontradas: ${importResult.bankOnly}${importResult.skipped ? ` | Duplicatas ignoradas: ${importResult.skipped}` : ''}`}
+                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : importResult.allDuplicates ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
+                  {importResult.error
+                    ? `Erro: ${importResult.error}`
+                    : importResult.allDuplicates
+                    ? `Arquivo já importado — todas as ${importResult.skipped} transações já existem no sistema.`
+                    : `Importadas: ${importResult.imported} | Conciliadas: ${importResult.reconciled ?? importResult.imported} | Sugeridas: ${importResult.divergent} | Não encontradas: ${importResult.bankOnly}${importResult.skipped ? ` | Duplicatas ignoradas: ${importResult.skipped}` : ''}`}
                 </div>
               )}
 
@@ -994,8 +1004,12 @@ export default function ConciliacaoPJ() {
                 />
               </div>
               {importResult && (
-                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
-                  {importResult.error ? `Erro: ${importResult.error}` : `Importadas: ${importResult.imported} | Conciliadas: ${importResult.reconciled ?? importResult.imported} | Sugeridas: ${importResult.divergent} | Não encontradas: ${importResult.bankOnly}${importResult.skipped ? ` | Duplicatas ignoradas: ${importResult.skipped}` : ''}`}
+                <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : importResult.allDuplicates ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'}`}>
+                  {importResult.error
+                    ? `Erro: ${importResult.error}`
+                    : importResult.allDuplicates
+                    ? `Arquivo já importado — todas as ${importResult.skipped} transações já existem no sistema.`
+                    : `Importadas: ${importResult.imported} | Conciliadas: ${importResult.reconciled ?? importResult.imported} | Sugeridas: ${importResult.divergent} | Não encontradas: ${importResult.bankOnly}${importResult.skipped ? ` | Duplicatas ignoradas: ${importResult.skipped}` : ''}`}
                 </div>
               )}
               <div className="flex justify-end gap-2">

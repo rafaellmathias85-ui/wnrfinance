@@ -93,23 +93,59 @@ export async function POST(req: NextRequest) {
     fileName,
   });
 
-  // Importa entries com importBatchId igual em ambas as tabelas para permitir
-  // agrupamento consistente na tela "Conciliação" (V1 usa importBatchId como string)
   const importBatchId = batch.id;
 
+  // ── 2. Pré-carregar hashes/IDs já existentes (dedup inteligente) ───────────
+  // Janela: ±45 dias em volta do período do arquivo (igual à janela de matching)
+  const windowStart = new Date((periodStart || new Date()).getTime() - 45 * 86400000);
+  const windowEnd   = new Date((periodEnd   || new Date()).getTime() + 45 * 86400000);
+
+  const [existingBankTxs, existingPJRecs] = await Promise.all([
+    prisma.bankTransaction.findMany({
+      where: { companyId, date: { gte: windowStart, lte: windowEnd } },
+      select: { transactionHash: true, externalId: true },
+    }),
+    prisma.pJReconciliation.findMany({
+      where: { companyId, bankDate: { gte: windowStart, lte: windowEnd } },
+      select: { type: true, bankDate: true, bankAmount: true, bankReference: true },
+    }),
+  ]);
+
+  // Sets para lookup O(1): hash SHA-256 e FITID para BankTransaction
+  const existingHashSet  = new Set<string>(
+    existingBankTxs.map(t => t.transactionHash).filter(Boolean) as string[]
+  );
+  const existingFITIDSet = new Set<string>(
+    existingBankTxs.map(t => t.externalId).filter(Boolean) as string[]
+  );
+
+  // Chave composta para PJReconciliation: tipo|data|valor|referência(50 chars)
+  function pjKey(type: string, date: Date, amount: number, reference: string): string {
+    return [type, date.toISOString().slice(0, 10), String(amount), reference.slice(0, 50)].join('|');
+  }
+  const pjDedupSet = new Set<string>(
+    existingPJRecs.map(r => pjKey(r.type, r.bankDate, r.bankAmount, r.bankReference || ''))
+  );
+
+  // ── 3. Criar BankTransaction + PJReconciliation por entrada ──────────────
   const createdTxIds: string[] = [];
   let skippedDupes = 0;
 
-  // ── 2. Criar BankTransaction + PJReconciliation por entrada ──────────────
   for (const entry of entries) {
     const amt = absAmount(entry);
     const dir = direction(entry);
     const txDate = new Date(entry.date);
     if (isNaN(txDate.getTime()) || amt === 0) continue;
 
-    const classification = classifyTransaction(entry.reference || '', entry.trntype);
+    // ── Dedup por FITID (OFX) ────────────────────────────────────────────────
+    if (entry.fitid && existingFITIDSet.has(entry.fitid)) {
+      skippedDupes++;
+      continue;
+    }
 
-    // hash para dedup (companyId + bankConnectionId + date + direction + amount + desc)
+    // ── Dedup por hash SHA-256 (todos os formatos) ────────────────────────────
+    // Hash inclui companyId para isolar empresas e usa 'manual' como sentinela
+    // quando não há bankConnectionId (evita NULL != NULL do SQL)
     const txHash = makeHash([
       companyId,
       bankConnectionId || 'manual',
@@ -119,7 +155,14 @@ export async function POST(req: NextRequest) {
       (entry.reference || '').slice(0, 100),
     ]);
 
-    // ── BankTransaction (V2) ──────────────────────────────────────────────
+    if (existingHashSet.has(txHash)) {
+      skippedDupes++;
+      continue;
+    }
+
+    const classification = classifyTransaction(entry.reference || '', entry.trntype);
+
+    // ── BankTransaction (V2) ──────────────────────────────────────────────────
     let bankTx: { id: string } | null = null;
     try {
       bankTx = await prisma.bankTransaction.create({
@@ -143,27 +186,22 @@ export async function POST(req: NextRequest) {
         select: { id: true },
       });
       createdTxIds.push(bankTx.id);
+
+      // Adiciona ao set para deduplicar dentro do próprio lote (arquivo com linhas repetidas)
+      existingHashSet.add(txHash);
+      if (entry.fitid) existingFITIDSet.add(entry.fitid);
     } catch (err: any) {
-      // P2002 = unique constraint (dedup: mesma transação já importada)
+      // P2002 = unique constraint (camada de segurança adicional além do set)
       if (err?.code === 'P2002') { skippedDupes++; continue; }
       console.error('[import] BankTransaction create error:', err?.message);
       continue;
     }
 
-    // ── PJReconciliation (V1, retrocompatibilidade) ────────────────────────
-    // Verifica dedup por (companyId + bankDate + bankAmount + bankReference + importBatchId)
+    // ── PJReconciliation (V1, retrocompatibilidade) ────────────────────────────
     const pjType = dir === 'debit' ? 'PAYABLE' : 'RECEIVABLE';
-    const existingPJ = await prisma.pJReconciliation.findFirst({
-      where: {
-        companyId,
-        bankDate: txDate,
-        bankAmount: amt,
-        bankReference: (entry.reference || '').slice(0, 500),
-      },
-      select: { id: true },
-    });
+    const key = pjKey(pjType, txDate, amt, entry.reference || '');
 
-    if (!existingPJ) {
+    if (!pjDedupSet.has(key)) {
       await prisma.pJReconciliation.create({
         data: {
           companyId,
@@ -179,26 +217,41 @@ export async function POST(req: NextRequest) {
           matchMethod: 'auto',
         },
       }).catch((e: any) => console.error('[import] PJReconciliation create error:', e?.message));
+
+      pjDedupSet.add(key);
     }
   }
 
-  // ── 3. Executar matching automático V2 ───────────────────────────────────
+  // ── 4. Lote vazio: todas as transações já existiam → apaga o lote criado ───
+  if (createdTxIds.length === 0) {
+    await importBatchService.deleteEmptyBatch(importBatchId, session.user.id).catch(() => {});
+    return NextResponse.json({
+      summary: {
+        total: skippedDupes,
+        imported: 0,
+        skippedDuplicates: skippedDupes,
+        reconciled: 0,
+        suggested: 0,
+        bankOnly: 0,
+        allDuplicates: true,
+      },
+      message: 'Todas as transações deste arquivo já foram importadas anteriormente.',
+    }, { status: 200 });
+  }
+
+  // ── 5. Executar matching automático V2 ───────────────────────────────────
   let matchSummary = { processed: 0, reconciled: 0, suggested: 0, pending: 0 };
-  if (createdTxIds.length) {
-    try {
-      matchSummary = await reconciliationService.reconcileBankTransactions({
-        userId: session.user.id,
-        companyId,
-        bankTransactionIds: createdTxIds,
-      });
-    } catch (err: any) {
-      console.error('[import] reconcile error:', err?.message);
-    }
+  try {
+    matchSummary = await reconciliationService.reconcileBankTransactions({
+      userId: session.user.id,
+      companyId,
+      bankTransactionIds: createdTxIds,
+    });
+  } catch (err: any) {
+    console.error('[import] reconcile error:', err?.message);
   }
 
-  // ── 4. Sincronizar resultados do V2 com PJReconciliation (V1) ────────────
-  // Para cada BankTransaction com Reconciliation RECONCILED/SUGGESTED,
-  // atualiza o PJReconciliation correspondente via (importBatchId + bankDate + bankAmount)
+  // ── 6. Sincronizar resultados do V2 com PJReconciliation (V1) ────────────
   try {
     const reconciledTxs = await prisma.bankTransaction.findMany({
       where: {
@@ -206,7 +259,6 @@ export async function POST(req: NextRequest) {
         status: { in: ['RECONCILED', 'SUGGESTED'] },
       },
       include: { reconciliation: true },
-      select: { id: true, date: true, amount: true, type: true, reconciliation: true },
     });
 
     for (const tx of reconciledTxs) {
@@ -230,7 +282,6 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Se RECONCILED: baixa a conta a pagar/receber
       if (pjStatus === 'RECONCILED') {
         if ((tx as any).type === 'debit') {
           await prisma.accountsPayable.update({
@@ -249,10 +300,10 @@ export async function POST(req: NextRequest) {
     console.error('[import] sync V1 error:', err?.message);
   }
 
-  // ── 5. Atualizar contadores do lote (V2) ──────────────────────────────────
+  // ── 7. Atualizar contadores do lote (V2) ──────────────────────────────────
   await importBatchService.refreshCounters(importBatchId).catch(() => {});
 
-  // ── 6. Retornar resumo ────────────────────────────────────────────────────
+  // ── 8. Retornar resumo ────────────────────────────────────────────────────
   const totalImported = createdTxIds.length;
   return NextResponse.json({
     batchId: importBatchId,
