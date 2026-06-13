@@ -124,7 +124,9 @@ export async function POST(req: NextRequest) {
     return [type, date.toISOString().slice(0, 10), String(amount), reference.slice(0, 50)].join('|');
   }
   const pjDedupSet = new Set<string>(
-    existingPJRecs.map(r => pjKey(r.type, r.bankDate, r.bankAmount, r.bankReference || ''))
+    existingPJRecs
+      .filter(r => r.bankDate != null)
+      .map(r => pjKey(r.type, r.bankDate as Date, r.bankAmount, r.bankReference || ''))
   );
 
   // ── 3. Criar BankTransaction + PJReconciliation por entrada ──────────────
