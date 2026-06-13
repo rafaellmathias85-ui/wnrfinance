@@ -52,6 +52,7 @@ jobs:
           NODE_ENV: production
         run: |
           echo "🏗️  Buildando Next.js..."
+          rm -rf .next
           npm run build
           echo "✅ Build concluído"
 
