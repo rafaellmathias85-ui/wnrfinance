@@ -930,11 +930,26 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
                     )}
 
                     {editConnection.bankCode?.toUpperCase() === 'ITAU' && (
-                      <div>
-                        <Label>Id Item</Label>
-                        <Input value={editConnection.id} readOnly className="mt-1 bg-muted cursor-not-allowed font-mono text-xs" />
-                        <p className="mt-1 text-xs text-muted-foreground">Identificador desta conexão para o sistema Itaú.</p>
-                      </div>
+                      <>
+                        <div>
+                          <Label>Client ID</Label>
+                          <Input value={editClientId} onChange={e => setEditClientId(e.target.value)} placeholder="Informe para atualizar" autoComplete="off" className="mt-1" />
+                        </div>
+                        <div>
+                          <Label>Client Secret</Label>
+                          <Input type="password" value={editClientSecret} onChange={e => setEditClientSecret(e.target.value)} placeholder="Informe para atualizar" autoComplete="new-password" className="mt-1" />
+                        </div>
+                        <div>
+                          <Label>Certificado (.crt)</Label>
+                          <Input type="file" accept=".crt,.cer,.pem" onChange={e => setEditCertFile(e.target.files?.[0] || null)} className="mt-1" />
+                          {editCertFile && <p className="mt-1 text-xs text-muted-foreground">{editCertFile.name}</p>}
+                        </div>
+                        <div>
+                          <Label>Chave privada (.key)</Label>
+                          <Input type="file" accept=".key,.pem" onChange={e => setEditKeyFile(e.target.files?.[0] || null)} className="mt-1" />
+                          {editKeyFile && <p className="mt-1 text-xs text-muted-foreground">{editKeyFile.name}</p>}
+                        </div>
+                      </>
                     )}
 
                     <Button
