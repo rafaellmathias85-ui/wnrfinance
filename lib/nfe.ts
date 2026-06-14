@@ -174,10 +174,13 @@ async function emitFocusNFe(payload: NFePayload, config: any): Promise<NFeResult
       body: JSON.stringify(body),
     });
 
-    const data = await res.json();
+    const text = await res.text();
+    let data: any = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON response */ }
 
     if (!res.ok) {
-      return { success: false, errorMessage: data.mensagem || JSON.stringify(data.erros || data) };
+      const msg = data.mensagem || data.message || (data.erros ? JSON.stringify(data.erros) : null) || text.slice(0, 300) || `HTTP ${res.status}`;
+      return { success: false, errorMessage: msg };
     }
 
     return {
@@ -327,10 +330,14 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
       },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+
+    const text = await res.text();
+    let data: any = {};
+    try { data = JSON.parse(text); } catch { /* non-JSON response */ }
 
     if (!res.ok) {
-      return { success: false, errorMessage: data.mensagem || JSON.stringify(data.erros || data) };
+      const msg = data.mensagem || data.message || (data.erros ? JSON.stringify(data.erros) : null) || text.slice(0, 300) || `HTTP ${res.status}`;
+      return { success: false, errorMessage: msg };
     }
 
     return {
