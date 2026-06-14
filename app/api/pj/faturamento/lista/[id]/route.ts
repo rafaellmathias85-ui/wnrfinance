@@ -75,7 +75,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         type: 'boleto' as const,
         user: 'Sistema',
         action: 'Boleto',
-        description: `Boleto ${b.status}${b.barCode ? ` — ${b.barCode.slice(0, 10)}…` : ''}`,
+        description: `Boleto ${b.status}${b.boletoBarCode ? ` — ${b.boletoBarCode.slice(0, 10)}…` : ''}`,
       })),
       ...emailLogs.map(e => ({
         id: e.id,
