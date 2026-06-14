@@ -58,18 +58,23 @@ export default function FiscalSettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const res = await apiFetch('/api/pj/configuracoes/fiscal', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    if (res.ok) {
-      toast.success('Configurações fiscais salvas');
-    } else {
-      const d = await res.json();
-      toast.error(d.error || 'Erro ao salvar');
+    try {
+      const res = await apiFetch('/api/pj/configuracoes/fiscal', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        toast.success('Configurações fiscais salvas com sucesso!');
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || `Erro ao salvar (HTTP ${res.status})`);
+      }
+    } catch (err: any) {
+      toast.error(`Erro de rede: ${err?.message ?? 'Tente novamente'}`);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const inputClass = 'w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
