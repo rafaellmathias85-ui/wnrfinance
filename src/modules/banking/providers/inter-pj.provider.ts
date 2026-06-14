@@ -185,9 +185,9 @@ export class InterPJProvider implements BankProvider {
 
       let response: Record<string, unknown>;
       try {
-        // Endpoint oficial Inter PJ v2: /cobranca/v2/boletos (sem /sumarizados)
+        // Inter PJ v2: /cobranca/v2/boletos/sumarizados para listagem filtrada por situação
         response = await this.requestJson<Record<string, unknown>>(
-          `${baseUrl}/cobranca/v2/boletos?${params}`,
+          `${baseUrl}/cobranca/v2/boletos/sumarizados?${params}`,
           { method: 'GET', agent, headers: { Authorization: `Bearer ${token}` } },
         );
       } catch (err: any) {

@@ -98,15 +98,21 @@ export class ItauPJProvider implements BankProvider {
 
     const allTxs: CanonicalTransaction[] = [];
 
-    // Itaú extrato trabalha por mês (francesas)
+    // Itaú extrato trabalha por mês (francesas). Usa data_inicio/data_fim (YYYY-MM-DD)
+    // pois mes_referencia (MMYYYY) é rejeitado pela API com HTTP 400.
     const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
     const last = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
 
     while (cur <= last) {
-      const mesRef = `${String(cur.getMonth() + 1).padStart(2, '0')}${cur.getFullYear()}`;
+      const yyyy = cur.getFullYear();
+      const mm = String(cur.getMonth() + 1).padStart(2, '0');
+      const lastDay = new Date(yyyy, cur.getMonth() + 1, 0).getDate();
+      const dataInicio = `${yyyy}-${mm}-01`;
+      const dataFim = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`;
+      const mesRef = `${mm}${yyyy}`; // só para o log
       try {
         const francesas = await this.requestJson<Record<string, unknown>>(
-          `${FRANCESAS_URL}?agencia=${agencia}&conta=${conta}&dac=${dac}&mes_referencia=${mesRef}`,
+          `${FRANCESAS_URL}?agencia=${agencia}&conta=${conta}&dac=${dac}&data_inicio=${dataInicio}&data_fim=${dataFim}`,
           { method: 'GET', agent, clientId, token },
         );
 
