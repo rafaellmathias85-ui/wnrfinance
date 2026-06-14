@@ -171,6 +171,17 @@ export async function POST(req: NextRequest) {
   // Generate future monthly instances for recurring entries
   if (body.isRecurring && body.recurrenceMonths && body.recurrenceMonths > 0) {
     const baseDate = new Date(body.dueDate);
+    // Remove any pending orphaned future instances with same description before creating new series
+    await prisma.accountsReceivable.deleteMany({
+      where: {
+        companyId,
+        description: body.description,
+        id: { not: item.id },
+        isRecurring: true,
+        dueDate: { gt: baseDate },
+        status: 'pendente',
+      },
+    });
     // Cria registro Recurrence para satisfazer a FK AccountsReceivable_recurrenceId_fkey
     const recurrenceRecord = await prisma.recurrence.create({
       data: {
@@ -185,6 +196,12 @@ export async function POST(req: NextRequest) {
     await prisma.accountsReceivable.update({ where: { id: item.id }, data: { recurrenceId: recurrenceRecord.id } });
     for (let i = 1; i <= body.recurrenceMonths; i++) {
       const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
+      const dayStart = new Date(futureDate); dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(futureDate); dayEnd.setHours(23, 59, 59, 999);
+      const dup = await prisma.accountsReceivable.findFirst({
+        where: { companyId, amount: body.amount, dueDate: { gte: dayStart, lte: dayEnd }, status: 'pendente', isRecurring: true },
+      });
+      if (dup) continue;
       await prisma.accountsReceivable.create({
         data: {
           companyId,

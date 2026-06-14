@@ -72,14 +72,14 @@ export async function PUT(req: NextRequest, { params }: any) {
 
     // ── Ativação de recorrência pela primeira vez ──────────────────────────────
     if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
-      // Remove orphaned future instances (legacy data without recurrenceId) before creating new ones
+      // Remove ALL pending future instances with same description (any recurrenceId or null)
+      // to avoid duplicates when the user re-creates a recurring series
       await prisma.accountsReceivable.deleteMany({
         where: {
           companyId,
           description: updated.description,
           id: { not: id },
           isRecurring: true,
-          recurrenceId: null,
           dueDate: { gt: updated.dueDate },
           status: 'pendente',
         },
