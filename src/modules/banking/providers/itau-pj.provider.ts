@@ -33,7 +33,7 @@ export class ItauPJProvider implements BankProvider {
       return {
         success: false,
         message: 'Itaú PJ: informe Client ID, Client Secret, certificado (.crt) e chave privada (.key) na aba Integração.',
-        errorCode: 'MISSING_CREDENTIALS',
+        errorCode: 'PENDING_CONFIG',
       };
     }
     try {
