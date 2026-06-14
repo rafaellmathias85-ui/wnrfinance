@@ -559,13 +559,30 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids, action }),
     });
-    if (res.ok) {
-      toast({ title: 'Operação realizada com sucesso!' });
-      setSelected(new Set());
-      fetchData(page, appliedFilters);
-    } else {
+    if (!res.ok) {
       toast({ title: 'Erro na operação', variant: 'destructive' });
+      return;
     }
+    if (action === 'faturar_agora') {
+      const data = await res.json().catch(() => ({}));
+      const failed: any[] = (data.results || []).filter((r: any) => !r.ok);
+      if (failed.length > 0) {
+        const msgs = [...new Set(
+          failed.flatMap((r: any) => [r.nfe?.errorMessage, r.boleto?.errorMessage, r.error].filter(Boolean))
+        )];
+        toast({
+          title: `${data.succeeded ?? 0} de ${data.processed ?? ids.length} item(ns) faturado(s)`,
+          description: msgs[0] || 'Verifique as configurações fiscais da empresa.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Faturamento realizado com sucesso!' });
+      }
+    } else {
+      toast({ title: 'Operação realizada com sucesso!' });
+    }
+    setSelected(new Set());
+    fetchData(page, appliedFilters);
   };
 
   const handleDuplicate = async (id: string) => {

@@ -68,18 +68,33 @@ export class InterPJProvider implements BankProvider {
     const boletoToken = await this.getOAuthToken(agent, 'boleto-cobranca.read').catch(() => null);
     const accountId = this.getAccountId();
 
-    const [extratoTxs, boletoTxs] = await Promise.all([
-      this.fetchExtratoTransactions(agent, extratoToken, startDate, endDate, accountId),
-      boletoToken
-        ? this.fetchPaidBoletos(agent, boletoToken, startDate, endDate, accountId)
-        : Promise.resolve([]),
-    ]);
+    // Inter API: período máximo de 90 dias por requisição. Divide em janelas de 89 dias.
+    const MAX_DAYS = 89;
+    const MS_PER_DAY = 86_400_000;
+    const allTxs: CanonicalTransaction[] = [];
+
+    let chunkStart = new Date(startDate);
+    while (chunkStart <= endDate) {
+      const chunkEnd = new Date(
+        Math.min(chunkStart.getTime() + MAX_DAYS * MS_PER_DAY, endDate.getTime()),
+      );
+
+      const [extratoTxs, boletoTxs] = await Promise.all([
+        this.fetchExtratoTransactions(agent, extratoToken, chunkStart, chunkEnd, accountId),
+        boletoToken
+          ? this.fetchPaidBoletos(agent, boletoToken, chunkStart, chunkEnd, accountId)
+          : Promise.resolve([]),
+      ]);
+
+      allTxs.push(...extratoTxs, ...boletoTxs);
+      chunkStart = new Date(chunkEnd.getTime() + MS_PER_DAY);
+    }
 
     // Dedup in-memory by checksum before returning to avoid double-importing
     // the same movement if both extrato and cobranças ever return it.
     const seenChecksums = new Set<string>();
     const merged: CanonicalTransaction[] = [];
-    for (const tx of [...extratoTxs, ...boletoTxs]) {
+    for (const tx of allTxs) {
       if (!seenChecksums.has(tx.checksum)) {
         seenChecksums.add(tx.checksum);
         merged.push(tx);
