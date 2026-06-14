@@ -1,6 +1,7 @@
 'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Bell, Building2, CheckCircle, ChevronLeft, ChevronRight, CreditCard, Landmark, Sparkles, Target, User } from 'lucide-react';
@@ -284,9 +285,9 @@ function StepContent({ stepId, isPJ, stepsData, onData }: {
               </div>
             ))}
           </div>
-          <a href="/pj/categorias" className="block text-center text-green-400 hover:text-green-300 text-sm">
+          <Link href="/pj/categorias" className="block text-center text-green-400 hover:text-green-300 text-sm">
             Gerenciar categorias →
-          </a>
+          </Link>
         </div>
       );
 
@@ -338,9 +339,9 @@ function StepContent({ stepId, isPJ, stepsData, onData }: {
               <li className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-green-400" /> Inscrição estadual ou municipal ativa</li>
             </ul>
           </div>
-          <a href="/pj/nfe" className="block text-center bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <Link href="/pj/nfe" className="block text-center bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-lg text-sm font-medium transition-colors">
             Configurar NF-e depois →
-          </a>
+          </Link>
         </div>
       );
 
@@ -365,9 +366,9 @@ function StepContent({ stepId, isPJ, stepsData, onData }: {
           <p className="text-slate-300 text-sm mb-3">
             Centros de custo permitem alocar receitas e despesas por departamento ou projeto.
           </p>
-          <a href="/pj/centros-custo" className="block text-center bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <Link href="/pj/centros-custo" className="block text-center bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-lg text-sm font-medium transition-colors">
             Criar primeiro centro de custo →
-          </a>
+          </Link>
         </div>
       );
 
