@@ -5,6 +5,7 @@ import { apiFetch } from '@/lib/fetch';
 import { toast } from 'sonner';
 import { Save, ArrowLeft, Calculator, Building2 } from 'lucide-react';
 import Link from 'next/link';
+import { SefazStatusBadge } from '@/components/sefaz-status-badge';
 
 const REGIMES = [
   { value: 'simples_nacional', label: 'Simples Nacional' },
@@ -95,6 +96,9 @@ export default function FiscalSettingsPage() {
           <p className="text-slate-400 text-sm mt-0.5">Regime tributário, notas fiscais e SEFAZ</p>
         </div>
       </div>
+
+      {/* Status Sefaz */}
+      <SefazStatusBadge />
 
       {/* Regime & Inscrições */}
       <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">

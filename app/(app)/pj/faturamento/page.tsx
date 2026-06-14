@@ -26,6 +26,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, PieChart, Pie, Cell, ComposedChart, Line,
 } from 'recharts';
+import { SefazStatusBadge } from '@/components/sefaz-status-badge';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -907,6 +908,7 @@ export default function FaturamentoPJPage() {
           <p className="text-muted-foreground text-sm">Visão completa de receitas, notas fiscais e cobranças</p>
         </div>
       </div>
+      <SefazStatusBadge />
 
       <Tabs value={mainTab} onValueChange={setMainTab}>
         <TabsList>

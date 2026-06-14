@@ -11,5 +11,8 @@ export async function register() {
 
     const { scheduleBankSync } = await import('./src/lib/bank-sync-scheduler');
     scheduleBankSync();
+
+    const { scheduleSefazHealth } = await import('./src/lib/sefaz-health-scheduler');
+    scheduleSefazHealth();
   }
 }

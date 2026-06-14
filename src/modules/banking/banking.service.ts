@@ -192,38 +192,15 @@ export class BankingService {
       return d;
     })();
 
-    // startDate inteligente: re-verifica a partir do último dia importado
-    // (captura transações tardias do mesmo dia sem duplicar)
+    // startDate: sempre início do dia atual para sincronizações rotineiras.
+    // Quem precisar de histórico passa options.startDate explicitamente.
+    // O dedup por hash/externalId evita duplicatas em qualquer caso.
     let startDate: Date;
     if (options.startDate) {
       startDate = options.startDate;
     } else {
-      const lastImported = await prisma.bankTransaction.findFirst({
-        where: { bankConnectionId: connection.id, status: { not: 'IGNORED' } },
-        orderBy: { date: 'desc' },
-        select: { date: true },
-      });
-
-      if (lastImported) {
-        // Re-busca desde 7 dias antes do último importado para cobrir lacunas
-        // (transações processadas com atraso ou dias nunca sincronizados).
-        // O dedup por hash/externalId evita duplicatas.
-        startDate = new Date(lastImported.date);
-        startDate.setDate(startDate.getDate() - 7);
-        startDate.setHours(0, 0, 0, 0);
-      } else {
-        // Primeira importação: usa openingDate da conta ou fallback configurável
-        const openingDateStr = (connectionRow.extraConfig as any)?.openingDate as string | undefined;
-        if (openingDateStr) {
-          startDate = new Date(openingDateStr);
-          startDate.setHours(0, 0, 0, 0);
-        } else {
-          const fallbackDays = Number(process.env.BANK_SYNC_LOOKBACK_DAYS || 30);
-          startDate = new Date();
-          startDate.setDate(startDate.getDate() - fallbackDays);
-          startDate.setHours(0, 0, 0, 0);
-        }
-      }
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
     }
 
     try {
