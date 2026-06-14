@@ -85,23 +85,28 @@ function NFeIcon({ nfe, pdfUrl }: { nfe: any; pdfUrl?: string }) {
 
 // ─── Timeline Entry ───────────────────────────────────────────────────────────
 
+const TIMELINE_TYPE_CONFIG: Record<string, { icon: React.ReactNode; label: string; cls: string }> = {
+  email:  { icon: <Mail className="h-4 w-4 text-blue-500" />,    label: 'E-mail',   cls: 'border-blue-300 text-blue-600' },
+  nfe:    { icon: <FileText className="h-4 w-4 text-green-500" />, label: 'NFS-e',    cls: 'border-green-300 text-green-600' },
+  boleto: { icon: <Banknote className="h-4 w-4 text-amber-500" />, label: 'Boleto',   cls: 'border-amber-300 text-amber-600' },
+  audit:  { icon: <History className="h-4 w-4 text-purple-500" />, label: 'Auditoria',cls: 'border-purple-300 text-purple-600' },
+};
+
 function TimelineEntry({ entry }: { entry: any }) {
+  const cfg = TIMELINE_TYPE_CONFIG[entry.type] ?? TIMELINE_TYPE_CONFIG.audit;
   return (
     <div className="flex gap-3 py-3 border-b last:border-0">
-      <div className="flex-shrink-0 mt-0.5">
-        {entry.type === 'email'
-          ? <Mail className="h-4 w-4 text-blue-500" />
-          : <History className="h-4 w-4 text-purple-500" />}
-      </div>
+      <div className="flex-shrink-0 mt-0.5">{cfg.icon}</div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground">{fmtDateTime(entry.date)}</span>
-          <Badge variant="outline" className={`text-xs px-1.5 py-0 ${entry.type === 'email' ? 'border-blue-300 text-blue-600' : 'border-purple-300 text-purple-600'}`}>
-            {entry.type === 'email' ? 'E-mail' : 'Auditoria'}
-          </Badge>
+          <Badge variant="outline" className={`text-xs px-1.5 py-0 ${cfg.cls}`}>{cfg.label}</Badge>
           <span className="text-xs font-medium">{entry.user}</span>
+          {entry.action && entry.action !== cfg.label && (
+            <span className="text-xs text-muted-foreground">· {entry.action}</span>
+          )}
         </div>
-        <p className="text-sm text-foreground mt-0.5 truncate">{entry.description}</p>
+        <p className="text-sm text-foreground mt-0.5">{entry.description}</p>
       </div>
     </div>
   );

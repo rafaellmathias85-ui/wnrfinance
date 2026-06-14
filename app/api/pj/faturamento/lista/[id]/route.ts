@@ -36,21 +36,47 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         where: { contextType: 'receivable', contextId: id, companyId },
         orderBy: { sentAt: 'desc' },
       }),
+      // Aceita 'receivable' (billing-pipeline) e 'AccountsReceivable' (outros módulos)
       prisma.auditLog.findMany({
-        where: { entity: 'AccountsReceivable', entityId: id, companyId },
+        where: { entity: { in: ['receivable', 'AccountsReceivable'] }, entityId: id, companyId },
         orderBy: { createdAt: 'desc' },
       }),
     ]);
+
+    const NFE_STATUS_LABEL: Record<string, string> = {
+      rascunho: 'Rascunho', enviada: 'Enviada', autorizada: 'Autorizada',
+      cancelada: 'Cancelada', rejeitada: 'Rejeitada',
+    };
+    const AUDIT_ACTION_LABEL: Record<string, string> = {
+      SEND: 'Faturamento', CREATE: 'Criação', UPDATE: 'Atualização',
+      DELETE: 'Exclusão', PAYMENT: 'Recebimento', CANCEL: 'Cancelamento',
+    };
 
     // Build unified timeline
     const timeline: Array<{
       id: string;
       date: Date;
-      type: 'email' | 'audit';
+      type: 'nfe' | 'boleto' | 'email' | 'audit';
       user: string;
       action: string;
       description: string;
     }> = [
+      ...nfes.map(n => ({
+        id: n.id,
+        date: n.createdAt,
+        type: 'nfe' as const,
+        user: 'Sistema',
+        action: 'NFS-e / NF-e',
+        description: `Nota fiscal ${NFE_STATUS_LABEL[n.status] ?? n.status}${n.errorMessage ? ` — ${n.errorMessage}` : ''}`,
+      })),
+      ...boletos.map(b => ({
+        id: b.id,
+        date: b.createdAt,
+        type: 'boleto' as const,
+        user: 'Sistema',
+        action: 'Boleto',
+        description: `Boleto ${b.status}${b.barCode ? ` — ${b.barCode.slice(0, 10)}…` : ''}`,
+      })),
       ...emailLogs.map(e => ({
         id: e.id,
         date: e.sentAt,
@@ -59,14 +85,26 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         action: 'E-mail',
         description: `E-mail enviado para ${e.to}: ${e.subject}`,
       })),
-      ...auditLogs.map(a => ({
-        id: a.id,
-        date: a.createdAt,
-        type: 'audit' as const,
-        user: (a.metadata as any)?.userName || a.userId || 'Sistema',
-        action: a.action,
-        description: (a.metadata as any)?.description || a.action,
-      })),
+      ...auditLogs.map(a => {
+        const meta = a.metadata as any;
+        let description = meta?.description || AUDIT_ACTION_LABEL[a.action] || a.action;
+        // Enriquecer audit do billing-pipeline com detalhes de NFS-e/boleto/email
+        if (a.action === 'SEND' && meta?.event === 'faturar_parcela') {
+          const parts: string[] = [];
+          if (meta.nfe) parts.push(`NFS-e: ${meta.nfe}`);
+          if (meta.boleto) parts.push(`Boleto: ${meta.boleto}`);
+          if (meta.email) parts.push(`E-mail: ${meta.email}`);
+          if (parts.length) description = `Faturamento — ${parts.join(' · ')}`;
+        }
+        return {
+          id: a.id,
+          date: a.createdAt,
+          type: 'audit' as const,
+          user: meta?.userName || a.userId || 'Sistema',
+          action: AUDIT_ACTION_LABEL[a.action] || a.action,
+          description,
+        };
+      }),
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     return NextResponse.json({ item, nfes, boletos, timeline });
