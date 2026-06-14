@@ -95,14 +95,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           : 'https://homologacao.focusnfe.com.br';
         const focusToken = decrypted.token || decrypted.apiKey || '';
         const encoded = Buffer.from(`${focusToken}:`).toString('base64');
-        const res = await fetch(`${baseUrl}/v2/emitentes`, {
+        // Focus NFe não tem endpoint de ping — /v2/nfse/ping retorna 404 se autenticado, 401 se inválido
+        const res = await fetch(`${baseUrl}/v2/nfse/wnrfinance-healthcheck`, {
           headers: { Authorization: `Basic ${encoded}` },
         });
-        if (!res.ok) { status = 'erro'; error = `Focus NFe retornou HTTP ${res.status} — verifique o token e o ambiente (homologação/produção)`; message = error; }
-        else {
-          const emitentes = await res.json().catch(() => []);
-          const count = Array.isArray(emitentes) ? emitentes.length : 0;
-          message = `Focus NFe conectado! ${count > 0 ? `${count} emitente(s) cadastrado(s).` : 'Token válido, nenhum emitente cadastrado ainda.'}`;
+        if (res.status === 401 || res.status === 403) {
+          status = 'erro'; error = `Token inválido (HTTP ${res.status}) — verifique o token e o ambiente (homologação/produção)`; message = error;
+        } else if (res.status >= 500) {
+          status = 'atencao'; error = `Focus NFe instável (HTTP ${res.status})`; message = error;
+        } else {
+          // 200, 404, 422 = API alcançável e token válido
+          message = 'Focus NFe conectado! Token válido e API respondendo.';
         }
       } else if (connection.providerKey === 'pluggy') {
         const res = await fetch(`${process.env.PLUGGY_API_URL || 'https://api.pluggy.ai'}/auth`, {

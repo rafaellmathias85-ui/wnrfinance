@@ -88,7 +88,7 @@ async function checkNFeConnection(
     const timer = setTimeout(() => controller.abort(), 10_000);
 
     try {
-      const res = await fetch(`${baseUrl}/v2/emitentes`, {
+      const res = await fetch(`${baseUrl}/v2/nfse/wnrfinance-healthcheck`, {
         headers: { Authorization: `Basic ${encoded}` },
         signal: controller.signal,
         cache: 'no-store',
