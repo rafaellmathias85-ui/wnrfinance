@@ -48,6 +48,7 @@ export default function ContasReceber() {
   const [recurrenceMonths, setRecurrenceMonths] = useState(2);
   const [bankConnections, setBankConnections] = useState<any[]>([]);
   const [bankConnectionId, setBankConnectionId] = useState('');
+  const [formDueDate, setFormDueDate] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [autoNfe, setAutoNfe] = useState(false);
   const [autoBoleto, setAutoBoleto] = useState(false);
@@ -140,6 +141,7 @@ export default function ContasReceber() {
     setAutoNfe(false);
     setAutoBoleto(false);
     setBankConnectionId('');
+    setFormDueDate('');
     aiClear();
     setShowForm(true);
   };
@@ -198,11 +200,12 @@ export default function ContasReceber() {
   const openEdit = (item: any) => {
     setEditing(item);
     setIsRecurring(!!item.isRecurring);
-    setRecurrenceMonths(item.recurrenceMonths || 2);
+    setRecurrenceMonths(item.recurrence?.renewalMonths || 2);
     setSelectedTags(item.tags?.map((t: any) => t.tagId) || []);
     setAutoNfe(!!item.autoNfe);
     setAutoBoleto(!!item.autoBoleto);
     setBankConnectionId(item.bankConnectionId || '');
+    setFormDueDate(item.dueDate?.split('T')[0] || '');
     setShowForm(true);
   };
 
@@ -490,7 +493,7 @@ export default function ContasReceber() {
                 </div>
                 <div><Label>CPF / CNPJ</Label><Input name="customerDoc" placeholder="Para NF-e e Boleto" defaultValue={editing?.customerDoc} /></div>
                 <div><Label>E-mail do cliente</Label><Input name="customerEmail" type="email" placeholder="cliente@email.com" defaultValue={editing?.customerEmail} /></div>
-                <div><Label>Vencimento *</Label><Input name="dueDate" type="date" required defaultValue={editing?.dueDate?.split('T')[0]} /></div>
+                <div><Label>Vencimento *</Label><Input name="dueDate" type="date" required defaultValue={editing?.dueDate?.split('T')[0]} onChange={e => setFormDueDate(e.target.value)} /></div>
                 <div><Label>Data Recebimento</Label><Input name="receivedAt" type="date" defaultValue={editing?.receivedAt?.split('T')[0]} /></div>
                 <div>
                   <Label>Status</Label>
@@ -589,16 +592,24 @@ export default function ContasReceber() {
               )}
 
               {/* Recurrence */}
-              <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+              <div className="flex flex-wrap items-center gap-4 p-3 bg-muted/50 rounded-lg">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} className="rounded" />
                   <Repeat className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Conta recorrente (mensal)</span>
                 </label>
                 {isRecurring && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Label className="text-xs">Parcelas:</Label>
                     <Input type="number" min={2} max={60} value={recurrenceMonths} onChange={e => setRecurrenceMonths(Number(e.target.value))} className="w-20 h-8" />
+                    {(() => {
+                      const base = formDueDate || editing?.dueDate?.split('T')[0];
+                      if (!base || recurrenceMonths < 1) return null;
+                      const d = new Date(base + 'T12:00:00');
+                      d.setMonth(d.getMonth() + recurrenceMonths);
+                      const m = d.toLocaleString('pt-BR', { month: 'long' });
+                      return <span className="text-xs text-muted-foreground">recorrência até {m.charAt(0).toUpperCase() + m.slice(1)}/{d.getFullYear()}</span>;
+                    })()}
                   </div>
                 )}
               </div>

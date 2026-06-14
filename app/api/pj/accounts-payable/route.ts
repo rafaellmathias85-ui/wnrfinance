@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
       costCenter: true,
       tags: { include: { tag: true } },
       bankConnection: { select: { id: true, bankName: true, accountNumber: true, agency: true } },
+      recurrence: { select: { renewalMonths: true } },
     },
     orderBy: { dueDate: 'asc' },
   });
@@ -161,6 +162,7 @@ export async function POST(req: NextRequest) {
         frequency: 'MENSAL',
         startDate: baseDate,
         companyId,
+        renewalMonths: body.recurrenceMonths,
         status: 'ATIVA',
       },
     });

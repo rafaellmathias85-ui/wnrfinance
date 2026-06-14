@@ -58,6 +58,19 @@ export async function PUT(req: NextRequest, { params }: any) {
 
     const recurrenceMonths = body.recurrenceMonths ? parseInt(body.recurrenceMonths, 10) : 0;
 
+    // ── Desativação de recorrência — remove parcelas futuras pendentes ─────────
+    if (existing.isRecurring && body.isRecurring === false && existing.recurrenceId) {
+      await prisma.accountsPayable.deleteMany({
+        where: {
+          companyId,
+          recurrenceId: existing.recurrenceId,
+          id: { not: id },
+          dueDate: { gt: existing.dueDate },
+          status: 'pendente',
+        },
+      });
+    }
+
     // ── Ativação de recorrência pela primeira vez ──────────────────────────────
     if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
       // Cria registro Recurrence para satisfazer a FK AccountsPayable_recurrenceId_fkey
@@ -67,6 +80,7 @@ export async function PUT(req: NextRequest, { params }: any) {
           frequency: 'MENSAL',
           startDate: updated.dueDate,
           companyId,
+          renewalMonths: recurrenceMonths,
           status: 'ATIVA',
         },
       });
@@ -119,10 +133,13 @@ export async function PUT(req: NextRequest, { params }: any) {
             frequency: 'MENSAL',
             startDate: updated.dueDate,
             companyId,
+            renewalMonths: recurrenceMonths,
             status: 'ATIVA',
           },
         });
         await prisma.accountsPayable.update({ where: { id }, data: { recurrenceId: recurrenceRecord.id } });
+      } else {
+        await prisma.recurrence.update({ where: { id: recurrenceRecord.id }, data: { renewalMonths: recurrenceMonths } });
       }
 
       const seriesId = recurrenceRecord.id;
