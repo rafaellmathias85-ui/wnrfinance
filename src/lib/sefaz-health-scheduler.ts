@@ -98,8 +98,9 @@ async function checkNFeConnection(
       if (res.status === 401 || res.status === 403) {
         return { status: 'erro', error: `Credenciais inválidas (HTTP ${res.status})` };
       }
-      if (!res.ok) {
-        return { status: 'erro', error: `Focus NFe retornou HTTP ${res.status}` };
+      // 2xx ou 4xx (exceto 401/403) = API alcançável e token válido
+      if (res.status >= 500) {
+        return { status: 'atencao', error: `Focus NFe com instabilidade (HTTP ${res.status})` };
       }
       return { status: 'ok' };
     } catch (e: any) {
