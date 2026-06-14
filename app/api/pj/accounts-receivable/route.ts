@@ -170,8 +170,17 @@ export async function POST(req: NextRequest) {
   // Generate future monthly instances for recurring entries
   if (body.isRecurring && body.recurrenceMonths && body.recurrenceMonths > 0) {
     const baseDate = new Date(body.dueDate);
-    const seriesId = item.id;
-    await prisma.accountsReceivable.update({ where: { id: item.id }, data: { recurrenceId: seriesId } });
+    // Cria registro Recurrence para satisfazer a FK AccountsReceivable_recurrenceId_fkey
+    const recurrenceRecord = await prisma.recurrence.create({
+      data: {
+        type: 'RECEBER',
+        frequency: 'MENSAL',
+        startDate: baseDate,
+        companyId,
+        status: 'ATIVA',
+      },
+    });
+    await prisma.accountsReceivable.update({ where: { id: item.id }, data: { recurrenceId: recurrenceRecord.id } });
     for (let i = 1; i <= body.recurrenceMonths; i++) {
       const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
       await prisma.accountsReceivable.create({
@@ -190,7 +199,7 @@ export async function POST(req: NextRequest) {
           notes: body.notes || null,
           isRecurring: true,
           recurrenceType: body.recurrenceType || 'monthly',
-          recurrenceId: seriesId,
+          recurrenceId: recurrenceRecord.id,
           sourceType: body.sourceType || 'manual',
           autoNfe: false,
           autoBoleto: false,

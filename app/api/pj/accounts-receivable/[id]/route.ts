@@ -45,8 +45,17 @@ export async function PUT(req: NextRequest, { params }: any) {
 
     // ── Ativação de recorrência pela primeira vez ──────────────────────────────
     if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
-      const seriesId = id;
-      await prisma.accountsReceivable.update({ where: { id }, data: { recurrenceId: seriesId } });
+      // Cria registro Recurrence para satisfazer a FK AccountsReceivable_recurrenceId_fkey
+      const recurrenceRecord = await prisma.recurrence.create({
+        data: {
+          type: 'RECEBER',
+          frequency: 'MENSAL',
+          startDate: updated.dueDate,
+          companyId,
+          status: 'ATIVA',
+        },
+      });
+      await prisma.accountsReceivable.update({ where: { id }, data: { recurrenceId: recurrenceRecord.id } });
       const baseDate = updated.dueDate;
       for (let i = 1; i <= recurrenceMonths; i++) {
         const futureDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, baseDate.getDate());
@@ -66,7 +75,7 @@ export async function PUT(req: NextRequest, { params }: any) {
             notes: updated.notes || null,
             isRecurring: true,
             recurrenceType: updated.recurrenceType || 'monthly',
-            recurrenceId: seriesId,
+            recurrenceId: recurrenceRecord.id,
             sourceType: updated.sourceType || 'manual',
             autoNfe: false,
             autoBoleto: false,
@@ -82,16 +91,25 @@ export async function PUT(req: NextRequest, { params }: any) {
 
     // ── Alteração do número de parcelas em série já ativa ──────────────────────
     if (existing.isRecurring && body.isRecurring !== false && recurrenceMonths > 0) {
-      let seriesId = existing.recurrenceId || id;
+      // Busca o registro Recurrence existente; se não existir (recurrenceId nulo ou inválido), cria um novo
+      let recurrenceRecord = existing.recurrenceId
+        ? await prisma.recurrence.findUnique({ where: { id: existing.recurrenceId } })
+        : null;
 
-      // Garante que a raiz da série ainda existe; se não, usa o registro atual como raiz
-      if (seriesId !== id) {
-        const seriesRoot = await prisma.accountsReceivable.findUnique({ where: { id: seriesId } });
-        if (!seriesRoot) {
-          seriesId = id;
-          await prisma.accountsReceivable.update({ where: { id }, data: { recurrenceId: id } });
-        }
+      if (!recurrenceRecord) {
+        recurrenceRecord = await prisma.recurrence.create({
+          data: {
+            type: 'RECEBER',
+            frequency: 'MENSAL',
+            startDate: updated.dueDate,
+            companyId,
+            status: 'ATIVA',
+          },
+        });
+        await prisma.accountsReceivable.update({ where: { id }, data: { recurrenceId: recurrenceRecord.id } });
       }
+
+      const seriesId = recurrenceRecord.id;
 
       await prisma.accountsReceivable.deleteMany({
         where: {
