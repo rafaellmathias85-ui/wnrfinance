@@ -59,20 +59,46 @@ export async function PUT(req: NextRequest, { params }: any) {
     const recurrenceMonths = body.recurrenceMonths ? parseInt(body.recurrenceMonths, 10) : 0;
 
     // ── Desativação de recorrência — remove parcelas futuras pendentes ─────────
-    if (existing.isRecurring && body.isRecurring === false && existing.recurrenceId) {
-      await prisma.accountsPayable.deleteMany({
-        where: {
-          companyId,
-          recurrenceId: existing.recurrenceId,
-          id: { not: id },
-          dueDate: { gt: existing.dueDate },
-          status: 'pendente',
-        },
-      });
+    if (existing.isRecurring && body.isRecurring === false) {
+      if (existing.recurrenceId) {
+        await prisma.accountsPayable.deleteMany({
+          where: {
+            companyId,
+            recurrenceId: existing.recurrenceId,
+            id: { not: id },
+            dueDate: { gt: existing.dueDate },
+            status: 'pendente',
+          },
+        });
+      } else {
+        // Legacy items without recurrenceId: match by description
+        await prisma.accountsPayable.deleteMany({
+          where: {
+            companyId,
+            description: existing.description,
+            id: { not: id },
+            isRecurring: true,
+            dueDate: { gt: existing.dueDate },
+            status: 'pendente',
+          },
+        });
+      }
     }
 
     // ── Ativação de recorrência pela primeira vez ──────────────────────────────
     if (!existing.isRecurring && body.isRecurring && recurrenceMonths > 0) {
+      // Remove orphaned future instances (legacy data without recurrenceId) before creating new ones
+      await prisma.accountsPayable.deleteMany({
+        where: {
+          companyId,
+          description: updated.description,
+          id: { not: id },
+          isRecurring: true,
+          recurrenceId: null,
+          dueDate: { gt: updated.dueDate },
+          status: 'pendente',
+        },
+      });
       // Cria registro Recurrence para satisfazer a FK AccountsPayable_recurrenceId_fkey
       const recurrenceRecord = await prisma.recurrence.create({
         data: {
@@ -149,6 +175,18 @@ export async function PUT(req: NextRequest, { params }: any) {
           companyId,
           recurrenceId: seriesId,
           id: { not: id },
+          dueDate: { gt: existing.dueDate },
+          status: 'pendente',
+        },
+      });
+      // Also clean up legacy orphaned instances (recurrenceId null) by description
+      await prisma.accountsPayable.deleteMany({
+        where: {
+          companyId,
+          description: updated.description,
+          recurrenceId: null,
+          id: { not: id },
+          isRecurring: true,
           dueDate: { gt: existing.dueDate },
           status: 'pendente',
         },
