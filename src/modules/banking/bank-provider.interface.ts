@@ -1,5 +1,17 @@
 export type PersonType = 'PF' | 'PJ';
-export type BankCode = 'INTER' | 'ITAU';
+export type BankCode =
+  | 'INTER'
+  | 'ITAU'
+  | 'SANTANDER'
+  | 'BRADESCO'
+  | 'BB'
+  | 'CAIXA'
+  | 'NUBANK'
+  | 'C6'
+  | 'BTG'
+  | 'PORTO'
+  | 'XP'
+  | 'OUTROS';
 export type BankConnectionMode = 'API' | 'OFX' | 'CSV' | 'OPEN_FINANCE_FUTURE';
 export type BankConnectionStatus = 'ACTIVE' | 'ERROR' | 'DISABLED' | 'PENDING_CONFIG';
 export type TransactionDirection = 'CREDIT' | 'DEBIT';

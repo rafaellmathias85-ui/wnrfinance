@@ -69,9 +69,19 @@ interface Props {
   subtitle: string;
 }
 
-const BANKS: Array<{ code: BankCode; name: string; logo: string }> = [
-  { code: 'INTER', name: 'Banco Inter', logo: '/banks/inter.png' },
-  { code: 'ITAU', name: 'Itaú', logo: '/banks/itau.png' },
+const BANKS: Array<{ code: BankCode; name: string; logo?: string }> = [
+  { code: 'INTER',     name: 'Banco Inter',   logo: '/banks/inter.png' },
+  { code: 'ITAU',      name: 'Itaú',          logo: '/banks/itau.png' },
+  { code: 'SANTANDER', name: 'Santander',      logo: '/banks/santander.png' },
+  { code: 'BRADESCO',  name: 'Bradesco',       logo: '/banks/bradesco.png' },
+  { code: 'BB',        name: 'Banco do Brasil',logo: '/banks/bb.png' },
+  { code: 'CAIXA',     name: 'Caixa',          logo: '/banks/caixa.png' },
+  { code: 'NUBANK',    name: 'Nubank',         logo: '/banks/nubank.png' },
+  { code: 'C6',        name: 'C6 Bank',        logo: '/banks/c6.png' },
+  { code: 'BTG',       name: 'BTG Pactual',    logo: '/banks/btg.png' },
+  { code: 'PORTO',     name: 'Porto Bank' },
+  { code: 'XP',        name: 'XP Investimentos',logo: '/banks/xp.png' },
+  { code: 'OUTROS',    name: 'Outro banco' },
 ];
 
 export function BankConnectionPage({ scope, title, subtitle }: Props) {
@@ -1041,12 +1051,15 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
               {BANKS.map((bank) => (
                 <button
                   key={bank.code}
-                  onClick={() => { setBankCode(bank.code); setStep(2); }}
+                  onClick={() => { setBankCode(bank.code); setPersonType(scope); setStep(3); }}
                   className={`rounded-lg border p-4 text-left transition-colors ${bankCode === bank.code ? 'border-blue-500 bg-blue-50' : 'hover:bg-muted'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="relative h-9 w-9 overflow-hidden rounded-md bg-white">
-                      <NextImage src={bank.logo} alt={bank.name} fill className="object-contain" />
+                    <span className="relative h-9 w-9 overflow-hidden rounded-md bg-white flex items-center justify-center">
+                      {bank.logo
+                        ? <NextImage src={bank.logo} alt={bank.name} fill className="object-contain" />
+                        : <span className="text-sm font-bold text-slate-600">{bank.name.slice(0, 2).toUpperCase()}</span>
+                      }
                     </span>
                     <div>
                       <p className="font-semibold">{bank.name}</p>
@@ -1177,7 +1190,7 @@ export function BankConnectionPage({ scope, title, subtitle }: Props) {
               )}
 
               <div className="flex flex-wrap justify-between gap-2 border-t pt-4">
-                <Button variant="outline" onClick={() => setStep(2)}>Voltar</Button>
+                <Button variant="outline" onClick={() => setStep(1)}>Voltar</Button>
                 <div className="flex flex-wrap gap-2">
                   {isApiMode && (
                     <Button variant="outline" onClick={testConnection} disabled={busy === 'test'} className="gap-2">
@@ -1219,10 +1232,11 @@ function getMethods(bankCode: BankCode, personType: PersonType) {
 }
 
 function StepHeader({ step }: { step: number }) {
+  // step 1 = Banco, step 3 = Método (step 2/tipo skipped — auto-set from scope)
   return (
-    <div className="mb-2 grid grid-cols-3 gap-2 text-xs">
-      {['Banco', 'Tipo', 'Método'].map((label, index) => (
-        <div key={label} className={`rounded-md px-3 py-2 text-center ${step === index + 1 ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>
+    <div className="mb-2 grid grid-cols-2 gap-2 text-xs">
+      {[{ label: 'Banco', active: step === 1 }, { label: 'Método', active: step === 3 }].map(({ label, active }) => (
+        <div key={label} className={`rounded-md px-3 py-2 text-center ${active ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground'}`}>
           {label}
         </div>
       ))}

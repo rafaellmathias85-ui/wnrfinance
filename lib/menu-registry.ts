@@ -75,6 +75,7 @@ const PF_MODULES: ModuleTab[] = [
           { href: '/despesas', label: 'Despesas', icon: TrendingDown, description: 'Registrar e controlar gastos' },
           { href: '/receitas', label: 'Receitas', icon: TrendingUp, description: 'Gerenciar entradas' },
           { href: '/conciliacao', label: 'Conciliação', icon: FileCheck, description: 'Conferir extratos' },
+          { href: '/conciliacao/lotes', label: 'Conciliação por Lotes', icon: FileCheck, description: 'Arquivos de conciliação OFX/CSV por conta bancária' },
         ],
       },
       {

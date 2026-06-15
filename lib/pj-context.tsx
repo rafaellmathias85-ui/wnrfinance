@@ -65,7 +65,7 @@ export function PJProvider({ children }: { children: React.ReactNode }) {
       path.startsWith('/relatorios') ||
       path.startsWith('/bancos') ||
       path.startsWith('/assistente') ||
-      path.startsWith('/conciliacao')
+      path.startsWith('/conciliacao') && !path.startsWith('/pj/conciliacao')
     ) return 'pf';
     return null;
   }, []);

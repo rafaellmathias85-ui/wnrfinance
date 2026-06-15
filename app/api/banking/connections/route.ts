@@ -75,12 +75,17 @@ export async function POST(req: NextRequest) {
   }
 }
 
+const ALLOWED_BANK_CODES: BankCode[] = [
+  'INTER', 'ITAU', 'SANTANDER', 'BRADESCO', 'BB', 'CAIXA',
+  'NUBANK', 'C6', 'BTG', 'PORTO', 'XP', 'OUTROS',
+];
+
 function normalizeBankCode(value: string): BankCode {
-  const normalized = String(value || '').toUpperCase();
-  if (normalized !== 'INTER' && normalized !== 'ITAU') {
-    throw new Error('Banco não suportado neste MVP.');
+  const normalized = String(value || '').toUpperCase() as BankCode;
+  if (!ALLOWED_BANK_CODES.includes(normalized)) {
+    throw new Error(`Banco "${value}" não suportado. Escolha um da lista.`);
   }
-  return normalized as BankCode;
+  return normalized;
 }
 
 function normalizePersonType(value: string): PersonType {
