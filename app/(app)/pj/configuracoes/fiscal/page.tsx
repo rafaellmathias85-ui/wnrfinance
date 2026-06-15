@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
 import { toast } from 'sonner';
-import { Save, ArrowLeft, Calculator, Building2 } from 'lucide-react';
+import { Save, ArrowLeft, Calculator, Building2, Key, ShieldCheck, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { SefazStatusBadge } from '@/components/sefaz-status-badge';
 
@@ -28,7 +28,13 @@ export default function FiscalSettingsPage() {
     nfceCsc: '',
     nfceCscId: '',
     sefazEnvironment: 'producao',
+    endereco: { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '' },
   });
+  const [emitentLoading, setEmitentLoading] = useState(false);
+  const [certFile, setCertFile] = useState<File | null>(null);
+  const [certPassword, setCertPassword] = useState('');
+  const [certLoading, setCertLoading] = useState(false);
+  const certInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     apiFetch('/api/pj/configuracoes/fiscal')
@@ -47,6 +53,7 @@ export default function FiscalSettingsPage() {
             nfceCsc: d.nfceCsc ?? '',
             nfceCscId: d.nfceCscId ?? '',
             sefazEnvironment: d.sefazEnvironment ?? 'producao',
+            endereco: d.endereco ?? { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '' },
           }));
         }
       })
@@ -55,6 +62,54 @@ export default function FiscalSettingsPage() {
   }, []);
 
   const set = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }));
+  const setEnd = (field: string, value: string) =>
+    setForm((p) => ({ ...p, endereco: { ...p.endereco, [field]: value } }));
+
+  const handleConfigurarEmitente = async () => {
+    setEmitentLoading(true);
+    try {
+      const r = await apiFetch('/api/pj/nfe/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'configurar_emitente' }),
+      });
+      const d = await r.json();
+      if (r.ok) toast.success('Emitente registrado no Focus NFe com sucesso!');
+      else toast.error(d.error || 'Erro ao registrar emitente');
+    } catch (e: any) {
+      toast.error(e.message || 'Erro de rede');
+    } finally {
+      setEmitentLoading(false);
+    }
+  };
+
+  const handleUploadCertificado = async () => {
+    if (!certFile) { toast.error('Selecione o arquivo .pfx do certificado'); return; }
+    if (!certPassword) { toast.error('Informe a senha do certificado'); return; }
+    setCertLoading(true);
+    try {
+      const buffer = await certFile.arrayBuffer();
+      const pfxBase64 = Buffer.from(buffer).toString('base64');
+      const r = await apiFetch('/api/pj/nfe/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'upload_certificado', pfxBase64, password: certPassword }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        toast.success('Certificado enviado! CNPJ autorizado no Focus NFe.');
+        setCertFile(null);
+        setCertPassword('');
+        if (certInputRef.current) certInputRef.current.value = '';
+      } else {
+        toast.error(d.error || 'Erro ao enviar certificado');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro de rede');
+    } finally {
+      setCertLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -201,6 +256,101 @@ export default function FiscalSettingsPage() {
             <p className="text-amber-500 text-xs mt-0.5">Notas emitidas não têm validade fiscal. Use para testes.</p>
           </div>
         )}
+      </div>
+
+      {/* Endereço do Emitente — para Focus NFe */}
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldCheck className="w-4 h-4 text-purple-400" />
+          <div>
+            <h3 className="text-white font-medium">Endereço do Emitente (Focus NFe)</h3>
+            <p className="text-slate-400 text-xs mt-0.5">Necessário para registrar o CNPJ como emitente autorizado</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2">
+            <label className={labelClass}>Logradouro</label>
+            <input value={form.endereco.logradouro} onChange={(e) => setEnd('logradouro', e.target.value)}
+              placeholder="Rua / Av. / Al." className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Número</label>
+            <input value={form.endereco.numero} onChange={(e) => setEnd('numero', e.target.value)}
+              placeholder="S/N" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Bairro</label>
+            <input value={form.endereco.bairro} onChange={(e) => setEnd('bairro', e.target.value)}
+              placeholder="Bairro" className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Município</label>
+            <input value={form.endereco.municipio} onChange={(e) => setEnd('municipio', e.target.value)}
+              placeholder="Cidade" className={inputClass} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={labelClass}>UF</label>
+              <input value={form.endereco.uf} onChange={(e) => setEnd('uf', e.target.value.toUpperCase())}
+                placeholder="SP" maxLength={2} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>CEP</label>
+              <input value={form.endereco.cep} onChange={(e) => setEnd('cep', e.target.value)}
+                placeholder="00000-000" className={inputClass} />
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end pt-2">
+          <button onClick={handleConfigurarEmitente} disabled={emitentLoading}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-60">
+            <ShieldCheck className="w-4 h-4" />
+            {emitentLoading ? 'Registrando...' : 'Registrar Emitente no Focus NFe'}
+          </button>
+        </div>
+      </div>
+
+      {/* Certificado Digital A1 */}
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Key className="w-4 h-4 text-amber-400" />
+          <div>
+            <h3 className="text-white font-medium">Certificado Digital A1</h3>
+            <p className="text-slate-400 text-xs mt-0.5">Envie o .pfx para autorizar o CNPJ no Focus NFe e corrigir "CNPJ do emitente não autorizado"</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Arquivo .pfx</label>
+            <input
+              ref={certInputRef}
+              type="file"
+              accept=".pfx,.p12"
+              onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
+              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-1.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600 cursor-pointer"
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Senha do Certificado</label>
+            <input
+              type="password"
+              value={certPassword}
+              onChange={(e) => setCertPassword(e.target.value)}
+              placeholder="Senha do arquivo .pfx"
+              className={inputClass}
+            />
+          </div>
+        </div>
+        {certFile && (
+          <p className="text-slate-400 text-xs">Arquivo selecionado: <span className="text-white">{certFile.name}</span> ({(certFile.size / 1024).toFixed(1)} KB)</p>
+        )}
+        <div className="flex justify-end pt-2">
+          <button onClick={handleUploadCertificado} disabled={certLoading || !certFile}
+            className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-60">
+            <Upload className="w-4 h-4" />
+            {certLoading ? 'Enviando...' : 'Enviar Certificado para Focus NFe'}
+          </button>
+        </div>
       </div>
 
       {/* Save button */}

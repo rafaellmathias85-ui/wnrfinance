@@ -52,6 +52,7 @@ export async function PUT(req: NextRequest) {
     nfceCsc: body.nfceCsc ?? null,
     nfceCscId: body.nfceCscId ?? null,
     sefazEnvironment: body.sefazEnvironment ?? 'producao',
+    endereco: body.endereco ?? null,
   };
 
   await prisma.company.update({
