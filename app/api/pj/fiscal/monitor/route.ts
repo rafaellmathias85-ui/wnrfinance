@@ -21,7 +21,7 @@ export async function GET() {
 
     const [nfeErrors, nfeBlocked, nfePending, expiringCerts] = await Promise.all([
       prisma.nFe.count({ where: { companyId, status: 'rejeitada' } }),
-      prisma.nFe.count({ where: { companyId, validationStatus: 'blocked', status: { notIn: ['cancelada', 'autorizada'] } } }),
+      prisma.nFe.count({ where: { companyId, validationStatus: 'blocked', status: { notIn: ['cancelada', 'autorizada', 'rejeitada'] } } }),
       prisma.nFe.count({ where: { companyId, status: 'enviada' } }),
       prisma.companyCertificate.findMany({
         where: { companyId, isActive: true, expiresAt: { not: null, lte: in45Days } },
