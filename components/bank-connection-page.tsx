@@ -30,7 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 type PersonType = 'PF' | 'PJ';
-type BankCode = 'INTER' | 'ITAU';
+type BankCode = 'INTER' | 'ITAU' | 'SANTANDER' | 'BRADESCO' | 'BB' | 'CAIXA' | 'NUBANK' | 'C6' | 'BTG' | 'PORTO' | 'XP' | 'OUTROS';
 type ConnectionMode = 'API' | 'OFX' | 'CSV' | 'OPEN_FINANCE_FUTURE';
 
 interface BankConnection {
