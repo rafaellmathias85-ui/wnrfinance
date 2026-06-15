@@ -70,7 +70,7 @@ export default function ReceitasPage() {
   const goToCurrentMonth = () => { setSelectedMonth(new Date().getMonth()); setSelectedYear(new Date().getFullYear()); };
 
   useEffect(() => {
-    apiFetch('/api/banks').then(r => r.json()).then(d => setBanks(d.connections?.filter((c: any) => c.status === 'active') || [])).catch(() => {});
+    apiFetch('/api/banks').then(r => r.json()).then(d => setBanks(d.connections?.filter((c: any) => c.status?.toLowerCase() === 'active') || [])).catch(() => {});
   }, []);
 
   const fetchIncomes = useCallback(async () => {

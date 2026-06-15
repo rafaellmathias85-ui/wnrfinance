@@ -25,9 +25,11 @@ export default function CartoesPage() {
   const [showImportFatura, setShowImportFatura] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [estimatedAmounts, setEstimatedAmounts] = useState<Record<string, string>>({});
+  const [savingEstimate, setSavingEstimate] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch('/api/banks').then(r => r.json()).then(d => setBanks(d.connections?.filter((c: any) => c.status === 'active') || [])).catch(() => {});
+    apiFetch('/api/banks').then(r => r.json()).then(d => setBanks(d.connections?.filter((c: any) => c.status?.toLowerCase() === 'active') || [])).catch(() => {});
   }, []);
 
   const loadCards = useCallback(async () => {
@@ -154,13 +156,32 @@ export default function CartoesPage() {
           imported++;
         } catch { /* skip */ }
       }
-      setImportResult({ imported, total: transactions.length });
+      const categories: Record<string, number> = {};
+      transactions.forEach((tx: any) => {
+        const cat = tx.category || 'Outros';
+        categories[cat] = (categories[cat] || 0) + tx.amount;
+      });
+      setImportResult({ imported, total: transactions.length, categories });
       loadCards();
     } catch (err: any) {
       setImportResult({ error: err.message });
     } finally {
       setImportLoading(false);
     }
+  };
+
+  const saveEstimate = async (cardId: string) => {
+    const amount = parseFloat(estimatedAmounts[cardId] || '');
+    if (!amount || amount <= 0) return;
+    setSavingEstimate(cardId);
+    try {
+      await apiFetch(`/api/cards/${cardId}/estimated`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount }),
+      });
+    } catch { /* silent */ }
+    setSavingEstimate(null);
   };
 
   const totalInvoice = cards.reduce((s, c) => s + (c.currentInvoice || 0), 0);
@@ -255,6 +276,22 @@ export default function CartoesPage() {
                         <span>Disponível: {formatCurrency(card.available)}</span><span>Limite: {formatCurrency(card.cardLimit)}</span>
                       </div>
                     </div>
+                    <div className="border-t pt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Estimativa da fatura</p>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Valor estimado R$"
+                          value={estimatedAmounts[card.id] || ''}
+                          onChange={e => setEstimatedAmounts(prev => ({ ...prev, [card.id]: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                        <Button size="sm" variant="outline" onClick={() => saveEstimate(card.id)} disabled={savingEstimate === card.id} className="h-8 shrink-0 text-xs">
+                          {savingEstimate === card.id ? '...' : 'Salvar'}
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">Lança automaticamente em Despesas como pendente</p>
+                    </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowTx(card.id)}>
                         <Receipt className="w-4 h-4 mr-1" />Lançamento
@@ -311,6 +348,9 @@ export default function CartoesPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Novo Lançamento</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            <p className="text-xs text-blue-700 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300 px-3 py-2 rounded-md">
+              💡 Este lançamento será automaticamente adicionado em Despesas como pendente.
+            </p>
             <Input placeholder="Descrição" value={txForm.description} onChange={e => setTxForm({ ...txForm, description: e.target.value })} />
             <Input type="number" placeholder="Valor" value={txForm.amount} onChange={e => setTxForm({ ...txForm, amount: e.target.value })} />
             <select className="w-full rounded-md border border-input p-2 text-sm" value={txForm.category} onChange={e => setTxForm({ ...txForm, category: e.target.value })}>
@@ -358,7 +398,24 @@ export default function CartoesPage() {
               <div className={`p-3 rounded-lg text-sm ${importResult.error ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'}`}>
                 {importResult.error
                   ? <span>Erro: {importResult.error}</span>
-                  : <span>{importResult.imported} de {importResult.total} transações importadas com sucesso!</span>
+                  : <div>
+                      <p className="font-medium">{importResult.imported} de {importResult.total} transações importadas e lançadas em Despesas!</p>
+                      {importResult.categories && Object.keys(importResult.categories).length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
+                          <p className="text-xs font-semibold mb-1.5">Gastos por categoria (IA):</p>
+                          <div className="space-y-0.5">
+                            {Object.entries(importResult.categories)
+                              .sort(([, a], [, b]) => (b as number) - (a as number))
+                              .map(([cat, val]) => (
+                                <div key={cat} className="flex justify-between text-xs">
+                                  <span>{cat}</span>
+                                  <span className="font-medium">R$ {(val as number).toFixed(2)}</span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                 }
               </div>
             )}

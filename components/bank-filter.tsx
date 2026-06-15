@@ -29,7 +29,7 @@ export default function BankFilter({ value, onChange, className = '' }: BankFilt
 
   if (!loaded) return null;
 
-  const activeBanks = banks.filter(b => b.status === 'active');
+  const activeBanks = banks.filter(b => b.status?.toLowerCase() === 'active');
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>

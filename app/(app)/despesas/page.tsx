@@ -98,7 +98,7 @@ export default function DespesasPage() {
   const goToCurrentMonth = () => { setSelectedMonth(new Date().getMonth()); setSelectedYear(new Date().getFullYear()); };
 
   useEffect(() => {
-    apiFetch('/api/banks').then(r => r.json()).then(d => setBanks(d.connections?.filter((c: any) => c.status === 'active') || [])).catch(() => {});
+    apiFetch('/api/banks').then(r => r.json()).then(d => setBanks(d.connections?.filter((c: any) => c.status?.toLowerCase() === 'active') || [])).catch(() => {});
     apiFetch('/api/tags').then(r => r.json()).then(d => setTags(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 

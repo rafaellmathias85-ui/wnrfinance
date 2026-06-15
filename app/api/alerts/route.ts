@@ -10,8 +10,9 @@ export async function GET() {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
-    // Filter by context: PF (companyId = null) or PJ (companyId = activeCompanyId)
-    const companyId = (session.user as any).activeCompanyId ?? null;
+    // Filter by context: PF when defaultEnv is 'pf', PJ when defaultEnv is 'pj' with active company
+    const isPJ = session.user.defaultEnv === 'pj' && (session.user as any).activeCompanyId;
+    const companyId = isPJ ? (session.user as any).activeCompanyId : null;
     const alerts = await prisma.alert.findMany({
       where: { userId: session.user.id, companyId: companyId ?? null },
       orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
@@ -32,9 +33,10 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     if (body.action === 'read-all') {
-      const companyId = (session.user as any).activeCompanyId ?? null;
+      const isPJ2 = session.user.defaultEnv === 'pj' && (session.user as any).activeCompanyId;
+      const companyId2 = isPJ2 ? (session.user as any).activeCompanyId : null;
       await prisma.alert.updateMany({
-        where: { userId: session.user.id, isRead: false, companyId: companyId ?? null },
+        where: { userId: session.user.id, isRead: false, companyId: companyId2 ?? null },
         data: { isRead: true },
       });
       return NextResponse.json({ success: true });

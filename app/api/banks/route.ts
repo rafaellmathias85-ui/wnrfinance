@@ -32,7 +32,7 @@ export async function GET() {
       connections,
       stats: {
         totalConnections: connections.length,
-        activeConnections: connections.filter((c: any) => c.status === 'active').length,
+        activeConnections: connections.filter((c: any) => c.status?.toLowerCase() === 'active').length,
         totalTransactions: transactionCount,
         lastSync,
       },
