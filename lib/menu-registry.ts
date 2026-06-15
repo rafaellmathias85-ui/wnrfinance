@@ -86,6 +86,26 @@ const PF_MODULES: ModuleTab[] = [
     ],
   },
   {
+    id: 'pf-orcamento',
+    label: 'Orçamento',
+    icon: Target,
+    columns: [
+      {
+        title: 'Planejamento',
+        items: [
+          { href: '/pf/orcamento', label: 'Orçamento Mensal', icon: Target, description: 'Planejado vs Realizado por categoria' },
+          { href: '/pf/lancamentos', label: 'Lançamentos', icon: FileText, description: 'Registrar receitas e despesas' },
+        ],
+      },
+      {
+        title: 'Poupança',
+        items: [
+          { href: '/pf/poupanca', label: 'Buckets de Poupança', icon: PiggyBank, description: 'Aportes, rendimentos e resgates' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'pf-patrimonio',
     label: 'Patrimônio',
     icon: LineChart,

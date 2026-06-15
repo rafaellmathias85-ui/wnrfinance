@@ -48,6 +48,10 @@ model User {
   approvalsToApprove   FinancialApproval[] @relation("ApprovalApprover")
   debtNegotiations     DebtNegotiation[]   @relation("UserDebtNegotiations")
   subscription         Subscription?
+  pfBudgets            PfBudget[]          @relation("UserPfBudgets")
+  pfTransactions       PfTransaction[]     @relation("UserPfTransactions")
+  pfSavingsBuckets     PfSavingsBucket[]   @relation("UserPfSavingsBuckets")
+  pfSavingsEntries     PfSavingsEntry[]    @relation("UserPfSavingsEntries")
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 
@@ -1898,6 +1902,80 @@ model CarneLeaoEntry {
   @@index([userId])
   @@index([period])
   @@index([year, month])
+}
+
+// ====================== MÓDULO ORÇAMENTO PF ======================
+
+model PfBudget {
+  id       String  @id @default(cuid())
+  userId   String
+  year     Int
+  month    Int     // 1-12
+  group    String  // 'Receita','Habitação','Filhos','Automóvel','Diversos','Poupança'
+  subgroup String
+  planned  Decimal @db.Decimal(12, 2)
+  type     String  // 'income','expense','savings'
+
+  user User @relation("UserPfBudgets", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month, group, subgroup])
+  @@index([userId, year, month])
+  @@map("pf_budget")
+}
+
+model PfTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @db.Date
+  group       String
+  subgroup    String
+  amount      Decimal  @db.Decimal(12, 2) // positivo=receita, negativo=despesa/poupança
+  description String?  @db.Text
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation("UserPfTransactions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([userId, group])
+  @@map("pf_transaction")
+}
+
+model PfSavingsBucket {
+  id          String           @id @default(cuid())
+  userId      String
+  name        String           // 'Longo Prazo','Curto Prazo','Filho'
+  description String?
+  balance     Decimal          @db.Decimal(12, 2) @default(0)
+  color       String           @default("#3B82F6")
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user    User             @relation("UserPfSavingsBuckets", fields: [userId], references: [id], onDelete: Cascade)
+  entries PfSavingsEntry[]
+
+  @@index([userId])
+  @@map("pf_savings_bucket")
+}
+
+model PfSavingsEntry {
+  id       String   @id @default(cuid())
+  bucketId String
+  userId   String
+  date     DateTime @db.Date
+  type     String   // 'aporte','rendimento','resgate'
+  amount   Decimal  @db.Decimal(12, 2)
+  notes    String?
+  createdAt DateTime @default(now())
+
+  bucket PfSavingsBucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+  user   User            @relation("UserPfSavingsEntries", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bucketId])
+  @@index([userId, date])
+  @@map("pf_savings_entry")
 }
 
 // ====================== COMPRAS (PEDIDOS DE COMPRA) ======================
