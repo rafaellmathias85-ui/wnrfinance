@@ -113,7 +113,8 @@ async function getNFeConnection(companyId: string) {
 // Focus NFe API adapter
 // ─────────────────────────────────────────────────────────────────────────────
 async function emitFocusNFe(payload: NFePayload, config: any): Promise<NFeResult> {
-  const { apiKey, cnpj, environment } = config;
+  const { apiKey, environment } = config;
+  const cnpj = (config.cnpj || '').replace(/\D/g, '');
   const baseUrl = environment === 'homologacao'
     ? 'https://homologacao.focusnfe.com.br'
     : 'https://api.focusnfe.com.br';
@@ -285,7 +286,8 @@ export async function emitNFe(companyId: string, payload: NFePayload): Promise<N
 // Query NF-e status from provider
 // ─────────────────────────────────────────────────────────────────────────────
 async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResult> {
-  const { apiKey, cnpj, environment } = config;
+  const { apiKey, environment } = config;
+  const cnpj = (config.cnpj || '').replace(/\D/g, '');
   const baseUrl = environment === 'homologacao'
     ? 'https://homologacao.focusnfe.com.br'
     : 'https://api.focusnfe.com.br';
