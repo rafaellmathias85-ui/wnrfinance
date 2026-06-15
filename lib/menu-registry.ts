@@ -51,6 +51,13 @@ export interface MenuGroup {
 /* ------------------------------------------------------------------ */
 const PF_MODULES: ModuleTab[] = [
   {
+    id: 'pf-hoje',
+    label: 'Hoje',
+    icon: Sun,
+    singleLink: '/hoje',
+    columns: [],
+  },
+  {
     id: 'pf-dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,

@@ -10,7 +10,10 @@ import {
   ArrowDownCircle, ArrowUpCircle, AlertTriangle, CheckCircle2,
   Clock, TrendingUp, TrendingDown, RefreshCw, ExternalLink,
   ChevronDown, ChevronRight, Calendar, Zap,
+  PiggyBank, Wallet, Target, LineChart, Tag,
 } from 'lucide-react';
+
+// ─── PJ types ───────────────────────────────────────────────────────────────
 
 type Bill = {
   id: string;
@@ -42,6 +45,27 @@ type HojeData = {
   projectedFlow: { date: string; inflow: number; outflow: number; balance: number }[];
 };
 
+// ─── PF types ───────────────────────────────────────────────────────────────
+
+type PfSummary = {
+  income: number; expenses: number; savings: number;
+  resultado: number; pocketMargin: number; savingsRate: number;
+};
+
+type PfRecentTx = {
+  id: string; date: string; group: string; subgroup: string;
+  description: string | null; amount: number;
+};
+
+type PfHojeData = {
+  year: number; month: number;
+  summary: PfSummary;
+  totalBuckets: number;
+  recent: PfRecentTx[];
+};
+
+// ─── Shared helpers ──────────────────────────────────────────────────────────
+
 function formatDateLabel(iso: string) {
   const d = new Date(iso + 'T12:00:00');
   return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
@@ -53,6 +77,8 @@ function daysDiff(iso: string) {
   today.setHours(0, 0, 0, 0);
   return Math.floor((due.getTime() - today.getTime()) / 86_400_000);
 }
+
+// ─── PJ sub-components ───────────────────────────────────────────────────────
 
 type BillCardProps = {
   bill: Bill;
@@ -143,7 +169,176 @@ function CollapsibleSection({ title, subtitle, icon, accent, defaultOpen = true,
   );
 }
 
-export default function HojePage() {
+// ─── PF "Hoje" view ──────────────────────────────────────────────────────────
+
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function PfHojeView() {
+  const fmt = useFormatCurrency();
+  const [data, setData] = useState<PfHojeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/pf/hoje');
+      if (res.ok) setData(await res.json());
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const s = data?.summary;
+  const savingsRateFmt = s ? `${s.savingsRate.toFixed(1)}%` : '—';
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold capitalize">{todayLabel}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Resumo pessoal — {data ? `${MONTHS[data.month - 1]} ${data.year}` : ''}
+          </p>
+        </div>
+        <button
+          onClick={() => { setRefreshing(true); fetchData(); }}
+          disabled={refreshing}
+          className="p-2 rounded-lg hover:bg-muted transition-colors"
+          title="Atualizar"
+        >
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Receitas do mês</p>
+          <p className="text-lg font-bold text-green-600 dark:text-green-400 mt-1">{fmt(s?.income || 0)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Despesas do mês</p>
+          <p className="text-lg font-bold text-red-600 dark:text-red-400 mt-1">{fmt(s?.expenses || 0)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Pocket Margin</p>
+          <p className={`text-lg font-bold mt-1 ${(s?.pocketMargin || 0) >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+            {fmt(s?.pocketMargin || 0)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Taxa de Poupança</p>
+          <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-1">{savingsRateFmt}</p>
+        </div>
+      </div>
+
+      {/* Savings buckets total */}
+      {(data?.totalBuckets ?? 0) > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+            <PiggyBank className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium">Saldo total nas Caixinhas</p>
+            <p className="text-xs text-muted-foreground">Soma de todas as reservas ativas</p>
+          </div>
+          <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{fmt(data?.totalBuckets || 0)}</p>
+        </div>
+      )}
+
+      {/* Recent transactions */}
+      {(data?.recent.length ?? 0) > 0 && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Últimos lançamentos do mês</h3>
+            <Link href="/pf/lancamentos" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+              Ver todos <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="divide-y divide-border/50">
+            {data?.recent.map(tx => {
+              const isIncome = tx.amount > 0;
+              const isSavings = tx.group === 'Poupança';
+              return (
+                <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isIncome ? 'bg-green-100 dark:bg-green-900/30' :
+                    isSavings ? 'bg-blue-100 dark:bg-blue-900/30' :
+                    'bg-red-100 dark:bg-red-900/30'
+                  }`}>
+                    {isIncome ? <TrendingUp className="w-3.5 h-3.5 text-green-600 dark:text-green-400" /> :
+                     isSavings ? <PiggyBank className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" /> :
+                     <TrendingDown className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{tx.description || tx.subgroup}</p>
+                    <p className="text-xs text-muted-foreground">{tx.group} · {new Date(tx.date).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <p className={`text-sm font-semibold flex-shrink-0 ${
+                    isIncome ? 'text-green-600 dark:text-green-400' :
+                    isSavings ? 'text-blue-600 dark:text-blue-400' :
+                    'text-red-600 dark:text-red-400'
+                  }`}>
+                    {isIncome ? '+' : ''}{fmt(tx.amount)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {(data?.recent.length ?? 0) === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+          <Wallet className="w-12 h-12 text-muted-foreground" />
+          <h3 className="font-semibold text-lg">Nenhum lançamento ainda</h3>
+          <p className="text-sm text-muted-foreground">Comece registrando suas receitas e despesas do mês.</p>
+          <Link href="/pf/lancamentos" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500">
+            Novo Lançamento
+          </Link>
+        </div>
+      )}
+
+      {/* Quick links */}
+      <div className="flex flex-wrap gap-2 pt-2">
+        <Link href="/pf/orcamento" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+          <Target className="w-3.5 h-3.5" /> Orçamento <ExternalLink className="w-3 h-3 opacity-50" />
+        </Link>
+        <Link href="/pf/lancamentos" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+          <Wallet className="w-3.5 h-3.5" /> Lançamentos <ExternalLink className="w-3 h-3 opacity-50" />
+        </Link>
+        <Link href="/pf/poupanca" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+          <PiggyBank className="w-3.5 h-3.5" /> Poupança <ExternalLink className="w-3 h-3 opacity-50" />
+        </Link>
+        <Link href="/pf/investimentos" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+          <LineChart className="w-3.5 h-3.5" /> Investimentos <ExternalLink className="w-3 h-3 opacity-50" />
+        </Link>
+        <Link href="/bancos" className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+          <Tag className="w-3.5 h-3.5" /> Meus Bancos <ExternalLink className="w-3 h-3 opacity-50" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ─── PJ "Hoje" view ───────────────────────────────────────────────────────────
+
+function PjHojeView() {
   const fmt = useFormatCurrency();
   const { activeCompanyId } = usePJ();
   const { toast } = useToast();
@@ -304,7 +499,7 @@ export default function HojePage() {
         </div>
       )}
 
-      {/* Overdue — always first and most prominent */}
+      {/* Overdue */}
       {totalOverdue > 0 && (
         <CollapsibleSection
           title="Em Atraso"
@@ -429,4 +624,11 @@ export default function HojePage() {
       </div>
     </div>
   );
+}
+
+// ─── Root page: branches on activeEnv ────────────────────────────────────────
+
+export default function HojePage() {
+  const { activeEnv } = usePJ();
+  return activeEnv === 'pj' ? <PjHojeView /> : <PfHojeView />;
 }
