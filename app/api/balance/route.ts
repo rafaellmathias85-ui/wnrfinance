@@ -92,8 +92,8 @@ export async function GET() {
       })
     );
 
-    // Get investments per bank
-    const invWhere: any = isPJ ? {} : { userId: session.user.id };
+    // Get investments per bank — investments são PF-only; em contexto PJ retorna vazio
+    const invWhere: any = isPJ ? { id: 'none' } : { userId: session.user.id };
     const investments = await prisma.investment.findMany({
       where: invWhere,
       select: { bankConnectionId: true, currentValue: true, name: true, type: true },

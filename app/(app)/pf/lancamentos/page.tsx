@@ -3,16 +3,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetch';
 import { toast } from 'sonner';
-import { Plus, Trash2, Pencil, ArrowLeft, TrendingUp, TrendingDown, Repeat } from 'lucide-react';
+import { Plus, Trash2, Pencil, ArrowLeft, TrendingUp, TrendingDown, Repeat, Settings2 } from 'lucide-react';
 import Link from 'next/link';
 
-const GROUPS: Record<string, { type: 'income' | 'expense' | 'savings'; subgroups: string[] }> = {
-  Receita:    { type: 'income',   subgroups: ['Salário', 'Pró-labore', 'Freelance', 'Aluguéis', 'Dividendos', 'Outros'] },
-  Habitação:  { type: 'expense',  subgroups: ['Aluguel/Financiamento', 'Condomínio', 'IPTU', 'Água', 'Luz', 'Gás', 'Internet', 'Outros'] },
-  Filhos:     { type: 'expense',  subgroups: ['Escola', 'Material Escolar', 'Atividades', 'Saúde', 'Outros'] },
-  Automóvel:  { type: 'expense',  subgroups: ['Combustível', 'IPVA', 'Seguro', 'Manutenção', 'Estacionamento', 'Outros'] },
-  Diversos:   { type: 'expense',  subgroups: ['Alimentação', 'Saúde', 'Lazer', 'Vestuário', 'Assinaturas', 'Educação', 'Viagem', 'Outros'] },
-  Poupança:   { type: 'savings',  subgroups: ['Longo Prazo', 'Curto Prazo', 'Filho', 'Emergência', 'Outros'] },
+// Categorias estáticas como fallback — substituídas por dados do banco
+const FALLBACK_GROUPS: Record<string, { type: 'income' | 'expense' | 'savings'; subgroups: string[] }> = {
+  Receita:    { type: 'income',   subgroups: ['Salário', 'Outros'] },
+  Habitação:  { type: 'expense',  subgroups: ['Aluguel/Financiamento', 'Outros'] },
+  Filhos:     { type: 'expense',  subgroups: ['Escola', 'Outros'] },
+  Automóvel:  { type: 'expense',  subgroups: ['Combustível', 'Outros'] },
+  Diversos:   { type: 'expense',  subgroups: ['Alimentação', 'Outros'] },
+  Poupança:   { type: 'savings',  subgroups: ['Longo Prazo', 'Curto Prazo'] },
 };
 
 const fmt = (v: number) =>
@@ -47,6 +48,20 @@ export default function LancamentosPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editing, setEditing] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [GROUPS, setGroups] = useState<Record<string, { type: 'income'|'expense'|'savings'; subgroups: string[] }>>(FALLBACK_GROUPS);
+
+  useEffect(() => {
+    apiFetch('/api/pf/categorias').then(r => r.ok ? r.json() : null).then(d => {
+      if (!d?.grouped) return;
+      const g: Record<string, { type: any; subgroups: string[] }> = {};
+      for (const [grp, cats] of Object.entries(d.grouped as Record<string, any[]>)) {
+        const active = cats.filter(c => c.isActive);
+        if (active.length === 0) continue;
+        g[grp] = { type: active[0].type, subgroups: active.map(c => c.subgroup) };
+      }
+      if (Object.keys(g).length > 0) setGroups(g);
+    }).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -138,12 +153,18 @@ export default function LancamentosPage() {
           <h1 className="text-2xl font-bold text-white">Lançamentos PF</h1>
           <p className="text-slate-400 text-sm mt-0.5">Registre receitas, despesas e poupança</p>
         </div>
-        <button
-          onClick={() => { setForm(EMPTY_FORM); setEditing(null); setShowForm(true); }}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
-        >
-          <Plus className="w-4 h-4" /> Novo Lançamento
-        </button>
+        <div className="flex gap-2">
+          <Link href="/pf/categorias"
+            className="flex items-center gap-2 text-slate-400 hover:text-white border border-slate-600 hover:border-slate-400 px-3 py-2 rounded-lg text-sm">
+            <Settings2 className="w-4 h-4" /> Categorias
+          </Link>
+          <button
+            onClick={() => { setForm(EMPTY_FORM); setEditing(null); setShowForm(true); }}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" /> Novo Lançamento
+          </button>
+        </div>
       </div>
 
       {/* Navegação mês */}

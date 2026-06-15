@@ -52,6 +52,8 @@ model User {
   pfTransactions       PfTransaction[]     @relation("UserPfTransactions")
   pfSavingsBuckets     PfSavingsBucket[]   @relation("UserPfSavingsBuckets")
   pfSavingsEntries     PfSavingsEntry[]    @relation("UserPfSavingsEntries")
+  pfCategories         PfCategory[]        @relation("UserPfCategories")
+  pfInvestments        PfInvestment[]      @relation("UserPfInvestments")
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 
@@ -1902,6 +1904,52 @@ model CarneLeaoEntry {
   @@index([userId])
   @@index([period])
   @@index([year, month])
+}
+
+// ====================== MÓDULO FINANCEIRO PF (CATEGORIAS + INVESTIMENTOS) ======================
+
+model PfCategory {
+  id       String  @id @default(cuid())
+  userId   String
+  group    String  // ex: 'Receita', 'Habitação', 'Filhos', 'Automóvel', 'Diversos', 'Poupança'
+  subgroup String  // nome livre definido pelo usuário
+  type     String  // 'income', 'expense', 'savings'
+  position Int     @default(0)
+  isActive Boolean @default(true)
+  color    String  @default("#64748B")
+
+  user User @relation("UserPfCategories", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, group, subgroup])
+  @@index([userId, group])
+  @@map("pf_category")
+}
+
+model PfInvestment {
+  id           String    @id @default(cuid())
+  userId       String
+  name         String
+  institution  String
+  type         String    // 'CDB','LCI','LCA','Tesouro','Ações','FII','Fundos','Poupança','Cripto','Outros'
+  horizon      String    // 'curto' (<1a), 'medio' (1-5a), 'longo' (>5a)
+  amount       Decimal   @db.Decimal(12, 2)       // valor aplicado
+  currentValue Decimal   @db.Decimal(12, 2)       // valor atual (atualizado manualmente)
+  rate         Decimal?  @db.Decimal(8, 4)        // taxa % a.a.
+  rateIndex    String?   // 'CDI','IPCA','Selic','Prefixado','Outro'
+  liquidity    String    @default("no_vencimento") // 'diaria','d1','d30','no_vencimento'
+  riskLevel    String    @default("moderado")     // 'conservador','moderado','arrojado'
+  purchaseDate DateTime  @db.Date
+  maturityDate DateTime? @db.Date
+  notes        String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation("UserPfInvestments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, horizon])
+  @@index([userId])
+  @@map("pf_investment")
 }
 
 // ====================== MÓDULO ORÇAMENTO PF ======================

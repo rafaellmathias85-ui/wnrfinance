@@ -95,6 +95,7 @@ const PF_MODULES: ModuleTab[] = [
         items: [
           { href: '/pf/orcamento', label: 'Orçamento Mensal', icon: Target, description: 'Planejado vs Realizado por categoria' },
           { href: '/pf/lancamentos', label: 'Lançamentos', icon: FileText, description: 'Registrar receitas e despesas' },
+          { href: '/pf/categorias', label: 'Categorias', icon: Tag, description: 'Adicionar e remover grupos/subgrupos livremente' },
         ],
       },
       {
@@ -111,9 +112,9 @@ const PF_MODULES: ModuleTab[] = [
     icon: LineChart,
     columns: [
       {
-        title: 'Investimentos',
+        title: 'Investimentos PF',
         items: [
-          { href: '/investimentos', label: 'Investimentos', icon: LineChart, description: 'Carteira de investimentos' },
+          { href: '/pf/investimentos', label: 'Investimentos PF', icon: LineChart, description: 'Curto, médio e longo prazo — separado do PJ' },
           { href: '/caixinhas', label: 'Caixinhas', icon: PiggyBank, description: 'Reservas e metas' },
         ],
       },

@@ -112,6 +112,9 @@ export async function POST(request: Request) {
     const recurring = isRecurring === true;
     const recType = recurring ? (recurrenceType || 'mensal') : null;
 
+    const isPJCtx = session.user.defaultEnv === 'pj' && session.user.activeCompanyId;
+    const companyIdCtx = isPJCtx ? session.user.activeCompanyId : null;
+
     const income = await prisma.income.create({
       data: {
         description,
@@ -121,6 +124,7 @@ export async function POST(request: Request) {
         isRecurring: recurring,
         recurrenceType: recType,
         userId: session.user.id,
+        companyId: companyIdCtx,
         bankConnectionId: bankConnectionId || null,
       },
     });
@@ -138,6 +142,7 @@ export async function POST(request: Request) {
             isRecurring: true,
             recurrenceType: recType,
             userId: session.user.id,
+            companyId: companyIdCtx,
             bankConnectionId: bankConnectionId || null,
           })),
         });
