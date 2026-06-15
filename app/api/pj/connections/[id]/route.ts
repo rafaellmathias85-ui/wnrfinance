@@ -95,8 +95,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           : 'https://homologacao.focusnfe.com.br';
         const focusToken = decrypted.token || decrypted.apiKey || '';
         const encoded = Buffer.from(`${focusToken}:`).toString('base64');
-        // Focus NFe não tem endpoint de ping — /v2/nfse/ping retorna 404 se autenticado, 401 se inválido
-        const res = await fetch(`${baseUrl}/v2/nfse/wnrfinance-healthcheck`, {
+        // Focus NFe não tem endpoint de ping — query param retorna 404 se autenticado, 401 se inválido
+        const res = await fetch(`${baseUrl}/v2/nfse?ref=wnrfinance-healthcheck`, {
           headers: { Authorization: `Basic ${encoded}` },
         });
         if (res.status === 401 || res.status === 403) {
