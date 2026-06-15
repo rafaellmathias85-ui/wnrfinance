@@ -25,7 +25,8 @@ export function toInputDate(dateStr: string | Date | null | undefined): string {
 
 export const EXPENSE_CATEGORIES = [
   'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Educação',
-  'Lazer', 'Vestuário', 'Assinaturas', 'Impostos', 'Seguros', 'Outros',
+  'Lazer', 'Vestuário', 'Assinaturas', 'Impostos', 'Seguros',
+  'Cartão de Crédito', 'Outros',
 ] as const;
 
 export const INCOME_TYPES = [

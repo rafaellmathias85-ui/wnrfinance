@@ -3,13 +3,37 @@ import { apiFetch } from '@/lib/fetch';
 import { CARD_COLORS, EXPENSE_CATEGORIES } from '@/lib/format';
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, FileText, Plus, Receipt, Trash2, Upload } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { CreditCard, FileText, Plus, Receipt, Trash2, Upload, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useFormatCurrency } from '@/hooks/use-format-currency';
 import BankFilter from '@/components/bank-filter';
+
+const CHART_COLORS = ['#2563EB', '#16A34A', '#DC2626', '#D97706', '#7C3AED', '#0891B2', '#BE185D', '#059669', '#B45309', '#6B7280'];
+
+function getBillingCycles(transactions: any[], closingDay: number, dueDay: number, cardName: string) {
+  if (!transactions?.length) return [];
+  const cycles: Record<string, { label: string; start: Date; end: Date; transactions: any[]; total: number }> = {};
+  for (const tx of transactions) {
+    const d = new Date(tx.date);
+    let cycleYear = d.getFullYear();
+    let cycleMonth = d.getMonth() + 1;
+    if (d.getDate() > closingDay) { cycleMonth++; if (cycleMonth > 12) { cycleMonth = 1; cycleYear++; } }
+    const key = `${cycleYear}-${String(cycleMonth).padStart(2, '0')}`;
+    if (!cycles[key]) {
+      const label = `Fatura ${new Date(cycleYear, cycleMonth - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`;
+      const start = new Date(cycleYear, cycleMonth - 2, closingDay + 1);
+      const end = new Date(cycleYear, cycleMonth - 1, closingDay, 23, 59, 59);
+      cycles[key] = { label, start, end, transactions: [], total: 0 };
+    }
+    cycles[key].transactions.push(tx);
+    cycles[key].total += tx.amount;
+  }
+  return Object.entries(cycles).sort(([a], [b]) => b.localeCompare(a)).map(([, v]) => v);
+}
 
 
 export default function CartoesPage() {
@@ -27,6 +51,7 @@ export default function CartoesPage() {
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [estimatedAmounts, setEstimatedAmounts] = useState<Record<string, string>>({});
   const [savingEstimate, setSavingEstimate] = useState<string | null>(null);
+  const [expandedCycle, setExpandedCycle] = useState<Record<string, string>>({});
 
   useEffect(() => {
     apiFetch('/api/banks').then(r => r.json()).then(d => setBanks(d.connections?.filter((c: any) => c.status?.toLowerCase() === 'active') || [])).catch(() => {});
@@ -157,11 +182,31 @@ export default function CartoesPage() {
         } catch { /* skip */ }
       }
       const categories: Record<string, number> = {};
+      let actualTotal = 0;
       transactions.forEach((tx: any) => {
         const cat = tx.category || 'Outros';
         categories[cat] = (categories[cat] || 0) + tx.amount;
+        actualTotal += tx.amount;
       });
-      setImportResult({ imported, total: transactions.length, categories });
+
+      // Finaliza fatura atual e rola estimativa pro próximo mês
+      const cardInfo = cards.find(c => c.id === showImportFatura);
+      const estimatedAmt = parseFloat(estimatedAmounts[showImportFatura] || '0') || actualTotal;
+      if (showImportFatura) {
+        const now = new Date();
+        await apiFetch(`/api/cards/${showImportFatura}/finalize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actualTotal,
+            estimatedAmount: estimatedAmt,
+            month: now.getMonth() + 1,
+            year: now.getFullYear(),
+          }),
+        }).catch(() => {});
+      }
+
+      setImportResult({ imported, total: transactions.length, categories, actualTotal });
       loadCards();
     } catch (err: any) {
       setImportResult({ error: err.message });
@@ -204,8 +249,16 @@ export default function CartoesPage() {
           <DialogContent>
             <DialogHeader><DialogTitle>Adicionar Cartão</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <Input placeholder="Nome do cartão" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-              <Input placeholder="Banco" value={form.bank} onChange={e => setForm({ ...form, bank: e.target.value })} />
+              <Input placeholder="Nome do cartão (ex: Personalite)" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <Input placeholder="Banco (ex: Itaú, Bradesco)" value={form.bank} onChange={e => setForm({ ...form, bank: e.target.value })} />
+              <select
+                className="w-full rounded-md border border-input p-2 text-sm bg-background"
+                value={form.bankConnectionId}
+                onChange={e => setForm({ ...form, bankConnectionId: e.target.value })}
+              >
+                <option value="">Conta bancária vinculada (opcional)</option>
+                {banks.map(b => <option key={b.id} value={b.id}>{b.bankName}</option>)}
+              </select>
               <Input placeholder="Últimos 4 dígitos" maxLength={4} value={form.lastFour} onChange={e => setForm({ ...form, lastFour: e.target.value })} />
               <Input type="number" placeholder="Limite" value={form.cardLimit} onChange={e => setForm({ ...form, cardLimit: e.target.value })} />
               <div className="grid grid-cols-2 gap-3">
@@ -303,39 +356,65 @@ export default function CartoesPage() {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                    {card.transactions?.length > 0 && (
-                      <div className="border-t pt-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-medium text-muted-foreground">
-                            Lançamentos ({card.transactions.length})
-                          </p>
-                          {card.transactions.length > 3 && (
-                            <button
-                              onClick={() => setExpandedCard(expandedCard === card.id ? null : card.id)}
-                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                              {expandedCard === card.id ? 'Ver menos' : `Ver todos (${card.transactions.length})`}
-                            </button>
-                          )}
+                    {card.transactions?.length > 0 && (() => {
+                      const cycles = getBillingCycles(card.transactions, card.closingDay || 1, card.dueDay || 10, card.name);
+                      const catTotals: Record<string, number> = {};
+                      card.transactions.forEach((tx: any) => { catTotals[tx.category || 'Outros'] = (catTotals[tx.category || 'Outros'] || 0) + tx.amount; });
+                      const chartData = Object.entries(catTotals).sort(([,a],[,b]) => b-a).map(([name, value]) => ({ name, value }));
+                      return (
+                        <div className="border-t pt-3 space-y-3">
+                          {/* Chart de gastos por categoria */}
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground mb-2">Gastos por categoria</p>
+                            <ResponsiveContainer width="100%" height={120}>
+                              <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 16, top: 0, bottom: 0 }}>
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} />
+                                <Tooltip formatter={(v: any) => `R$ ${Number(v).toFixed(2)}`} />
+                                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                                  {chartData.map((_, idx) => <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />)}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                          {/* Transações agrupadas por ciclo de fatura */}
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-muted-foreground">Faturas</p>
+                            {cycles.map((cycle, ci) => {
+                              const cycleKey = `${card.id}-${ci}`;
+                              const isOpen = expandedCycle[cycleKey] !== 'closed';
+                              return (
+                                <div key={cycleKey} className="border rounded-lg overflow-hidden">
+                                  <button
+                                    onClick={() => setExpandedCycle(prev => ({ ...prev, [cycleKey]: isOpen ? 'closed' : 'open' }))}
+                                    className="w-full flex items-center justify-between px-3 py-2 bg-muted/40 hover:bg-muted/60 text-left"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                                      <span className="text-xs font-medium capitalize">{cycle.label}</span>
+                                    </div>
+                                    <span className="text-xs font-bold text-red-600 dark:text-red-400">{formatCurrency(cycle.total)}</span>
+                                  </button>
+                                  {isOpen && (
+                                    <div className="divide-y divide-border max-h-48 overflow-y-auto">
+                                      {cycle.transactions.map((tx: any) => (
+                                        <div key={tx.id} className="flex justify-between text-xs py-1.5 px-3 hover:bg-muted/30">
+                                          <div className="min-w-0 flex-1 mr-2">
+                                            <span className="truncate block text-foreground">{tx.description}</span>
+                                            <span className="text-muted-foreground">{new Date(tx.date).toLocaleDateString('pt-BR')} · {tx.category}</span>
+                                          </div>
+                                          <span className="font-medium text-red-600 dark:text-red-400 whitespace-nowrap">{formatCurrency(tx.amount)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <div className={`space-y-0.5 ${expandedCard === card.id ? 'max-h-80 overflow-y-auto' : ''}`}>
-                          {(expandedCard === card.id ? card.transactions : card.transactions.slice(0, 5)).map((tx: any) => (
-                            <div key={tx.id} className="flex justify-between text-sm py-1.5 px-1 rounded hover:bg-muted/50">
-                              <div className="min-w-0 flex-1 mr-2">
-                                <span className="text-foreground truncate block">{tx.description}</span>
-                                <span className="text-[10px] text-muted-foreground">{new Date(tx.date).toLocaleDateString('pt-BR')}</span>
-                              </div>
-                              <span className="text-red-600 dark:text-red-400 font-medium whitespace-nowrap">{formatCurrency(tx.amount)}</span>
-                            </div>
-                          ))}
-                        </div>
-                        {card.totalAllTx > 0 && card.totalAllTx !== card.currentInvoice && (
-                          <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t">
-                            Total acumulado: <span className="font-semibold text-foreground">{formatCurrency(card.totalAllTx)}</span>
-                          </p>
-                        )}
-                      </div>
-                    )}
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -399,7 +478,10 @@ export default function CartoesPage() {
                 {importResult.error
                   ? <span>Erro: {importResult.error}</span>
                   : <div>
-                      <p className="font-medium">{importResult.imported} de {importResult.total} transações importadas e lançadas em Despesas!</p>
+                      <p className="font-medium">{importResult.imported} de {importResult.total} transações importadas!</p>
+                      {importResult.actualTotal > 0 && (
+                        <p className="text-xs mt-1">Total da fatura: <strong>R$ {importResult.actualTotal.toFixed(2)}</strong> — despesa definitiva criada e estimativa do próximo mês gerada automaticamente.</p>
+                      )}
                       {importResult.categories && Object.keys(importResult.categories).length > 0 && (
                         <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
                           <p className="text-xs font-semibold mb-1.5">Gastos por categoria (IA):</p>
