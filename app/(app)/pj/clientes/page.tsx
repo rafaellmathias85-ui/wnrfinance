@@ -313,16 +313,17 @@ function ClientFormDialog({
     const id = clientId.current;
     if (!id) { toast({ title: 'Salve os dados básicos primeiro', variant: 'destructive' }); return; }
     try {
+      let r: Response;
       if (addr.id) {
-        const r = await apiFetch(`/api/pj/clients/${id}/addresses/${addr.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addr) });
-        const saved = await r.json();
-        setAddresses((prev) => prev.map((a, i) => (i === idx ? saved : a)));
+        r = await apiFetch(`/api/pj/clients/${id}/addresses/${addr.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addr) });
       } else {
-        const r = await apiFetch(`/api/pj/clients/${id}/addresses`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addr) });
-        const saved = await r.json();
-        setAddresses((prev) => prev.map((a, i) => (i === idx ? saved : a)));
+        r = await apiFetch(`/api/pj/clients/${id}/addresses`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(addr) });
       }
-    } catch { toast({ title: 'Erro ao salvar endereço', variant: 'destructive' }); }
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'Erro ao salvar'); }
+      const saved = await r.json();
+      setAddresses((prev) => prev.map((a, i) => (i === idx ? saved : a)));
+      toast({ title: 'Endereço salvo' });
+    } catch (e: any) { toast({ title: 'Erro ao salvar endereço', description: e.message, variant: 'destructive' }); }
   };
 
   const handleDeleteAddress = async (addr: any, idx: number) => {

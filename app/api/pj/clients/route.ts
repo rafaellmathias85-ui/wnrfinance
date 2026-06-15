@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
           }
         : {}),
     },
-    include: { contacts: { orderBy: { isBilling: 'desc' } } },
+    include: { contacts: { orderBy: { isBilling: 'desc' } }, addresses: { orderBy: { isPrimary: 'desc' } } },
     orderBy: { name: 'asc' },
   });
   return NextResponse.json(clients);
