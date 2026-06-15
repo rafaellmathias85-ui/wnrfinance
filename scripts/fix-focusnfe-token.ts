@@ -7,8 +7,8 @@ import { encrypt, maskSecret } from '../lib/encrypt';
 const prisma = new PrismaClient();
 
 const TOKENS = {
-  homologacao: 'luV8HhnjNmr6RuvkPNA6CBEZSLWxyz42',
-  producao: 'XPEpmrVSI5hSl3d6D8qGYC32qSoIg12n',
+  homologacao: 'luV8HhnJNmr6RuvkPNA6CBEZSLWxyz42',
+  producao: 'XPEpmrVSI5hSl3d6D8qGYC32qSolg12n',
 };
 
 // Use o ambiente correto conforme FOCUSNFE_SANDBOX no .env
