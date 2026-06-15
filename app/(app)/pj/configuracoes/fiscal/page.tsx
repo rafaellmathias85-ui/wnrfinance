@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
 import { toast } from 'sonner';
-import { Save, ArrowLeft, Calculator, Building2, Key, ShieldCheck, Upload } from 'lucide-react';
+import { Save, ArrowLeft, Calculator, Building2, Key, ShieldCheck, ExternalLink, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { SefazStatusBadge } from '@/components/sefaz-status-badge';
 
@@ -30,7 +30,6 @@ export default function FiscalSettingsPage() {
     sefazEnvironment: 'producao',
     endereco: { logradouro: '', numero: '', bairro: '', municipio: '', uf: '', cep: '' },
   });
-  const [emitentLoading, setEmitentLoading] = useState(false);
   const [certFile, setCertFile] = useState<File | null>(null);
   const [certPassword, setCertPassword] = useState('');
   const [certLoading, setCertLoading] = useState(false);
@@ -64,24 +63,6 @@ export default function FiscalSettingsPage() {
   const set = (field: string, value: string) => setForm((p) => ({ ...p, [field]: value }));
   const setEnd = (field: string, value: string) =>
     setForm((p) => ({ ...p, endereco: { ...p.endereco, [field]: value } }));
-
-  const handleConfigurarEmitente = async () => {
-    setEmitentLoading(true);
-    try {
-      const r = await apiFetch('/api/pj/nfe/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'configurar_emitente' }),
-      });
-      const d = await r.json();
-      if (r.ok) toast.success('Emitente registrado no Focus NFe com sucesso!');
-      else toast.error(d.error || 'Erro ao registrar emitente');
-    } catch (e: any) {
-      toast.error(e.message || 'Erro de rede');
-    } finally {
-      setEmitentLoading(false);
-    }
-  };
 
   const handleUploadCertificado = async () => {
     if (!certFile) { toast.error('Selecione o arquivo .pfx do certificado'); return; }
@@ -258,13 +239,13 @@ export default function FiscalSettingsPage() {
         )}
       </div>
 
-      {/* Endereço do Emitente — para Focus NFe */}
+      {/* Endereço do Emitente */}
       <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <ShieldCheck className="w-4 h-4 text-purple-400" />
           <div>
-            <h3 className="text-white font-medium">Endereço do Emitente (Focus NFe)</h3>
-            <p className="text-slate-400 text-xs mt-0.5">Necessário para registrar o CNPJ como emitente autorizado</p>
+            <h3 className="text-white font-medium">Endereço do Emitente</h3>
+            <p className="text-slate-400 text-xs mt-0.5">Endereço fiscal da empresa para emissão de NF-e / NFS-e</p>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
@@ -301,12 +282,9 @@ export default function FiscalSettingsPage() {
             </div>
           </div>
         </div>
-        <div className="flex justify-end pt-2">
-          <button onClick={handleConfigurarEmitente} disabled={emitentLoading}
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-60">
-            <ShieldCheck className="w-4 h-4" />
-            {emitentLoading ? 'Registrando...' : 'Registrar Emitente no Focus NFe'}
-          </button>
+        <div className="p-3 bg-blue-900/20 border border-blue-700/40 rounded-lg">
+          <p className="text-blue-400 text-xs font-medium">Cadastro de emitente é feito diretamente no Focus NFe</p>
+          <p className="text-blue-500 text-xs mt-0.5">Acesse <a href="https://app-v2.focusnfe.com.br" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-300">app-v2.focusnfe.com.br</a> → sua empresa → aba <strong>TOKENS</strong> e copie o token de homologação ou produção para usar na nossa integração.</p>
         </div>
       </div>
 
