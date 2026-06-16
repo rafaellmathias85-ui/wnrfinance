@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       item_lista_servico: serviceCode,
       valor_servicos: valor,
       valor_deducoes: 0,
-      codigo_municipio_prestacao: codigoMunicipio,
+      codigo_municipio: codigoMunicipio,
     },
   };
 

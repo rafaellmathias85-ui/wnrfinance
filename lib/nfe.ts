@@ -299,12 +299,13 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
   const doc = payload.tomadorDoc.replace(/\D/g, '');
 
   const inscricaoMunicipal = payload.prestadorInscricaoMunicipal || config.inscricaoMunicipal || '';
+  const codigoMunicipio = payload.prestadorCodigoMunicipio || config.codigoMunicipio || '';
   const body = {
     data_emissao: payload.dataEmissao || new Date().toISOString(),
     prestador: {
       cnpj,
       ...(inscricaoMunicipal ? { inscricao_municipal: inscricaoMunicipal } : {}),
-      codigo_municipio: payload.prestadorCodigoMunicipio,
+      codigo_municipio: codigoMunicipio,
     },
     tomador: {
       cpf: doc.length === 11 ? doc : undefined,
@@ -323,7 +324,7 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
       valor_servicos: payload.grossAmount,
       valor_deducoes: payload.deductions || 0,
       valor_iss: payload.issValue,
-      codigo_municipio: payload.serviceCityCode || payload.prestadorCodigoMunicipio,
+      codigo_municipio: payload.serviceCityCode || codigoMunicipio,
     },
     informacoes_adicionais_contribuinte: payload.informacoesAdicionais,
   };
