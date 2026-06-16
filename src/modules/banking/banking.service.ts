@@ -142,7 +142,9 @@ export class BankingService {
     const connection = toBankConnection(connectionRow);
     const provider = createBankProvider(connection);
     const result = await provider.testConnection();
-    const nextStatus = result.success ? 'ACTIVE' : result.errorCode === 'API_NOT_AVAILABLE' ? 'PENDING_CONFIG' : 'ERROR';
+    const nextStatus = result.success ? 'ACTIVE'
+      : (result.errorCode === 'API_NOT_AVAILABLE' || result.errorCode === 'PENDING_CONFIG') ? 'PENDING_CONFIG'
+      : 'ERROR';
 
     await prisma.bankConnection.update({
       where: { id: connection.id },

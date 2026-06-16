@@ -52,7 +52,11 @@ export class ImportBatchService {
     const pending = count('PENDING') + count('SUGGESTED');
     const total = reconciled + ignored + pending;
 
-    const status = pending === 0 ? 'CONCILIADO' : reconciled + ignored > 0 ? 'PARCIAL' : 'PENDENTE';
+    const status =
+      total === 0 ? 'PENDENTE'
+      : pending === 0 ? 'CONCILIADO'
+      : reconciled + ignored > 0 ? 'PARCIAL'
+      : 'PENDENTE';
 
     await prisma.importBatch.update({
       where: { id: batchId },
@@ -123,7 +127,7 @@ export class ImportBatchService {
     const connections = connectionIds.length
       ? await prisma.bankConnection.findMany({
           where: { id: { in: connectionIds } },
-          select: { id: true, bankName: true, bankCode: true, agency: true, accountNumber: true, accountDigit: true },
+          select: { id: true, bankName: true, bankCode: true, agency: true, accountNumber: true, accountDigit: true, syncError: true, status: true },
         })
       : [];
     const connMap = new Map(connections.map((c) => [c.id, c]));

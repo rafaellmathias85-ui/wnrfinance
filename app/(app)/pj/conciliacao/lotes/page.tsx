@@ -147,10 +147,17 @@ export default function ConciliacaoLotesPage() {
                             Agência: {b.connection.agency || '—'} | Conta: {b.connection.accountNumber || '—'}{b.connection.accountDigit ? ` - ${b.connection.accountDigit}` : ''}
                           </div>
                         )}
+                        {b.connection?.syncError && (
+                          <div className="mt-0.5 text-xs text-red-600" title={b.connection.syncError}>
+                            ⚠️ {b.connection.syncError.slice(0, 80)}{b.connection.syncError.length > 80 ? '…' : ''}
+                          </div>
+                        )}
                         {b.fileName && <div className="text-xs text-muted-foreground">{b.fileName}</div>}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-xs">
-                        De {fmtDate(b.periodStart)} à {fmtDate(b.periodEnd)}
+                        {b.periodStart || b.periodEnd
+                          ? `De ${fmtDate(b.periodStart)} à ${fmtDate(b.periodEnd)}`
+                          : <span className="text-muted-foreground italic">Sem transações</span>}
                       </td>
                       <td className="px-4 py-3 text-center font-medium text-green-600">{b.reconciledCount}</td>
                       <td className="px-4 py-3 text-center text-muted-foreground">{b.ignoredCount}</td>

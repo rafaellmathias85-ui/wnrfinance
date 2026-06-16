@@ -18,6 +18,7 @@ interface CachedToken {
 
 const TOKEN_URL = 'https://sts.itau.com.br/api/oauth/token';
 const FRANCESAS_URL = 'https://boleto.api.itau.com/extrato/v1/francesas';
+const EXTRATO_CC_URL = 'https://api.itau.com.br/extrato_conta_corrente/v1/lancamentos';
 
 export class ItauPJProvider implements BankProvider {
   providerName = 'Itaú PJ';
@@ -98,24 +99,46 @@ export class ItauPJProvider implements BankProvider {
 
     const allTxs: CanonicalTransaction[] = [];
 
-    // Itaú extrato trabalha por mês (francesas). Usa data_inicio/data_fim (YYYY-MM-DD)
-    // pois mes_referencia (MMYYYY) é rejeitado pela API com HTTP 400.
+    // 1. Extrato de conta corrente (todos os lançamentos: TED, PIX, débitos, tarifas…)
+    // A API pode não estar disponível dependendo do contrato — ignoramos falhas silenciosamente.
+    try {
+      const MAX_DAYS = 89;
+      const MS_PER_DAY = 86_400_000;
+      let chunkStart = new Date(startDate);
+      while (chunkStart <= endDate) {
+        const chunkEnd = new Date(Math.min(chunkStart.getTime() + MAX_DAYS * MS_PER_DAY, endDate.getTime()));
+        const dataInicio = chunkStart.toISOString().slice(0, 10);
+        const dataFim = chunkEnd.toISOString().slice(0, 10);
+        const params = new URLSearchParams({ dataInicio, dataFim, agencia, conta });
+        const resp = await this.requestJson<Record<string, unknown>>(
+          `${EXTRATO_CC_URL}?${params}`,
+          { method: 'GET', agent, clientId, token },
+        );
+        const rows = extractArray(resp, ['data', 'lancamentos', 'transacoes', 'items', 'content']);
+        for (const row of rows) {
+          const tx = this.ccRowToCanonical(row as Record<string, unknown>, accountId, startDate, endDate);
+          if (tx) allTxs.push(tx);
+        }
+        chunkStart = new Date(chunkEnd.getTime() + MS_PER_DAY);
+      }
+    } catch (e: any) {
+      console.warn(`[ItauPJ] Extrato CC indisponível: ${e?.message} — usando francesinha`);
+    }
+
+    // 2. Francesinha: boletos de cobrança recebidos (complementar ao extrato CC)
     const cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
     const last = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-
     while (cur <= last) {
       const yyyy = cur.getFullYear();
       const mm = String(cur.getMonth() + 1).padStart(2, '0');
       const lastDay = new Date(yyyy, cur.getMonth() + 1, 0).getDate();
       const dataInicio = `${yyyy}-${mm}-01`;
       const dataFim = `${yyyy}-${mm}-${String(lastDay).padStart(2, '0')}`;
-      const mesRef = `${mm}${yyyy}`; // só para o log
       try {
         const francesas = await this.requestJson<Record<string, unknown>>(
           `${FRANCESAS_URL}?agencia=${agencia}&conta=${conta}&dac=${dac}&data_inicio=${dataInicio}&data_fim=${dataFim}`,
           { method: 'GET', agent, clientId, token },
         );
-
         const items = extractArray(francesas, ['data', 'francesas', 'items', 'content']);
         for (const francesa of items) {
           const id = (francesa as any).id || (francesa as any).id_francesa;
@@ -135,12 +158,19 @@ export class ItauPJProvider implements BankProvider {
           }
         }
       } catch (e: any) {
-        console.warn(`[ItauPJ] Erro francesas ${mesRef}: ${e?.message}`);
+        console.warn(`[ItauPJ] Erro francesas ${mm}${yyyy}: ${e?.message}`);
       }
       cur.setMonth(cur.getMonth() + 1);
     }
 
-    return allTxs;
+    // Dedup por externalId para evitar duplicatas entre extrato CC e francesinha
+    const seen = new Set<string>();
+    return allTxs.filter(tx => {
+      const key = tx.externalId || tx.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   // ── Infraestrutura ─────────────────────────────────────────────────────────
@@ -260,6 +290,46 @@ export class ItauPJProvider implements BankProvider {
       direction: 'CREDIT',
       description: pagador ? `Boleto recebido: ${pagador}` : 'Boleto Itaú recebido',
       counterpartyName: pagador,
+      status: 'SETTLED',
+      rawData: row,
+    });
+  }
+
+  // Extrato CC: débitos e créditos da conta corrente (TED, PIX, tarifas…)
+  private ccRowToCanonical(
+    row: Record<string, unknown>,
+    accountId: string,
+    startDate: Date,
+    endDate: Date,
+  ): CanonicalTransaction | null {
+    const dateStr = firstString(row, ['dataLancamento', 'data_lancamento', 'data', 'dataMovimento', 'dataTransacao']);
+    if (!dateStr) return null;
+    const date = parseBankDate(dateStr);
+    if (date < startDate || date > endDate) return null;
+
+    const amountRaw = row['valorLancamento'] ?? row['valor_lancamento'] ?? row['valor'] ?? row['amount'];
+    const amount = typeof amountRaw === 'string'
+      ? parseFloat(amountRaw.replace(',', '.'))
+      : typeof amountRaw === 'number' ? amountRaw : 0;
+    if (!amount) return null;
+
+    const tipoRaw = firstString(row, ['tipoLancamento', 'tipo_lancamento', 'tipo', 'indicadorLancamento']);
+    const direction: 'CREDIT' | 'DEBIT' =
+      tipoRaw?.toLowerCase().includes('cred') ? 'CREDIT' : 'DEBIT';
+
+    const desc = firstString(row, ['descricaoLancamento', 'descricao_lancamento', 'historico', 'descricao', 'description']);
+    const externalId = firstString(row, ['idLancamento', 'id_lancamento', 'id', 'numeroDocumento', 'numero_documento']);
+
+    return normalizeCanonicalTransaction({
+      bank: 'Itaú',
+      bankCode: this.bankCode,
+      accountId,
+      personType: this.personType,
+      externalId: externalId ? `CC:${externalId}` : undefined,
+      date,
+      amount: Math.abs(amount),
+      direction,
+      description: desc || (direction === 'CREDIT' ? 'Crédito Itaú' : 'Débito Itaú'),
       status: 'SETTLED',
       rawData: row,
     });
