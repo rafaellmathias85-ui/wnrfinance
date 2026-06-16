@@ -272,6 +272,10 @@ export async function emitNFe(companyId: string, payload: NFePayload): Promise<N
 
   const config = decryptConfig(conn.config as any);
 
+  // Sempre usa o CNPJ da própria empresa — nunca o que foi digitado na configuração da conexão.
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { cnpj: true } });
+  if (company?.cnpj) config.cnpj = company.cnpj.replace(/\D/g, '');
+
   switch (conn.providerKey) {
     case 'focusnfe':
       return emitFocusNFe(payload, config);
@@ -363,6 +367,11 @@ export async function emitNFSe(companyId: string, payload: NFSePayload): Promise
   }
 
   const config = decryptConfig(conn.config as any);
+
+  // Sempre usa o CNPJ da própria empresa — nunca o que foi digitado na configuração da conexão,
+  // que pode estar desatualizado ou conter o CNPJ de um cliente por engano.
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { cnpj: true } });
+  if (company?.cnpj) config.cnpj = company.cnpj.replace(/\D/g, '');
 
   switch (conn.providerKey) {
     case 'focusnfe':
