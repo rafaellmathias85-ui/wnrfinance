@@ -20,6 +20,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         dueDay: body.dueDay ? parseInt(body.dueDay) : undefined,
         color: body.color,
         isActive: body.isActive,
+        bankConnectionId: body.bankConnectionId !== undefined ? (body.bankConnectionId || null) : undefined,
       },
     });
     return NextResponse.json(card);

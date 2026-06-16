@@ -4,7 +4,7 @@ import { CARD_COLORS, EXPENSE_CATEGORIES } from '@/lib/format';
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { CreditCard, FileText, Plus, Receipt, Trash2, Upload, ChevronDown, ChevronRight } from 'lucide-react';
+import { CreditCard, FileText, Pencil, Plus, Receipt, Trash2, Upload, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,6 +52,8 @@ export default function CartoesPage() {
   const [estimatedAmounts, setEstimatedAmounts] = useState<Record<string, string>>({});
   const [savingEstimate, setSavingEstimate] = useState<string | null>(null);
   const [expandedCycle, setExpandedCycle] = useState<Record<string, string>>({});
+  const [editCard, setEditCard] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', bank: '', lastFour: '', cardLimit: '', closingDay: '', dueDay: '', color: '#2563EB', bankConnectionId: '' });
 
   useEffect(() => {
     apiFetch('/api/banks').then(r => r.json()).then(d => setBanks(d.connections?.filter((c: any) => c.status?.toLowerCase() === 'active') || [])).catch(() => {});
@@ -215,6 +217,31 @@ export default function CartoesPage() {
     }
   };
 
+  const openEdit = (card: any) => {
+    setEditCard(card);
+    setEditForm({
+      name: card.name || '',
+      bank: card.bank || '',
+      lastFour: card.lastFour || '',
+      cardLimit: String(card.cardLimit || ''),
+      closingDay: String(card.closingDay || ''),
+      dueDay: String(card.dueDay || ''),
+      color: card.color || '#2563EB',
+      bankConnectionId: card.bankConnectionId || '',
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editCard) return;
+    await apiFetch(`/api/cards/${editCard.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm),
+    });
+    setEditCard(null);
+    loadCards();
+  };
+
   const saveEstimate = async (cardId: string) => {
     const amount = parseFloat(estimatedAmounts[cardId] || '');
     if (!amount || amount <= 0) return;
@@ -352,6 +379,9 @@ export default function CartoesPage() {
                       <Button variant="outline" size="sm" className="flex-1" onClick={() => { setShowImportFatura(card.id); setImportResult(null); }}>
                         <Upload className="w-4 h-4 mr-1" />Importar Fatura
                       </Button>
+                      <Button variant="outline" size="sm" onClick={() => openEdit(card)}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
                       <Button variant="outline" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => deleteCard(card.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -438,6 +468,40 @@ export default function CartoesPage() {
             <Input type="date" value={txForm.date} onChange={e => setTxForm({ ...txForm, date: e.target.value })} />
             <Input type="number" placeholder="Parcelas" min={1} value={txForm.installments} onChange={e => setTxForm({ ...txForm, installments: e.target.value })} />
             <Button onClick={addTx} className="w-full bg-blue-600 hover:bg-blue-700">Salvar</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editCard} onOpenChange={v => { if (!v) setEditCard(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Cartão</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Nome do cartão" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+            <Input placeholder="Banco (ex: Itaú, Bradesco)" value={editForm.bank} onChange={e => setEditForm({ ...editForm, bank: e.target.value })} />
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Conta bancária vinculada</label>
+              <select
+                className="w-full rounded-md border border-input p-2 text-sm bg-background"
+                value={editForm.bankConnectionId}
+                onChange={e => setEditForm({ ...editForm, bankConnectionId: e.target.value })}
+              >
+                <option value="">Nenhuma conta vinculada</option>
+                {banks.map(b => <option key={b.id} value={b.id}>{b.bankName}</option>)}
+              </select>
+              <p className="text-[10px] text-muted-foreground mt-1">Vincular ao banco correto habilita o filtro por banco e a seleção automática de conta nas despesas</p>
+            </div>
+            <Input placeholder="Últimos 4 dígitos" maxLength={4} value={editForm.lastFour} onChange={e => setEditForm({ ...editForm, lastFour: e.target.value })} />
+            <Input type="number" placeholder="Limite" value={editForm.cardLimit} onChange={e => setEditForm({ ...editForm, cardLimit: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input type="number" placeholder="Dia fechamento" min={1} max={31} value={editForm.closingDay} onChange={e => setEditForm({ ...editForm, closingDay: e.target.value })} />
+              <Input type="number" placeholder="Dia vencimento" min={1} max={31} value={editForm.dueDay} onChange={e => setEditForm({ ...editForm, dueDay: e.target.value })} />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {CARD_COLORS.map(c => (
+                <button key={c} onClick={() => setEditForm({ ...editForm, color: c })} className={`w-8 h-8 rounded-full border-2 transition-transform ${editForm.color === c ? 'border-gray-900 scale-110' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+              ))}
+            </div>
+            <Button onClick={saveEdit} className="w-full bg-blue-600 hover:bg-blue-700">Salvar alterações</Button>
           </div>
         </DialogContent>
       </Dialog>
