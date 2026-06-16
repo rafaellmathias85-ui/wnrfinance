@@ -531,6 +531,78 @@ export async function resolveItauBoletoUrl(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Resolve Itaú boleto barcode/linha-digitável from boletoscash API.
+// Saves to DB and returns structured data. Does NOT require a PDF URL.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function resolveItauBoletoData(
+  companyId: string,
+  chargeId: string,
+  nossoNumero: number,
+): Promise<{ linhaDigitavel: string; codigoBarras: string; itauBoletoId: string } | null> {
+  let clientId: string, clientSecret: string, certPath: string, keyPath: string, idBeneficiario: string;
+
+  const conn = await getChargeConnection(companyId);
+  if (conn && conn.providerKey === 'itau') {
+    const cfg = decryptConfig(conn.config as any);
+    clientId = cfg.clientId; clientSecret = cfg.clientSecret;
+    certPath = cfg.certPath; keyPath = cfg.keyPath; idBeneficiario = cfg.idBeneficiario;
+  } else {
+    const e = process.env;
+    clientId = e.ITAU_CLIENT_ID ?? ''; clientSecret = e.ITAU_CLIENT_SECRET ?? '';
+    certPath = e.ITAU_CERT_PATH ?? ''; keyPath = e.ITAU_KEY_PATH ?? '';
+    idBeneficiario = e.ITAU_ID_BENEFICIARIO ?? '';
+  }
+  if (!clientId || !certPath) return null;
+
+  let cert: Buffer, key: Buffer;
+  try { cert = fs.readFileSync(certPath); key = fs.readFileSync(keyPath); }
+  catch { return null; }
+
+  const agent = new https.Agent({ cert, key, rejectUnauthorized: true });
+
+  let token: string;
+  try {
+    const td = await httpsRequest(ITAU_TOKEN_URL, {
+      method: 'POST', agent,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'x-itau-correlationID': randomUUID(), 'x-itau-flowID': randomUUID() },
+      body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }).toString(),
+    });
+    token = td.access_token;
+  } catch { return null; }
+
+  const nossoNumeroStr = nossoNumero.toString().padStart(8, '0');
+  const qs = new URLSearchParams({ id_beneficiario: idBeneficiario, codigo_carteira: '109', nosso_numero: nossoNumeroStr }).toString();
+  try {
+    const res = await httpsRequest(`${ITAU_CONSULT_URL}?${qs}`, {
+      method: 'GET', agent,
+      headers: { 'Authorization': `Bearer ${token}`, 'x-itau-apikey': clientId, 'Content-Type': 'application/json', 'x-itau-correlationID': randomUUID(), 'x-itau-flowID': randomUUID() },
+    });
+
+    // Response is an ARRAY: res.data[0].dado_boleto.dados_individuais_boleto[0]
+    const item = Array.isArray(res?.data) ? res.data[0] : res?.data;
+    const boleto = item?.dado_boleto?.dados_individuais_boleto?.[0];
+    const itauId: string = item?.id_boleto || '';
+    const linhaDigitavel: string = boleto?.numero_linha_digitavel || '';
+    const codigoBarras: string  = boleto?.codigo_barras || '';
+
+    if (linhaDigitavel || codigoBarras) {
+      await prisma.boletoCharge.update({
+        where: { id: chargeId },
+        data: {
+          boletoBarCode: linhaDigitavel || codigoBarras || undefined,
+          itauBoletoId: itauId || undefined,
+          errorMessage: null,
+        },
+      }).catch(() => {});
+      return { linhaDigitavel, codigoBarras, itauBoletoId: itauId };
+    }
+  } catch (err: any) {
+    console.error('[resolveItauBoletoData] erro: %s', err.message);
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Cancel charge
 // ─────────────────────────────────────────────────────────────────────────────
 export async function cancelCharge(companyId: string, providerChargeId: string): Promise<{ success: boolean; errorMessage?: string }> {

@@ -95,9 +95,9 @@ function BoletoIcon({ boleto }: { boleto: any }) {
     </span>
   );
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-  const href = boleto.boletoUrl || (boleto.nossoNumero ? `${basePath}/api/pj/boleto/${boleto.id}/pdf` : null);
+  const href = boleto.boletoUrl || (boleto.nossoNumero ? `${basePath}/api/pj/boleto/${boleto.id}/view` : null);
   if (href) return (
-    <a href={href} target="_blank" rel="noopener noreferrer" title="Ver boleto — clique para baixar PDF">
+    <a href={href} target="_blank" rel="noopener noreferrer" title="Ver boleto — clique para abrir">
       <Banknote className="h-4 w-4 text-emerald-500 hover:text-emerald-400" />
     </a>
   );
@@ -247,7 +247,7 @@ function DetailModal({ id, open, onClose }: { id: string | null; open: boolean; 
                           </div>
                           {b.paidAt && <p className="text-muted-foreground text-xs mt-0.5">Pago em: {fmtDate(b.paidAt)}</p>}
                           <div className="flex gap-3 mt-1.5">
-                            {(b.boletoUrl || b.nossoNumero) && <a href={b.boletoUrl || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/pj/boleto/${b.id}/pdf`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" />Ver Boleto</a>}
+                            {(b.boletoUrl || b.nossoNumero) && <a href={b.boletoUrl || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/pj/boleto/${b.id}/view`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" />Ver Boleto</a>}
                             {b.pixQrCodeUrl && <a href={b.pixQrCodeUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" />QR Code PIX</a>}
                           </div>
                         </div>

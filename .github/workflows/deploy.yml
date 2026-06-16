@@ -30,6 +30,8 @@ jobs:
             --exclude='.next/' \
             --exclude='ecosystem.config.js' \
             --exclude='.git/' \
+            --exclude='ITAU/' \
+            --exclude='INTER/' \
             "$GITHUB_WORKSPACE/" /var/www/wnrfinance/
           echo "✅ Código sincronizado"
 
