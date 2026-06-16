@@ -323,7 +323,7 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
       valor_servicos: payload.grossAmount,
       valor_deducoes: payload.deductions || 0,
       valor_iss: payload.issValue,
-      codigo_municipio_prestacao: payload.serviceCityCode || payload.prestadorCodigoMunicipio,
+      codigo_municipio: payload.serviceCityCode || payload.prestadorCodigoMunicipio,
     },
     informacoes_adicionais_contribuinte: payload.informacoesAdicionais,
   };
