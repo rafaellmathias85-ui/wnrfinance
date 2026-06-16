@@ -1681,6 +1681,7 @@ model BoletoCharge {
   pixExpiresAt     DateTime?
   paidAt           DateTime?
   paidAmount       Float?
+  errorMessage     String?   @db.Text
   createdBy        String?
   idempotencyKey   String?   @unique // client-provided Idempotency-Key (prevents double charge)
   createdAt        DateTime  @default(now())

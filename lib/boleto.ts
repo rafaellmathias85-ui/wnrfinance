@@ -474,23 +474,59 @@ export async function resolveItauBoletoUrl(
   }
 
   const nossoNumeroStr = nossoNumero.toString().padStart(8, '0');
+
+  // Busca itauBoletoId no banco para tentar consulta alternativa por GUID
+  const chargeRecord = await prisma.boletoCharge.findUnique({ where: { id: chargeId }, select: { itauBoletoId: true } });
+  const itauBoletoId = chargeRecord?.itauBoletoId;
+
+  const authHeaders = () => ({
+    'Authorization': `Bearer ${token}`,
+    'x-itau-apikey': clientId,
+    'Content-Type': 'application/json',
+    'x-itau-correlationID': randomUUID(),
+    'x-itau-flowID': randomUUID(),
+  });
+
+  const extractUrl = (res: any): string | undefined =>
+    res?.data?.dado_boleto?.dados_individuais_boleto?.[0]?.url_boleto         ||
+    res?.data?.dado_boleto?.dados_individuais_boleto?.[0]?.link_download_boleto ||
+    res?.data?.dados_individuais_boleto?.[0]?.url_boleto                       ||
+    res?.data?.dados_individuais_boleto?.[0]?.link_download_boleto             ||
+    res?.data?.url_boleto                                                       ||
+    res?.data?.link_download_boleto                                             ||
+    res?.url_boleto                                                             ||
+    res?.link_download_boleto;
+
+  // 1. Consulta por nosso_numero no boletoscash
   const qs = new URLSearchParams({ id_beneficiario: idBeneficiario, codigo_carteira: '109', nosso_numero: nossoNumeroStr }).toString();
   try {
-    const res = await httpsRequest(`${ITAU_CONSULT_URL}?${qs}`, {
-      method: 'GET', agent,
-      headers: { 'Authorization': `Bearer ${token}`, 'x-itau-apikey': clientId, 'Content-Type': 'application/json', 'x-itau-correlationID': randomUUID(), 'x-itau-flowID': randomUUID() },
-    });
-    console.log('[resolveItauBoletoUrl] Resposta Itaú nosso_numero=%s:', nossoNumeroStr, JSON.stringify(res).slice(0, 400));
-    const url: string | undefined =
-      res?.data?.url_boleto || res?.url_boleto || res?.data?.dados_individuais_boleto?.[0]?.url_boleto;
+    const res = await httpsRequest(`${ITAU_CONSULT_URL}?${qs}`, { method: 'GET', agent, headers: authHeaders() });
+    console.log('[resolveItauBoletoUrl] boletoscash nosso_numero=%s resposta:', nossoNumeroStr, JSON.stringify(res).slice(0, 600));
+    const url = extractUrl(res);
     if (url) {
       await prisma.boletoCharge.update({ where: { id: chargeId }, data: { boletoUrl: url } }).catch(() => {});
       return url;
     }
-    console.warn('[resolveItauBoletoUrl] url_boleto não encontrada na resposta — nosso_numero=%s', nossoNumeroStr);
   } catch (err: any) {
-    console.error('[resolveItauBoletoUrl] Erro na consulta Itaú nosso_numero=%s: %s', nossoNumeroStr, err.message);
+    console.error('[resolveItauBoletoUrl] boletoscash erro nosso_numero=%s: %s', nossoNumeroStr, err.message);
   }
+
+  // 2. Consulta por GUID (itauBoletoId) no boletoscash
+  if (itauBoletoId) {
+    try {
+      const res = await httpsRequest(`${ITAU_CONSULT_URL}/${itauBoletoId}`, { method: 'GET', agent, headers: authHeaders() });
+      console.log('[resolveItauBoletoUrl] boletoscash por id_boleto resposta:', JSON.stringify(res).slice(0, 600));
+      const url = extractUrl(res);
+      if (url) {
+        await prisma.boletoCharge.update({ where: { id: chargeId }, data: { boletoUrl: url } }).catch(() => {});
+        return url;
+      }
+    } catch (err: any) {
+      console.error('[resolveItauBoletoUrl] boletoscash id_boleto erro: %s', err.message);
+    }
+  }
+
+  console.warn('[resolveItauBoletoUrl] URL do boleto não encontrada — nosso_numero=%s itauBoletoId=%s', nossoNumeroStr, itauBoletoId);
   return null;
 }
 

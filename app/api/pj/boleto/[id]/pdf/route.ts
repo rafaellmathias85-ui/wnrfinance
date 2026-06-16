@@ -49,10 +49,18 @@ export async function GET(
 
   try {
     const pdfUrl = await resolveItauBoletoUrl(companyId, charge.id, charge.nossoNumero);
-    if (pdfUrl) return NextResponse.redirect(pdfUrl);
-    return NextResponse.json({ error: 'PDF ainda não disponível no Itaú' }, { status: 404 });
+    if (pdfUrl) {
+      // Limpa errorMessage ao conseguir a URL
+      await prisma.boletoCharge.update({ where: { id: charge.id }, data: { errorMessage: null } }).catch(() => {});
+      return NextResponse.redirect(pdfUrl);
+    }
+    const msg = 'PDF não encontrado no Itaú — tente novamente em alguns minutos';
+    await prisma.boletoCharge.update({ where: { id: charge.id }, data: { errorMessage: msg } }).catch(() => {});
+    return NextResponse.json({ error: msg }, { status: 404 });
   } catch (err: any) {
-    console.error('[boleto/pdf] Erro ao consultar Itaú:', err?.message);
+    const msg = `Erro ao consultar Itaú: ${err?.message?.slice(0, 200)}`;
+    console.error('[boleto/pdf]', msg);
+    await prisma.boletoCharge.update({ where: { id: charge.id }, data: { errorMessage: msg } }).catch(() => {});
     return NextResponse.json({ error: 'Erro ao buscar PDF no Itaú' }, { status: 502 });
   }
 }

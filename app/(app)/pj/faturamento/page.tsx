@@ -89,6 +89,11 @@ function BoletoIcon({ boleto }: { boleto: any }) {
   if (!boleto) return <Banknote className="h-4 w-4 text-muted-foreground/40" />;
   if (boleto.status === 'pago') return <span title="Boleto pago"><Banknote className="h-4 w-4 text-emerald-600" /></span>;
   if (boleto.status === 'cancelado') return <span title="Boleto cancelado"><Banknote className="h-4 w-4 text-gray-400" /></span>;
+  if (boleto.errorMessage) return (
+    <span title={`Boleto com erro: ${boleto.errorMessage}`}>
+      <Banknote className="h-4 w-4 text-red-500" />
+    </span>
+  );
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const href = boleto.boletoUrl || (boleto.nossoNumero ? `${basePath}/api/pj/boleto/${boleto.id}/pdf` : null);
   if (href) return (
@@ -96,7 +101,7 @@ function BoletoIcon({ boleto }: { boleto: any }) {
       <Banknote className="h-4 w-4 text-emerald-500 hover:text-emerald-400" />
     </a>
   );
-  return <span title="Boleto pendente (sem PDF)"><Banknote className="h-4 w-4 text-amber-400" /></span>;
+  return <span title="Boleto pendente (sem PDF ainda)"><Banknote className="h-4 w-4 text-amber-400" /></span>;
 }
 
 // ─── Timeline Entry ───────────────────────────────────────────────────────────
