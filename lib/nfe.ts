@@ -298,11 +298,12 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
   const ref = payload.ref || `nfse_${Date.now()}`;
   const doc = payload.tomadorDoc.replace(/\D/g, '');
 
+  const inscricaoMunicipal = payload.prestadorInscricaoMunicipal || config.inscricaoMunicipal || '';
   const body = {
     data_emissao: payload.dataEmissao || new Date().toISOString(),
     prestador: {
       cnpj,
-      inscricao_municipal: payload.prestadorInscricaoMunicipal,
+      ...(inscricaoMunicipal ? { inscricao_municipal: inscricaoMunicipal } : {}),
       codigo_municipio: payload.prestadorCodigoMunicipio,
     },
     tomador: {
@@ -381,7 +382,11 @@ export async function emitNFSe(companyId: string, payload: NFSePayload): Promise
   }
 }
 
-export async function queryNFeStatus(companyId: string, providerNFeId: string): Promise<{ status: string; accessKey?: string; pdfUrl?: string; xmlUrl?: string }> {
+export async function queryNFeStatus(
+  companyId: string,
+  providerNFeId: string,
+  noteType: string = 'nfe',
+): Promise<{ status: string; accessKey?: string; pdfUrl?: string; xmlUrl?: string }> {
   const conn = await getNFeConnection(companyId);
   if (!conn) return { status: 'erro' };
 
@@ -393,11 +398,22 @@ export async function queryNFeStatus(companyId: string, providerNFeId: string): 
       ? 'https://homologacao.focusnfe.com.br'
       : 'https://api.focusnfe.com.br';
 
+    // NFS-e (serviço) usa endpoint diferente de NF-e (produto)
+    const isNFSe = noteType === 'nfse';
+    const path = isNFSe ? `/v2/nfse/${providerNFeId}` : `/v2/nfe/${providerNFeId}`;
+
     try {
-      const res = await fetch(`${baseUrl}/v2/nfe/${providerNFeId}`, {
+      const res = await fetch(`${baseUrl}${path}`, {
         headers: { 'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}` },
       });
       const data = await res.json();
+      if (isNFSe) {
+        return {
+          status: data.status || 'desconhecido',
+          pdfUrl: data.caminho_pdf_nfse || data.caminho_nfse_pdf,
+          xmlUrl: data.caminho_xml_nfse,
+        };
+      }
       return {
         status: data.status || 'desconhecido',
         accessKey: data.chave_nfe,

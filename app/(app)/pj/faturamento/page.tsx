@@ -78,9 +78,25 @@ function NFeIcon({ nfe, pdfUrl }: { nfe: any; pdfUrl?: string }) {
     return <span title="NF-e Autorizada">{el}</span>;
   }
   if (nfe.status === 'rejeitada' || nfe.status === 'cancelada') {
-    return <span title={`NF-e ${nfe.status}`}><FileX className="h-4 w-4 text-red-500" /></span>;
+    return <span title={`NF-e ${nfe.status}${nfe.errorMessage ? ': ' + nfe.errorMessage.slice(0, 80) : ''}`}><FileX className="h-4 w-4 text-red-500" /></span>;
   }
   return <span title={`NF-e: ${NFE_STATUS_LABEL[nfe.status] || nfe.status}`}><FileText className="h-4 w-4 text-amber-500" /></span>;
+}
+
+// ─── Boleto Status Icon ───────────────────────────────────────────────────────
+
+function BoletoIcon({ boleto }: { boleto: any }) {
+  if (!boleto) return <Banknote className="h-4 w-4 text-muted-foreground/40" />;
+  if (boleto.status === 'pago') return <span title="Boleto pago"><Banknote className="h-4 w-4 text-emerald-500" /></span>;
+  if (boleto.status === 'cancelado') return <span title="Boleto cancelado"><Banknote className="h-4 w-4 text-gray-400" /></span>;
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const href = boleto.boletoUrl || (boleto.nossoNumero ? `${basePath}/api/pj/boleto/${boleto.id}/pdf` : null);
+  if (href) return (
+    <a href={href} target="_blank" rel="noopener noreferrer" title="Ver boleto (PDF)">
+      <Banknote className="h-4 w-4 text-amber-500" />
+    </a>
+  );
+  return <span title="Boleto pendente"><Banknote className="h-4 w-4 text-amber-400" /></span>;
 }
 
 // ─── Timeline Entry ───────────────────────────────────────────────────────────
@@ -226,7 +242,7 @@ function DetailModal({ id, open, onClose }: { id: string | null; open: boolean; 
                           </div>
                           {b.paidAt && <p className="text-muted-foreground text-xs mt-0.5">Pago em: {fmtDate(b.paidAt)}</p>}
                           <div className="flex gap-3 mt-1.5">
-                            {b.boletoUrl && <a href={b.boletoUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" />Ver Boleto</a>}
+                            {(b.boletoUrl || b.nossoNumero) && <a href={b.boletoUrl || `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/pj/boleto/${b.id}/pdf`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" />Ver Boleto</a>}
                             {b.pixQrCodeUrl && <a href={b.pixQrCodeUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1"><ExternalLink className="h-3 w-3" />QR Code PIX</a>}
                           </div>
                         </div>
@@ -374,52 +390,147 @@ function EmailModal({ item, open, onClose }: { item: any; open: boolean; onClose
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
   const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  const [attachBoleto, setAttachBoleto] = useState(true);
+  const [attachNfe, setAttachNfe] = useState(true);
+
+  const boleto = item?.boleto;
+  const nfe = item?.nfe;
+  const hasBoleto = !!(boleto && boleto.status !== 'cancelado' && (boleto.boletoUrl || boleto.nossoNumero));
+  const hasNfe = !!(nfe?.pdfUrl && nfe?.status === 'autorizada');
 
   useEffect(() => {
     if (open && item) {
       setTo(item.customerEmail || '');
-      setSubject(`Sua fatura está disponível!`);
-      setBody(`Olá ${item.customerName || ''},\n\nEste é um aviso referente à sua fatura:\n\nVencimento: ${fmtDate(item.dueDate)}\nValor: R$ ${(item.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\nDescrição: ${item.description}\n\nOs documentos referentes à sua fatura estão disponíveis.\n\nAtenciosamente.`);
+      setSubject('Sua fatura está disponível!');
+      setAttachBoleto(true);
+      setAttachNfe(true);
     }
   }, [open, item]);
 
   const handleSend = async () => {
-    if (!to) { toast({ title: 'Destinatário obrigatório', variant: 'destructive' }); return; }
+    if (!to.trim()) { toast({ title: 'Destinatário obrigatório', variant: 'destructive' }); return; }
     setSending(true);
-    const res = await apiFetch(`/api/pj/faturamento/${item.id}/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: to.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean), cc: cc ? cc.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean) : [], subject, htmlBody: body.replace(/\n/g, '<br>') }),
-    });
-    setSending(false);
-    if (res.ok) { toast({ title: 'E-mail enfileirado com sucesso!' }); onClose(); } else { toast({ title: 'Erro ao enviar e-mail', variant: 'destructive' }); }
+    try {
+      const res = await apiFetch(`/api/pj/faturamento/${item.id}/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: to.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean),
+          cc: cc ? cc.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean) : [],
+          subject,
+          attachBoleto: attachBoleto && hasBoleto,
+          attachNfe: attachNfe && hasNfe,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: 'E-mail enviado com sucesso!' });
+        onClose();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: d.error || 'Erro ao enviar e-mail', variant: 'destructive' });
+      }
+    } finally {
+      setSending(false);
+    }
   };
 
   if (!item) return null;
 
+  const fmtAmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Mail className="h-4 w-4 text-blue-500" />Reenviar por E-mail</DialogTitle></DialogHeader>
-        <div className="space-y-3 py-2">
-          <div><Label className="text-xs">Para *</Label><Input value={to} onChange={e => setTo(e.target.value)} placeholder="email@cliente.com (separe por vírgula)" className="mt-1" /></div>
-          <div><Label className="text-xs">Cc</Label><Input value={cc} onChange={e => setCc(e.target.value)} placeholder="cc@dominio.com" className="mt-1" /></div>
-          <div><Label className="text-xs">Assunto</Label><Input value={subject} onChange={e => setSubject(e.target.value)} className="mt-1" /></div>
-          <div>
-            <Label className="text-xs">Mensagem</Label>
-            <textarea
-              className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              rows={8}
-              value={body}
-              onChange={e => setBody(e.target.value)}
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Mail className="h-4 w-4 text-blue-500" />
+            Faturamento — Envio de informações por e-mail
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-1">
+          {/* Destinatários */}
+          <div className="grid grid-cols-[80px_1fr] items-center gap-2">
+            <Label className="text-sm font-medium">Para:</Label>
+            <Input
+              value={to}
+              onChange={e => setTo(e.target.value)}
+              placeholder="email@cliente.com  (separe por ponto-e-vírgula)"
+              className="h-9"
             />
           </div>
+          <div className="grid grid-cols-[80px_1fr] items-center gap-2">
+            <Label className="text-sm font-medium">Cc:</Label>
+            <Input
+              value={cc}
+              onChange={e => setCc(e.target.value)}
+              placeholder="Opcional"
+              className="h-9"
+            />
+          </div>
+          <div className="grid grid-cols-[80px_1fr] items-center gap-2">
+            <Label className="text-sm font-medium">Assunto:</Label>
+            <Input value={subject} onChange={e => setSubject(e.target.value)} className="h-9" />
+          </div>
+
+          {/* Email preview */}
+          <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1.5">
+            <p>Olá <strong>{item.customerName || '—'}</strong>,</p>
+            <p className="text-muted-foreground">Este é um aviso automático referente à sua fatura:</p>
+            <ul className="space-y-1 pl-1 mt-2">
+              <li><strong>Vencimento:</strong> {fmtDate(item.dueDate)}</li>
+              <li><strong>Valor:</strong> {fmtAmt(Number(item.amount || 0))}</li>
+              <li><strong>Serviços:</strong> {item.description || '—'}</li>
+              {hasBoleto && <li><strong>Boleto:</strong> <span className="text-blue-600 underline">Clique aqui para visualizar</span></li>}
+              {hasNfe && <li><strong>Nota Fiscal:</strong> <span className="text-blue-600 underline">Clique aqui para visualizar</span></li>}
+            </ul>
+            <p className="mt-2 text-muted-foreground">Qualquer dúvida entre em contato.<br />Atenciosamente.</p>
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Anexos</Label>
+            <div className="flex gap-3 flex-wrap">
+              {/* Boleto */}
+              <button
+                type="button"
+                onClick={() => hasBoleto && setAttachBoleto(v => !v)}
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 w-28 transition-colors
+                  ${!hasBoleto ? 'opacity-30 cursor-default border-dashed border-muted-foreground/30' :
+                    attachBoleto ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20' : 'border-dashed border-muted-foreground/30 bg-muted/20'}`}
+                title={hasBoleto ? (attachBoleto ? 'Remover boleto do anexo' : 'Adicionar boleto ao anexo') : 'Sem boleto'}
+              >
+                <Banknote className={`h-8 w-8 ${hasBoleto && attachBoleto ? 'text-amber-600' : 'text-muted-foreground/50'}`} />
+                <span className="text-xs font-medium">BOLETO</span>
+                {hasBoleto && <span className="text-xs text-muted-foreground">{attachBoleto ? 'Anexado' : 'Não anexar'}</span>}
+              </button>
+
+              {/* NF-e */}
+              <button
+                type="button"
+                onClick={() => hasNfe && setAttachNfe(v => !v)}
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 w-28 transition-colors
+                  ${!hasNfe ? 'opacity-30 cursor-default border-dashed border-muted-foreground/30' :
+                    attachNfe ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' : 'border-dashed border-muted-foreground/30 bg-muted/20'}`}
+                title={hasNfe ? (attachNfe ? 'Remover NF-e do anexo' : 'Adicionar NF-e ao anexo') : nfe ? `NF-e ${nfe.status} — PDF indisponível` : 'Sem NF-e'}
+              >
+                <FileCheck className={`h-8 w-8 ${hasNfe && attachNfe ? 'text-emerald-600' : 'text-muted-foreground/50'}`} />
+                <span className="text-xs font-medium">NF-e / NFS-e</span>
+                {hasNfe && <span className="text-xs text-muted-foreground">{attachNfe ? 'Anexado' : 'Não anexar'}</span>}
+                {!hasNfe && nfe && <span className="text-xs text-muted-foreground">{NFE_STATUS_LABEL[nfe.status] || nfe.status}</span>}
+              </button>
+            </div>
+          </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={sending}>Cancelar</Button>
-          <Button onClick={handleSend} disabled={sending} className="bg-blue-600 hover:bg-blue-700 text-white">
-            {sending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</> : <><SendHorizonal className="h-4 w-4 mr-2" />Enviar</>}
+
+        <DialogFooter className="gap-2 mt-2">
+          <Button variant="outline" onClick={onClose} disabled={sending}>
+            Não Enviar E-mail
+          </Button>
+          <Button onClick={handleSend} disabled={sending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            {sending
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</>
+              : <><SendHorizonal className="h-4 w-4 mr-2" />Enviar</>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -800,6 +911,10 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
                       {/* PDF NF */}
                       <span className="p-1" title={item.nfe ? `NF-e: ${NFE_STATUS_LABEL[item.nfe.status] || item.nfe.status}` : 'Sem NF-e'}>
                         <NFeIcon nfe={item.nfe} pdfUrl={item.nfe?.pdfUrl} />
+                      </span>
+                      {/* Boleto */}
+                      <span className="p-1">
+                        <BoletoIcon boleto={item.boleto} />
                       </span>
                       {/* Duplicar */}
                       <button onClick={() => handleDuplicate(item.id)} className="p-1 rounded hover:bg-muted transition-colors" title="Duplicar">

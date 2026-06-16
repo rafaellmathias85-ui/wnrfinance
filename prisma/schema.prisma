@@ -1670,8 +1670,10 @@ model BoletoCharge {
   dueDate          DateTime
   description      String?
   instructions     String?
-  providerKey      String? // asaas, iugu, gerencianet
+  providerKey      String? // asaas, iugu, gerencianet, itau
   providerChargeId String? // external charge ID
+  nossoNumero      Int?    @map("nosso_numero") // Itaú: sequencial crescente por empresa
+  itauBoletoId     String? @map("itau_boleto_id") // Itaú: GUID retornado na emissão
   boletoBarCode    String?
   boletoUrl        String? // boleto PDF URL
   pixCopiaECola    String?   @db.Text // PIX copia e cola string

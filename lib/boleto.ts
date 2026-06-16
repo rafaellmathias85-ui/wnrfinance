@@ -1,8 +1,11 @@
 // Boleto & PIX Cobrança Integration Layer
 // Primary provider: Asaas (asaas.com) — supports both boleto and PIX
-// Fallback: Iugu, Gerencianet/EFÍ
+// Itaú PJ: native mTLS (https module) + OAuth2
 // Uses CompanyConnection table for credentials
 
+import https from 'https';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { safeDecrypt } from '@/lib/encrypt';
 
@@ -43,6 +46,9 @@ export interface ChargeResult {
   pixExpiresAt?: Date;
   status?: string;
   errorMessage?: string;
+  nossoNumero?: number;   // Itaú: sequencial
+  itauBoletoId?: string;  // Itaú: GUID da emissão
+  providerKey?: string;   // which provider handled the charge
 }
 
 async function getChargeConnection(companyId: string) {
@@ -50,6 +56,15 @@ async function getChargeConnection(companyId: string) {
     where: { companyId, category: 'boleto', isActive: true, status: { not: 'erro' } },
     orderBy: { createdAt: 'desc' },
   });
+}
+
+async function getNextNossoNumero(companyId: string): Promise<number> {
+  const last = await prisma.boletoCharge.findFirst({
+    where: { companyId, nossoNumero: { not: null } },
+    orderBy: { nossoNumero: 'desc' },
+    select: { nossoNumero: true },
+  });
+  return (last?.nossoNumero ?? 0) + 1;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -168,12 +183,217 @@ async function asaasCreateCharge(payload: ChargePayload, config: any): Promise<C
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Itaú PJ — Boleto Cobrança v2 (mTLS + OAuth2, Node.js https nativo)
+// ─────────────────────────────────────────────────────────────────────────────
+const ITAU_TOKEN_URL    = 'https://sts.itau.com.br/api/oauth/token';
+const ITAU_EMIT_URL     = 'https://api.itau.com.br/cash_management/v2/boletos';
+const ITAU_CONSULT_URL  = 'https://secure.api.cloud.itau.com.br/boletoscash/v2/boletos';
+
+interface ItauBoletoConfig {
+  clientId: string;
+  clientSecret: string;
+  certPath: string;
+  keyPath: string;
+  idBeneficiario: string;
+}
+
+function httpsRequest(
+  urlStr: string,
+  options: { method: string; agent: https.Agent; headers?: Record<string, string>; body?: string },
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const target = new URL(urlStr);
+    const req = https.request(
+      {
+        method:   options.method,
+        hostname: target.hostname,
+        port:     target.port || undefined,
+        path:     `${target.pathname}${target.search}`,
+        headers:  options.headers,
+        agent:    options.agent,
+        timeout:  30_000,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c) => chunks.push(Buffer.from(c)));
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8');
+          if ((res.statusCode ?? 500) >= 400) {
+            reject(new Error(`Itaú HTTP ${res.statusCode} [${target.pathname.split('/').slice(-2).join('/')}]: ${text.slice(0, 300)}`));
+            return;
+          }
+          try { resolve(JSON.parse(text)); }
+          catch { reject(new Error(`Itaú: JSON inválido na resposta — ${text.slice(0, 100)}`)); }
+        });
+      },
+    );
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Itaú: timeout (30 s)')); });
+    if (options.body) req.write(options.body);
+    req.end();
+  });
+}
+
+async function itauCreateCharge(
+  payload: ChargePayload,
+  companyId: string,
+  cfg: ItauBoletoConfig,
+): Promise<ChargeResult> {
+  let cert: Buffer, key: Buffer;
+  try {
+    cert = fs.readFileSync(cfg.certPath);
+    key  = fs.readFileSync(cfg.keyPath);
+  } catch (err: any) {
+    return { success: false, errorMessage: `Itaú: certificado não encontrado — ${err.message}` };
+  }
+
+  const agent = new https.Agent({ cert, key, rejectUnauthorized: true });
+
+  // 1. OAuth2 token
+  let token: string;
+  try {
+    const td = await httpsRequest(ITAU_TOKEN_URL, {
+      method: 'POST',
+      agent,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'x-itau-correlationID': randomUUID(),
+        'x-itau-flowID': randomUUID(),
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: cfg.clientId,
+        client_secret: cfg.clientSecret,
+      }).toString(),
+    });
+    token = td.access_token;
+  } catch (err: any) {
+    return { success: false, errorMessage: `Itaú: falha ao obter token — ${err.message}` };
+  }
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+    'x-itau-apikey': cfg.clientId,
+    'x-itau-correlationID': randomUUID(),
+    'x-itau-flowID': randomUUID(),
+  });
+
+  // 2. nosso número sequencial
+  const nossoNumero    = await getNextNossoNumero(companyId);
+  const nossoNumeroStr = nossoNumero.toString().padStart(8, '0');
+
+  const dueDate  = new Date(payload.dueDate).toISOString().slice(0, 10);
+  const today    = new Date().toISOString().slice(0, 10);
+  const valorStr = Math.round(payload.amount * 100).toString().padStart(17, '0');
+  const docClean = payload.customerDoc.replace(/\D/g, '');
+  const isCNPJ   = docClean.length > 11;
+
+  const emitBody = {
+    data: {
+      etapa_processo_boleto: 'efetivacao',
+      codigo_canal_operacao: 'API',
+      beneficiario: { id_beneficiario: cfg.idBeneficiario },
+      dado_boleto: {
+        descricao_instrumento_cobranca: 'boleto',
+        tipo_boleto: 'a vista',
+        codigo_carteira: '109',
+        codigo_especie: '01',
+        valor_abatimento: '000',
+        data_emissao: today,
+        desconto_expresso: false,
+        pagador: {
+          pessoa: {
+            nome_pessoa: payload.customerName.slice(0, 60),
+            tipo_pessoa: isCNPJ
+              ? { codigo_tipo_pessoa: 'J', numero_cadastro_pessoa_juridica: docClean }
+              : { codigo_tipo_pessoa: 'F', numero_cadastro_pessoa_fisica: docClean },
+          },
+          endereco: {
+            nome_logradouro: 'Endereço não informado',
+            nome_bairro: 'N/A',
+            nome_cidade: 'São Paulo',
+            sigla_UF: 'SP',
+            numero_CEP: '01310100',
+          },
+        },
+        dados_individuais_boleto: [{
+          numero_nosso_numero: nossoNumeroStr,
+          data_vencimento: dueDate,
+          valor_titulo: valorStr,
+          texto_uso_beneficiario: '2',
+          texto_seu_numero: (payload.externalId || nossoNumeroStr).slice(0, 10),
+        }],
+        ...(payload.instructions ? { mensagem_boleto: payload.instructions.slice(0, 200) } : {}),
+      },
+    },
+  };
+
+  // 3. Emite boleto
+  let emitRes: any;
+  try {
+    emitRes = await httpsRequest(ITAU_EMIT_URL, {
+      method: 'POST',
+      agent,
+      headers: authHeaders(),
+      body: JSON.stringify(emitBody),
+    });
+  } catch (err: any) {
+    return { success: false, errorMessage: `Itaú: erro na emissão — ${err.message}`, nossoNumero };
+  }
+
+  const emitido      = emitRes?.data?.dado_boleto?.dados_individuais_boleto?.[0];
+  const itauBoletoId = emitRes?.data?.id_boleto || emitido?.id_boleto;
+  const barcode      = emitido?.numero_linha_digitavel || emitido?.codigo_barras;
+  let   boletoUrl: string | undefined = emitido?.url_boleto;
+
+  // 4. Se não veio URL, tenta endpoint de consulta (best-effort)
+  if (!boletoUrl) {
+    try {
+      const qs = new URLSearchParams({
+        id_beneficiario: cfg.idBeneficiario,
+        codigo_carteira: '109',
+        nosso_numero: nossoNumeroStr,
+      }).toString();
+      const consultRes = await httpsRequest(`${ITAU_CONSULT_URL}?${qs}`, {
+        method: 'GET',
+        agent,
+        headers: authHeaders(),
+      });
+      boletoUrl = consultRes?.data?.url_boleto || consultRes?.url_boleto;
+    } catch { /* consulta é best-effort */ }
+  }
+
+  return {
+    success: true,
+    providerChargeId: itauBoletoId,
+    providerKey: 'itau',
+    boletoBarCode: barcode,
+    boletoUrl: boletoUrl || undefined,
+    nossoNumero,
+    itauBoletoId,
+    status: 'pendente',
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main emission function
 // ─────────────────────────────────────────────────────────────────────────────
 export async function createCharge(companyId: string, payload: ChargePayload): Promise<ChargeResult> {
   const conn = await getChargeConnection(companyId);
 
   if (!conn) {
+    // Fallback: Itaú via variáveis de ambiente (sem CompanyConnection configurada)
+    const { ITAU_CLIENT_ID, ITAU_CLIENT_SECRET, ITAU_CERT_PATH, ITAU_KEY_PATH, ITAU_ID_BENEFICIARIO } = process.env;
+    if (ITAU_CLIENT_ID && ITAU_CLIENT_SECRET && ITAU_CERT_PATH && ITAU_KEY_PATH && ITAU_ID_BENEFICIARIO) {
+      return itauCreateCharge(payload, companyId, {
+        clientId: ITAU_CLIENT_ID,
+        clientSecret: ITAU_CLIENT_SECRET,
+        certPath: ITAU_CERT_PATH,
+        keyPath: ITAU_KEY_PATH,
+        idBeneficiario: ITAU_ID_BENEFICIARIO,
+      });
+    }
     return { success: false, errorMessage: 'Nenhuma conexão de cobrança ativa. Configure em Conexões → Boleto/PIX.' };
   }
 
@@ -182,9 +402,64 @@ export async function createCharge(companyId: string, payload: ChargePayload): P
   switch (conn.providerKey) {
     case 'asaas':
       return asaasCreateCharge(payload, config);
+    case 'itau':
+      return itauCreateCharge(payload, companyId, {
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+        certPath: config.certPath,
+        keyPath: config.keyPath,
+        idBeneficiario: config.idBeneficiario,
+      });
     default:
       return { success: false, errorMessage: `Provedor "${conn.providerKey}" não suportado` };
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resolve Itaú boleto PDF URL on-demand (fetches from boletoscash API)
+// Saves to DB on success so subsequent calls skip the API round-trip.
+// ─────────────────────────────────────────────────────────────────────────────
+export async function resolveItauBoletoUrl(
+  companyId: string,
+  chargeId: string,
+  nossoNumero: number,
+): Promise<string | null> {
+  const { ITAU_CLIENT_ID, ITAU_CLIENT_SECRET, ITAU_CERT_PATH, ITAU_KEY_PATH, ITAU_ID_BENEFICIARIO } = process.env;
+  if (!ITAU_CLIENT_ID || !ITAU_CLIENT_SECRET || !ITAU_CERT_PATH || !ITAU_KEY_PATH || !ITAU_ID_BENEFICIARIO) return null;
+
+  let cert: Buffer, key: Buffer;
+  try {
+    cert = fs.readFileSync(ITAU_CERT_PATH);
+    key  = fs.readFileSync(ITAU_KEY_PATH);
+  } catch { return null; }
+
+  const agent = new https.Agent({ cert, key, rejectUnauthorized: true });
+
+  let token: string;
+  try {
+    const td = await httpsRequest(ITAU_TOKEN_URL, {
+      method: 'POST', agent,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'x-itau-correlationID': randomUUID(), 'x-itau-flowID': randomUUID() },
+      body: new URLSearchParams({ grant_type: 'client_credentials', client_id: ITAU_CLIENT_ID, client_secret: ITAU_CLIENT_SECRET }).toString(),
+    });
+    token = td.access_token;
+  } catch { return null; }
+
+  const nossoNumeroStr = nossoNumero.toString().padStart(8, '0');
+  const qs = new URLSearchParams({ id_beneficiario: ITAU_ID_BENEFICIARIO, codigo_carteira: '109', nosso_numero: nossoNumeroStr }).toString();
+  try {
+    const res = await httpsRequest(`${ITAU_CONSULT_URL}?${qs}`, {
+      method: 'GET', agent,
+      headers: { 'Authorization': `Bearer ${token}`, 'x-itau-apikey': ITAU_CLIENT_ID, 'Content-Type': 'application/json', 'x-itau-correlationID': randomUUID(), 'x-itau-flowID': randomUUID() },
+    });
+    const url: string | undefined =
+      res?.data?.url_boleto || res?.url_boleto || res?.data?.dados_individuais_boleto?.[0]?.url_boleto;
+    if (url) {
+      await prisma.boletoCharge.update({ where: { id: chargeId }, data: { boletoUrl: url } }).catch(() => {});
+      return url;
+    }
+  } catch { /* consulta é best-effort */ }
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

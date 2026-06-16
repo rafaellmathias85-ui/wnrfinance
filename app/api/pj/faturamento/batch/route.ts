@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
         const results: Array<{ id: string; status?: string; error?: string }> = [];
         for (const nfe of nfes) {
           try {
-            const remote = await queryNFeStatus(companyId, nfe.providerNFeId!);
+            const remote = await queryNFeStatus(companyId, nfe.providerNFeId!, nfe.type);
             const newStatus = statusMap[remote.status] || remote.status;
             await prisma.nFe.update({
               where: { id: nfe.id },

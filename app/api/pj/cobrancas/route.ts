@@ -129,7 +129,10 @@ export async function POST(request: Request) {
       await prisma.boletoCharge.update({
         where: { id: charge.id },
         data: {
+          providerKey: result.providerKey || null,
           providerChargeId: result.providerChargeId || null,
+          nossoNumero: result.nossoNumero ?? null,
+          itauBoletoId: result.itauBoletoId || null,
           boletoBarCode: result.boletoBarCode || null,
           boletoUrl: result.boletoUrl || null,
           pixCopiaECola: result.pixCopiaECola || null,

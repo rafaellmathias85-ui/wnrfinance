@@ -84,17 +84,28 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     } else if (action === 'sync_status') {
       if (!nfe.providerNFeId) return NextResponse.json({ error: 'NF-e sem ID de provedor' }, { status: 400 });
 
-      const status = await queryNFeStatus(companyId, nfe.providerNFeId);
+      const status = await queryNFeStatus(companyId, nfe.providerNFeId, nfe.type);
+      const statusMap: Record<string, string> = {
+        autorizado: 'autorizada',
+        emitida: 'autorizada',
+        cancelado: 'cancelada',
+        erro_autorizacao: 'rejeitada',
+        rejeitada: 'rejeitada',
+        denegada: 'rejeitada',
+        processando_autorizacao: 'enviada',
+      };
+      const newStatus = statusMap[status.status] || nfe.status;
       await prisma.nFe.update({
         where: { id: nfe.id },
         data: {
-          status: status.status === 'autorizado' ? 'autorizada' : nfe.status,
+          status: newStatus,
           accessKey: status.accessKey || nfe.accessKey || undefined,
           pdfUrl: status.pdfUrl || nfe.pdfUrl || undefined,
           xmlUrl: status.xmlUrl || nfe.xmlUrl || undefined,
+          ...(newStatus === 'autorizada' && !nfe.issuedAt ? { issuedAt: new Date() } : {}),
         },
       });
-      return NextResponse.json(status);
+      return NextResponse.json({ ...status, mappedStatus: newStatus });
     }
 
     return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });

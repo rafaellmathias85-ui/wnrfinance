@@ -25,6 +25,8 @@ type BoletoRow = {
   paidAt: Date | null;
   boletoUrl: string | null;
   pixQrCodeUrl: string | null;
+  nossoNumero: number | null;
+  providerKey: string | null;
 };
 
 type EmailRow = {
@@ -138,7 +140,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.boletoCharge.findMany({
         where: { receivableId: { in: ids } },
-        select: { id: true, receivableId: true, type: true, status: true, paidAt: true, boletoUrl: true, pixQrCodeUrl: true },
+        select: { id: true, receivableId: true, type: true, status: true, paidAt: true, boletoUrl: true, pixQrCodeUrl: true, nossoNumero: true, providerKey: true },
       }),
       prisma.emailLog.findMany({
         where: { contextType: 'receivable', contextId: { in: ids } },
@@ -176,7 +178,7 @@ export async function GET(req: NextRequest) {
       return {
         ...row,
         nfe: nfe ? { id: nfe.id, number: nfe.number, type: nfe.type, status: nfe.status, pdfUrl: nfe.pdfUrl, xmlUrl: nfe.xmlUrl, issuedAt: nfe.issuedAt, errorMessage: nfe.errorMessage } : null,
-        boleto: boleto ? { id: boleto.id, type: boleto.type, status: boleto.status, paidAt: boleto.paidAt, boletoUrl: boleto.boletoUrl, pixQrCodeUrl: boleto.pixQrCodeUrl } : null,
+        boleto: boleto ? { id: boleto.id, type: boleto.type, status: boleto.status, paidAt: boleto.paidAt, boletoUrl: boleto.boletoUrl, pixQrCodeUrl: boleto.pixQrCodeUrl, nossoNumero: boleto.nossoNumero, providerKey: boleto.providerKey } : null,
         emailSent: logs.length > 0,
         emailLogs: logs.map(l => ({ id: l.id, to: l.to, subject: l.subject, status: l.status, sentAt: l.sentAt })),
       };
