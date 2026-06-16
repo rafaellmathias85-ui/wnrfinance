@@ -424,14 +424,39 @@ export async function resolveItauBoletoUrl(
   chargeId: string,
   nossoNumero: number,
 ): Promise<string | null> {
-  const { ITAU_CLIENT_ID, ITAU_CLIENT_SECRET, ITAU_CERT_PATH, ITAU_KEY_PATH, ITAU_ID_BENEFICIARIO } = process.env;
-  if (!ITAU_CLIENT_ID || !ITAU_CLIENT_SECRET || !ITAU_CERT_PATH || !ITAU_KEY_PATH || !ITAU_ID_BENEFICIARIO) return null;
+  // Resolve credentials: prefer CompanyConnection, fall back to env vars
+  let clientId: string, clientSecret: string, certPath: string, keyPath: string, idBeneficiario: string;
+
+  const conn = await getChargeConnection(companyId);
+  if (conn && conn.providerKey === 'itau') {
+    const cfg = decryptConfig(conn.config as any);
+    clientId      = cfg.clientId;
+    clientSecret  = cfg.clientSecret;
+    certPath      = cfg.certPath;
+    keyPath       = cfg.keyPath;
+    idBeneficiario = cfg.idBeneficiario;
+  } else {
+    const e = process.env;
+    clientId      = e.ITAU_CLIENT_ID      ?? '';
+    clientSecret  = e.ITAU_CLIENT_SECRET  ?? '';
+    certPath      = e.ITAU_CERT_PATH      ?? '';
+    keyPath       = e.ITAU_KEY_PATH       ?? '';
+    idBeneficiario = e.ITAU_ID_BENEFICIARIO ?? '';
+  }
+
+  if (!clientId || !clientSecret || !certPath || !keyPath || !idBeneficiario) {
+    console.warn('[resolveItauBoletoUrl] Credenciais Itaú incompletas — chargeId=%s', chargeId);
+    return null;
+  }
 
   let cert: Buffer, key: Buffer;
   try {
-    cert = fs.readFileSync(ITAU_CERT_PATH);
-    key  = fs.readFileSync(ITAU_KEY_PATH);
-  } catch { return null; }
+    cert = fs.readFileSync(certPath);
+    key  = fs.readFileSync(keyPath);
+  } catch (err: any) {
+    console.error('[resolveItauBoletoUrl] Certificado não encontrado (%s): %s', certPath, err.message);
+    return null;
+  }
 
   const agent = new https.Agent({ cert, key, rejectUnauthorized: true });
 
@@ -440,25 +465,32 @@ export async function resolveItauBoletoUrl(
     const td = await httpsRequest(ITAU_TOKEN_URL, {
       method: 'POST', agent,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'x-itau-correlationID': randomUUID(), 'x-itau-flowID': randomUUID() },
-      body: new URLSearchParams({ grant_type: 'client_credentials', client_id: ITAU_CLIENT_ID, client_secret: ITAU_CLIENT_SECRET }).toString(),
+      body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }).toString(),
     });
     token = td.access_token;
-  } catch { return null; }
+  } catch (err: any) {
+    console.error('[resolveItauBoletoUrl] Falha ao obter token OAuth: %s', err.message);
+    return null;
+  }
 
   const nossoNumeroStr = nossoNumero.toString().padStart(8, '0');
-  const qs = new URLSearchParams({ id_beneficiario: ITAU_ID_BENEFICIARIO, codigo_carteira: '109', nosso_numero: nossoNumeroStr }).toString();
+  const qs = new URLSearchParams({ id_beneficiario: idBeneficiario, codigo_carteira: '109', nosso_numero: nossoNumeroStr }).toString();
   try {
     const res = await httpsRequest(`${ITAU_CONSULT_URL}?${qs}`, {
       method: 'GET', agent,
-      headers: { 'Authorization': `Bearer ${token}`, 'x-itau-apikey': ITAU_CLIENT_ID, 'Content-Type': 'application/json', 'x-itau-correlationID': randomUUID(), 'x-itau-flowID': randomUUID() },
+      headers: { 'Authorization': `Bearer ${token}`, 'x-itau-apikey': clientId, 'Content-Type': 'application/json', 'x-itau-correlationID': randomUUID(), 'x-itau-flowID': randomUUID() },
     });
+    console.log('[resolveItauBoletoUrl] Resposta Itaú nosso_numero=%s:', nossoNumeroStr, JSON.stringify(res).slice(0, 400));
     const url: string | undefined =
       res?.data?.url_boleto || res?.url_boleto || res?.data?.dados_individuais_boleto?.[0]?.url_boleto;
     if (url) {
       await prisma.boletoCharge.update({ where: { id: chargeId }, data: { boletoUrl: url } }).catch(() => {});
       return url;
     }
-  } catch { /* consulta é best-effort */ }
+    console.warn('[resolveItauBoletoUrl] url_boleto não encontrada na resposta — nosso_numero=%s', nossoNumeroStr);
+  } catch (err: any) {
+    console.error('[resolveItauBoletoUrl] Erro na consulta Itaú nosso_numero=%s: %s', nossoNumeroStr, err.message);
+  }
   return null;
 }
 
