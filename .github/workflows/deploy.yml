@@ -81,6 +81,16 @@ jobs:
           npx prisma migrate deploy
           echo "✅ Migrations aplicadas"
 
+      # ─── 7b. Seed: codigoTributarioMunicipio (executar uma vez, remover depois) ──
+      - name: Seed codigoTributarioMunicipio
+        working-directory: /var/www/wnrfinance
+        run: |
+          psql "$DATABASE_URL" -c "UPDATE regras_fiscais_servico SET \"codigoTributarioMunicipio\" = '1.07/102320/1234' WHERE \"codigoTributarioMunicipio\" IS NULL;" 2>/dev/null || \
+          npx prisma db execute --stdin <<'SQL'
+          UPDATE regras_fiscais_servico SET "codigoTributarioMunicipio" = '1.07/102320/1234' WHERE "codigoTributarioMunicipio" IS NULL;
+          SQL
+          echo "✅ codigoTributarioMunicipio atualizado"
+
       # ─── 8. Reiniciar PM2 ────────────────────────────────────────────
       - name: Reiniciar PM2 (wnrfinance)
         working-directory: /var/www/wnrfinance
