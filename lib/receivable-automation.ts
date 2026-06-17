@@ -103,18 +103,44 @@ async function generateNFSe(
   }
 
   const taxes = calculateServiceTaxes(rule, receivable.amount);
+
+  // Look up client address by doc — GINFES municipalities (e.g. SBC) require full tomador address.
+  const doc = (receivable.customerDoc || '').replace(/\D/g, '');
+  const clientAddress = doc
+    ? await prisma.clientAddress.findFirst({
+        where: {
+          isPrimary: true,
+          client: {
+            companyId,
+            OR: [{ cpf: receivable.customerDoc }, { cnpj: receivable.customerDoc }, { document: receivable.customerDoc }],
+          },
+        },
+        select: { logradouro: true, numero: true, complemento: true, bairro: true, cidade: true, estado: true, cep: true },
+      })
+    : null;
+
   const payload: NFSePayload = {
     ref: `nfse_${nfe.id}`,
+    naturezaOperacao: 1,
+    optanteSimplesNacional: rule.isSimplesNacional,
     prestadorInscricaoMunicipal: rule.providerMunicipalRegistration || '',
     prestadorCodigoMunicipio: rule.providerCityCode,
     tomadorNome: receivable.customerName || '',
     tomadorDoc: receivable.customerDoc || '',
     tomadorEmail: receivable.customerEmail || undefined,
-    tomadorMunicipio: rule.customerCityName || undefined,
+    tomadorMunicipio: clientAddress?.cidade || rule.customerCityName || undefined,
+    tomadorUf: clientAddress?.estado || undefined,
     tomadorMunicipioCodigo: rule.customerCityCode || undefined,
+    tomadorLogradouro: clientAddress?.logradouro || undefined,
+    tomadorNumero: clientAddress?.numero || undefined,
+    tomadorComplemento: clientAddress?.complemento || undefined,
+    tomadorBairro: clientAddress?.bairro || undefined,
+    tomadorCep: clientAddress?.cep || undefined,
     discriminacao: receivable.description,
     serviceCodeLc116: rule.serviceCodeLc116,
     serviceCityCode: rule.providerCityCode,
+    codigoTributarioMunicipio: (rule as any).codigoTributarioMunicipio || undefined,
+    regimeEspecialTributacao: (rule as any).regimeEspecialTributacao ?? undefined,
     grossAmount: receivable.amount,
     issRate: rule.issRate,
     issWithheld: rule.issWithheld,
@@ -123,10 +149,24 @@ async function generateNFSe(
   };
 
   const emitResult = await emitNFSe(companyId, payload);
+
+  // Map Focus NFe/GINFES terminal statuses to our internal status.
+  // 'processando' = still in queue after 90s timeout — stays as 'enviada' pending a sync job.
+  // 'autorizado' = GINFES accepted — use 'autorizada'.
+  // failure = back to 'rascunho' with error message so user can retry or fix config.
+  let dbStatus: string;
+  if (!emitResult.success) {
+    dbStatus = 'rascunho';
+  } else if (emitResult.status === 'autorizado') {
+    dbStatus = 'autorizada';
+  } else {
+    dbStatus = 'enviada'; // processando or unknown — will be updated by sync job
+  }
+
   const updated = await prisma.nFe.update({
     where: { id: nfe.id },
     data: {
-      status: emitResult.success ? 'enviada' : 'rascunho',
+      status: dbStatus,
       providerNFeId: emitResult.providerNFeId ?? null,
       accessKey: emitResult.accessKey ?? null,
       xmlUrl: emitResult.xmlUrl ?? null,
@@ -134,7 +174,7 @@ async function generateNFSe(
       errorMessage: emitResult.errorMessage ?? null,
       validationStatus: 'valid',
       validationErrors: { warnings: validation.warnings } as any,
-      issuedAt: emitResult.success ? new Date() : null,
+      issuedAt: dbStatus === 'autorizada' ? new Date() : null,
     },
   });
 

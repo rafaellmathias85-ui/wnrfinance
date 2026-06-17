@@ -74,17 +74,33 @@ export interface NFeResult {
 export interface NFSePayload {
   ref?: string;
   dataEmissao?: string;
+  naturezaOperacao?: number;      // 1=tributação no município (default)
+  optanteSimplesNacional?: boolean;
+  // GINFES SBC requires this for Simples Nacional (E166 if absent). Focus NFe XSD: range 1-6 only (0 rejected).
+  // Default=6 (ME/EPP). 1=Microempr.Munic, 2=Estimativa, 3=Soc.Profissionais, 4=Cooperativa, 5=MEI, 6=ME/EPP
+  regimeEspecialTributacao?: number;
   prestadorInscricaoMunicipal: string;
-  prestadorCodigoMunicipio: string;
+  prestadorCodigoMunicipio: string; // IBGE code (string internally, cast to number when sending)
   tomadorNome: string;
   tomadorDoc: string;
   tomadorEmail?: string;
+  tomadorTelefone?: string;
   tomadorMunicipioCodigo?: string;
   tomadorMunicipio?: string;
   tomadorUf?: string;
+  // Full address — required by GINFES municipalities (e.g. SBC → Focus NFe error if missing)
+  tomadorLogradouro?: string;
+  tomadorNumero?: string;
+  tomadorComplemento?: string;
+  tomadorBairro?: string;
+  tomadorCep?: string;
   discriminacao: string;
   serviceCodeLc116: string;
   serviceCityCode?: string;
+  // SBC GINFES: composite code from ISS Decree (e.g. "1.07/108811/1271" for IT services).
+  // Field name on Focus NFe is "codigo_tributario_municipio" (not "tributacao").
+  // Get the correct value from an existing NFS-e XML issued via Bom Controle.
+  codigoTributarioMunicipio?: string;
   grossAmount: number;
   issRate: number;
   issWithheld: boolean;
@@ -299,44 +315,81 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
   const doc = payload.tomadorDoc.replace(/\D/g, '');
 
   const inscricaoMunicipal = payload.prestadorInscricaoMunicipal || config.inscricaoMunicipal || '';
-  const codigoMunicipio = payload.prestadorCodigoMunicipio || config.codigoMunicipio || '';
-  const body = {
-    data_emissao: payload.dataEmissao || new Date().toISOString(),
+  const codigoMunicipioPrestador = parseInt(payload.prestadorCodigoMunicipio || config.codigoMunicipio || '0', 10);
+  const codigoMunicipioServico = parseInt(payload.serviceCityCode || payload.prestadorCodigoMunicipio || config.codigoMunicipio || '0', 10);
+
+  // "codigo_tributario_municipio" — SBC GINFES E183 if missing; Focus NFe field name is "tributario" NOT "tributacao".
+  // SBC confirmed value: "1.07/102320/1234" (from NFS-e 2577 / Bom Controle, June 2026).
+  // Store in ServiceFiscalRule.codigoTributarioMunicipio per company/service.
+  const codigoTributario = payload.codigoTributarioMunicipio || config.codigoTributarioMunicipio || undefined;
+
+  const hasAddress = payload.tomadorLogradouro || payload.tomadorBairro || payload.tomadorCep;
+
+  // regime_especial_tributacao: GINFES SBC requires this for Simples Nacional (E166 if absent).
+  // Focus NFe XSD rejects value 0; use 6 (ME/EPP) as the required value for Simples Nacional.
+  // Bom Controle displays "0 - Nenhum" because they submit XML directly, bypassing Focus NFe's XSD check.
+  const isSimples = payload.optanteSimplesNacional ?? true;
+  const regimeEspecial = payload.regimeEspecialTributacao
+    ?? config.regimeEspecialTributacao
+    ?? (isSimples ? 6 : undefined);
+
+  // Date in Brazil timezone (UTC-3): Focus NFe SBC guide uses "-0300" offset; UTC ("Z") triggers E16.
+  const brDate = payload.dataEmissao || (() => {
+    const now = new Date();
+    const offset = -3 * 60;
+    const d = new Date(now.getTime() + (offset - now.getTimezoneOffset()) * 60000);
+    return d.toISOString().replace('Z', '-0300');
+  })();
+
+  const body: any = {
+    data_emissao: brDate,
+    natureza_operacao: payload.naturezaOperacao ?? 1,
+    optante_simples_nacional: payload.optanteSimplesNacional ?? true,
+    ...(regimeEspecial !== undefined ? { regime_especial_tributacao: regimeEspecial } : {}),
     prestador: {
       cnpj,
       ...(inscricaoMunicipal ? { inscricao_municipal: inscricaoMunicipal } : {}),
-      codigo_municipio: codigoMunicipio,
+      codigo_municipio: codigoMunicipioPrestador,
     },
     tomador: {
       cpf: doc.length === 11 ? doc : undefined,
       cnpj: doc.length === 14 ? doc : undefined,
       razao_social: payload.tomadorNome,
-      email: payload.tomadorEmail,
-      municipio: payload.tomadorMunicipio,
-      uf: payload.tomadorUf,
-      ...(payload.tomadorMunicipioCodigo ? { codigo_municipio: payload.tomadorMunicipioCodigo } : {}),
+      email: payload.tomadorEmail || undefined,
+      telefone: payload.tomadorTelefone || undefined,
+      ...(hasAddress ? {
+        endereco: {
+          logradouro: payload.tomadorLogradouro || '',
+          numero: payload.tomadorNumero || 'S/N',
+          complemento: payload.tomadorComplemento || undefined,
+          bairro: payload.tomadorBairro || '',
+          codigo_municipio: payload.tomadorMunicipioCodigo ? parseInt(payload.tomadorMunicipioCodigo, 10) : codigoMunicipioPrestador,
+          uf: payload.tomadorUf || '',
+          cep: payload.tomadorCep?.replace(/\D/g, '') || '',
+        },
+      } : {}),
     },
     servico: {
       aliquota: payload.issRate,
       base_calculo: payload.grossAmount,
       discriminacao: payload.discriminacao,
-      iss_retido: payload.issWithheld ? '1' : '2',
+      iss_retido: payload.issWithheld,
       item_lista_servico: payload.serviceCodeLc116,
       valor_servicos: payload.grossAmount,
       valor_deducoes: payload.deductions || 0,
       valor_iss: payload.issValue,
-      codigo_municipio: payload.serviceCityCode || codigoMunicipio,
+      codigo_municipio: codigoMunicipioServico,
+      ...(codigoTributario ? { codigo_tributario_municipio: codigoTributario } : {}),
     },
-    informacoes_adicionais_contribuinte: payload.informacoesAdicionais,
+    informacoes_adicionais_contribuinte: payload.informacoesAdicionais || undefined,
   };
+
+  const authHeader = `Basic ${Buffer.from(apiKey + ':').toString('base64')}`;
 
   try {
     const res = await fetch(`${baseUrl}/v2/nfse?ref=${ref}`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
@@ -349,14 +402,42 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
       return { success: false, errorMessage: msg };
     }
 
-    return {
-      success: true,
-      providerNFeId: ref,
-      status: data.status || 'enviada',
-      accessKey: data.codigo_verificacao || data.numero,
-      xmlUrl: data.caminho_xml_nota_fiscal || data.xml,
-      pdfUrl: data.caminho_danfe || data.caminho_pdf || data.url,
-    };
+    // GINFES processes asynchronously — poll until resolved (max 90s).
+    // Without polling, rejected NFS-es (e.g. E183) would be incorrectly saved as "enviada".
+    const TERMINAL = new Set(['autorizado', 'erro_autorizacao', 'cancelado']);
+    const POLL_INTERVAL_MS = 8_000;
+    const MAX_WAIT_MS = 90_000;
+    const deadline = Date.now() + MAX_WAIT_MS;
+
+    let polled = data;
+    while (!TERMINAL.has(polled.status) && Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+      try {
+        const pr = await fetch(`${baseUrl}/v2/nfse/${ref}`, { headers: { 'Authorization': authHeader } });
+        polled = await pr.json();
+      } catch { /* keep last known state */ }
+    }
+
+    if (polled.status === 'autorizado') {
+      // PDF/XML may not be immediately available — queryNFeStatus can be called later to refresh.
+      return {
+        success: true,
+        providerNFeId: ref,
+        status: 'autorizado',
+        accessKey: polled.codigo_verificacao || polled.numero_nfse || polled.numero,
+        xmlUrl: polled.caminho_xml_nfse || undefined,
+        pdfUrl: polled.caminho_pdf_nfse || polled.caminho_nfse_pdf || undefined,
+      };
+    }
+
+    if (polled.status === 'erro_autorizacao') {
+      const erros: Array<{ codigo: string; mensagem: string }> = polled.erros || [];
+      const msg = erros.map((e: { codigo: string; mensagem: string }) => `[${e.codigo}] ${e.mensagem}`).join(' ') || 'GINFES rejeitou a NFS-e';
+      return { success: false, providerNFeId: ref, errorMessage: msg };
+    }
+
+    // Still processing after timeout — return as pending so caller can retry later
+    return { success: true, providerNFeId: ref, status: 'processando' };
   } catch (err: any) {
     return { success: false, errorMessage: err.message };
   }

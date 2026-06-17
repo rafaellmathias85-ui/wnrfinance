@@ -132,33 +132,47 @@ export async function cartaCorrecaoNFe(token: string, ref: string, correcao: str
 
 export interface FocusNFSeInput {
   data_emissao: string;          // ISO date
+  natureza_operacao?: number;    // 1=tributação no município (default)
+  optante_simples_nacional?: boolean;
+  // RPS fields — needed to avoid collision when mixing providers (e.g. Bom Controle + Focus NFe)
+  numero_rps?: number;
+  serie_rps?: string;
+  numero_lote_rps?: number;
   prestador: {
     cnpj: string;
     inscricao_municipal: string;
-    codigo_municipio: string;
+    codigo_municipio: number;    // IBGE code as integer (e.g. 3548708)
   };
   tomador: {
     cnpj?: string;
     cpf?: string;
     razao_social: string;
     email?: string;
-    logradouro?: string;
-    numero?: string;
-    bairro?: string;
-    municipio?: string;
-    uf?: string;
-    cep?: string;
+    telefone?: string;
+    // Full address required by GINFES municipalities (Focus NFe returns error if missing for SBC)
+    endereco?: {
+      logradouro: string;
+      numero: string;
+      complemento?: string;
+      bairro: string;
+      codigo_municipio: number; // IBGE integer
+      uf: string;
+      cep: string;
+    };
   };
   servico: {
     aliquota: number;
     base_calculo: number;
     discriminacao: string;
-    iss_retido: '1' | '2'; // 1=retido, 2=não retido
+    iss_retido: boolean;         // true=retido, false=não retido (boolean, not '1'/'2')
     item_lista_servico: string;
     valor_servicos: number;
     valor_deducoes?: number;
     valor_iss?: number;
-    codigo_municipio?: string; // IBGE code for service municipality
+    codigo_municipio?: number;   // IBGE integer for service municipality
+    // SBC GINFES requires this field (E183 if absent). Focus NFe field name is "codigo_tributario_municipio"
+    // (NOT "tributacao"). Value is a composite ISS code, e.g. "1.07/108811/1271" for SBC IT services.
+    codigo_tributario_municipio?: string;
   };
 }
 

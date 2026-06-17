@@ -1835,6 +1835,8 @@ model ServiceFiscalRule {
   ibsCst                        String?
   cbsClassificationCode         String?
   ibsClassificationCode         String?
+  codigoTributarioMunicipio     String?  // SBC GINFES: composite ISS code, e.g. "1.07/108811/1271"
+  regimeEspecialTributacao      Int?     // GINFES: 1=Microempr.Munic, 2=Estimativa, 3=Soc.Profissionais, 4=Cooperativa, 5=MEI, 6=ME/EPP
   effectiveFrom                 DateTime?
   effectiveTo                   DateTime?
   isDefault                     Boolean              @default(false)
