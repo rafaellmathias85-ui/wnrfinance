@@ -1,3 +1,4 @@
 -- AlterTable: add NFS-e GINFES-specific fields to ServiceFiscalRule
-ALTER TABLE "ServiceFiscalRule" ADD COLUMN "codigoTributarioMunicipio" TEXT;
-ALTER TABLE "ServiceFiscalRule" ADD COLUMN "regimeEspecialTributacao" INTEGER;
+-- Table is mapped to "regras_fiscais_servico" via @@map in schema.prisma
+ALTER TABLE "regras_fiscais_servico" ADD COLUMN IF NOT EXISTS "codigoTributarioMunicipio" TEXT;
+ALTER TABLE "regras_fiscais_servico" ADD COLUMN IF NOT EXISTS "regimeEspecialTributacao" INTEGER;
