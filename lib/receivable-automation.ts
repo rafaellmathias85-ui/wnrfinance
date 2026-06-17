@@ -111,6 +111,7 @@ async function generateNFSe(
     tomadorDoc: receivable.customerDoc || '',
     tomadorEmail: receivable.customerEmail || undefined,
     tomadorMunicipio: rule.customerCityName || undefined,
+    tomadorMunicipioCodigo: rule.customerCityCode || undefined,
     discriminacao: receivable.description,
     serviceCodeLc116: rule.serviceCodeLc116,
     serviceCityCode: rule.providerCityCode,

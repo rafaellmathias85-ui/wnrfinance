@@ -158,7 +158,7 @@ export interface FocusNFSeInput {
     valor_servicos: number;
     valor_deducoes?: number;
     valor_iss?: number;
-    codigo_municipio_prestacao?: string;
+    codigo_municipio?: string; // IBGE code for service municipality
   };
 }
 

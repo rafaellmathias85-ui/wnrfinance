@@ -314,6 +314,7 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
       email: payload.tomadorEmail,
       municipio: payload.tomadorMunicipio,
       uf: payload.tomadorUf,
+      ...(payload.tomadorMunicipioCodigo ? { codigo_municipio: payload.tomadorMunicipioCodigo } : {}),
     },
     servico: {
       aliquota: payload.issRate,
