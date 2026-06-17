@@ -85,8 +85,7 @@ jobs:
       - name: Seed codigoTributarioMunicipio
         working-directory: /var/www/wnrfinance
         run: |
-          psql "$DATABASE_URL" -c "UPDATE regras_fiscais_servico SET \"codigoTributarioMunicipio\" = '1.07/102320/1234' WHERE \"codigoTributarioMunicipio\" IS NULL;" 2>/dev/null || \
-          npx prisma db execute --stdin <<'SQL'
+          npx prisma db execute --schema=prisma/schema.prisma --stdin <<'SQL'
           UPDATE regras_fiscais_servico SET "codigoTributarioMunicipio" = '1.07/102320/1234' WHERE "codigoTributarioMunicipio" IS NULL;
           SQL
           echo "✅ codigoTributarioMunicipio atualizado"
