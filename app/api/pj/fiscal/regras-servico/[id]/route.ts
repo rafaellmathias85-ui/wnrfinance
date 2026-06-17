@@ -33,6 +33,8 @@ const UpdateFiscalRuleSchema = z.object({
   ibsCst: z.string().max(20).optional().nullable(),
   cbsClassificationCode: z.string().max(30).optional().nullable(),
   ibsClassificationCode: z.string().max(30).optional().nullable(),
+  codigoTributarioMunicipio: z.string().max(60).optional().nullable(),
+  regimeEspecialTributacao: z.number().int().min(0).max(6).optional().nullable(),
   effectiveFrom: z.string().optional().nullable(),
   effectiveTo: z.string().optional().nullable(),
   isDefault: z.boolean().optional(),
