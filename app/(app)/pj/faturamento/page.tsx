@@ -17,7 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   DollarSign, TrendingUp, TrendingDown, ArrowUpCircle, ArrowDownCircle,
   BarChart3, PieChart as PieIcon, Users, Building2, Loader2,
-  Eye, History, FileText, FileCheck, FileX, Mail, Banknote,
+  Eye, History, FileText, FileCheck, FileX, Mail, MailOpen, Banknote,
   Search, X, ChevronLeft, ChevronRight, ExternalLink, Calendar,
   Receipt, AlertCircle, Copy, Paperclip, ChevronDown,
   XCircle, SendHorizonal, CheckSquare, Ban, RefreshCw, Zap, Filter,
@@ -926,8 +926,15 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
                         <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                       </button>
                       {/* Email */}
-                      <button onClick={() => setEmailItem(item)} className="p-1 rounded hover:bg-muted transition-colors" title="Reenviar por e-mail">
-                        <Mail className={`h-3.5 w-3.5 ${item.emailSent ? 'text-emerald-500' : 'text-muted-foreground hover:text-primary'}`} />
+                      <button
+                        onClick={() => setEmailItem(item)}
+                        className="p-1 rounded hover:bg-muted transition-colors"
+                        title={item.emailOpenedAt ? `E-mail lido em ${new Date(item.emailOpenedAt).toLocaleDateString('pt-BR')}` : item.emailSent ? 'E-mail enviado (não lido)' : 'Enviar por e-mail'}
+                      >
+                        {item.emailOpenedAt
+                          ? <MailOpen className="h-3.5 w-3.5 text-emerald-500" />
+                          : <Mail className={`h-3.5 w-3.5 ${item.emailSent ? 'text-amber-500' : 'text-muted-foreground hover:text-primary'}`} />
+                        }
                       </button>
                       {/* Quitar */}
                       {item.status !== 'recebido' && item.status !== 'cancelado' && (

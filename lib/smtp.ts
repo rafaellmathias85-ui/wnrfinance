@@ -96,6 +96,7 @@ export async function sendEmailWithConfig(
   options: SendEmailOptions,
   contextType?: string,
   contextId?: string,
+  trackingToken?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const config = await prisma.smtpConfig.findUnique({ where: { id: smtpConfigId } });
   if (!config || !config.isActive) return { success: false, error: 'Configuração SMTP não encontrada ou inativa' };
@@ -132,6 +133,7 @@ export async function sendEmailWithConfig(
         contextId,
         status: 'sent',
         sentAt: new Date(),
+        ...(trackingToken ? { trackingToken } : {}),
       },
     });
 

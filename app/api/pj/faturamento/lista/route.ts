@@ -37,6 +37,7 @@ type EmailRow = {
   subject: string;
   status: string;
   sentAt: Date;
+  openedAt: Date | null;
 };
 
 export async function GET(req: NextRequest) {
@@ -145,7 +146,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.emailLog.findMany({
         where: { contextType: 'receivable', contextId: { in: ids } },
-        select: { id: true, contextId: true, to: true, subject: true, status: true, sentAt: true },
+        select: { id: true, contextId: true, to: true, subject: true, status: true, sentAt: true, openedAt: true },
       }),
     ]);
 
@@ -180,8 +181,9 @@ export async function GET(req: NextRequest) {
         ...row,
         nfe: nfe ? { id: nfe.id, number: nfe.number, type: nfe.type, status: nfe.status, pdfUrl: nfe.pdfUrl, xmlUrl: nfe.xmlUrl, issuedAt: nfe.issuedAt, errorMessage: nfe.errorMessage } : null,
         boleto: boleto ? { id: boleto.id, type: boleto.type, status: boleto.status, paidAt: boleto.paidAt, boletoUrl: boleto.boletoUrl, pixQrCodeUrl: boleto.pixQrCodeUrl, nossoNumero: boleto.nossoNumero, providerKey: boleto.providerKey, errorMessage: boleto.errorMessage } : null,
-        emailSent: logs.length > 0,
-        emailLogs: logs.map(l => ({ id: l.id, to: l.to, subject: l.subject, status: l.status, sentAt: l.sentAt })),
+        emailSent: logs.some(l => l.status === 'sent'),
+        emailOpenedAt: logs.find(l => l.openedAt)?.openedAt ?? null,
+        emailLogs: logs.map(l => ({ id: l.id, to: l.to, subject: l.subject, status: l.status, sentAt: l.sentAt, openedAt: l.openedAt })),
       };
     });
 

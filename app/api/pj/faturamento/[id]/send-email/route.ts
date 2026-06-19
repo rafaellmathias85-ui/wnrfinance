@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -102,7 +103,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     // Build email content
     const finalSubject = subject || `Fatura — ${item.description || item.customerName}`;
-    const finalHtml = htmlBody || buildHtmlBody({
+    const trackingToken = randomUUID();
+    const baseUrl = (process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    const pixelUrl = `${baseUrl}${basePath}/api/tracking/pixel/${trackingToken}`;
+
+    const bodyHtml = htmlBody || buildHtmlBody({
       customerName: item.customerName || '',
       description: item.description || '',
       dueDate: item.dueDate,
@@ -112,6 +118,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       pixQrCodeUrl,
       senderName: smtp.senderName || 'WNR Finance',
     });
+    // Inject tracking pixel before closing </body>
+    const finalHtml = bodyHtml.replace('</body>', `<img src="${pixelUrl}" width="1" height="1" alt="" style="display:none;" /></body>`);
 
     // Build attachments (PDF via URL — nodemailer downloads automatically)
     const attachments: Array<{ filename: string; path: string }> = [];
@@ -138,6 +146,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       },
       'receivable',
       id,
+      trackingToken,
     );
 
     if (!result.success) {
