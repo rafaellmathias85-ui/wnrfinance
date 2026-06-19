@@ -341,9 +341,17 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
     return d.toISOString().replace('Z', '-0300');
   })();
 
+  // Focus NFe ignores serie_rps field and always uses '1'. To avoid collision with Bom Controle
+  // (which already registered RPSes 1-1721 in GINFES SBC), we pass numero_rps explicitly starting
+  // from offset 10000. Computed from company's NFe count so each emission gets a unique number.
+  const nfseCount = config.companyId
+    ? await prisma.nFe.count({ where: { companyId: config.companyId, type: 'nfse' } })
+    : 0;
+  const numeroRps = nfseCount + 10000;
+
   const body: any = {
     data_emissao: brDate,
-    serie_rps: 'WNR',
+    numero_rps: String(numeroRps),
     natureza_operacao: payload.naturezaOperacao ?? 1,
     optante_simples_nacional: payload.optanteSimplesNacional ?? true,
     ...(regimeEspecial !== undefined ? { regime_especial_tributacao: regimeEspecial } : {}),
@@ -457,6 +465,7 @@ export async function emitNFSe(companyId: string, payload: NFSePayload): Promise
   // que pode estar desatualizado ou conter o CNPJ de um cliente por engano.
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { cnpj: true } });
   if (company?.cnpj) config.cnpj = company.cnpj.replace(/\D/g, '');
+  config.companyId = companyId;
 
   switch (conn.providerKey) {
     case 'focusnfe':
