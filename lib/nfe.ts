@@ -343,6 +343,7 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
 
   const body: any = {
     data_emissao: brDate,
+    serie_rps: 'WNR',
     natureza_operacao: payload.naturezaOperacao ?? 1,
     optante_simples_nacional: payload.optanteSimplesNacional ?? true,
     ...(regimeEspecial !== undefined ? { regime_especial_tributacao: regimeEspecial } : {}),
