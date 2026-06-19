@@ -75,8 +75,6 @@ jobs:
       - name: Prisma Migrate Deploy
         working-directory: /var/www/wnrfinance
         run: |
-          echo "🗄️  Resolvendo migrations com falha anterior (se houver)..."
-          npx prisma migrate resolve --rolled-back 20260617000000_add_codigo_tributario_municipio 2>/dev/null || true
           echo "🗄️  Aplicando migrations pendentes..."
           npx prisma migrate deploy
           echo "✅ Migrations aplicadas"
