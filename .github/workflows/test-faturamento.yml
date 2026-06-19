@@ -1,0 +1,32 @@
+name: Teste Faturamento Completo — Boleto + NFS-e + E-mail
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/test-nfe-boleto-email.ts'
+      - '.github/workflows/test-faturamento.yml'
+
+concurrency:
+  group: test-faturamento
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Faturamento — Boleto Itaú + NFS-e + E-mail
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Executar teste de faturamento completo
+        working-directory: /var/www/wnrfinance
+        run: |
+          echo "════════════════════════════════════════════════════"
+          echo "  TESTE FATURAMENTO: Boleto Itaú + NFS-e + E-mail"
+          echo "════════════════════════════════════════════════════"
+          npx tsx scripts/test-nfe-boleto-email.ts
+          echo "════════════════════════════════════════════════════"
+          echo "  Teste concluído"
+          echo "════════════════════════════════════════════════════"
