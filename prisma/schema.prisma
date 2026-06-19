@@ -2225,23 +2225,26 @@ model SmtpConfig {
 }
 
 model EmailLog {
-  id           String      @id @default(cuid())
-  companyId    String
-  smtpConfigId String?
-  smtpConfig   SmtpConfig? @relation(fields: [smtpConfigId], references: [id], onDelete: SetNull)
-  to           String
-  subject      String
-  contextType  String? // nfse, boleto, pix, recibo, cobranca, test
-  contextId    String?
-  status       String      @default("sent") // sent, failed
-  errorMsg     String?     @db.Text
-  sentAt       DateTime    @default(now())
-  createdAt    DateTime    @default(now())
+  id             String      @id @default(cuid())
+  companyId      String
+  smtpConfigId   String?
+  smtpConfig     SmtpConfig? @relation(fields: [smtpConfigId], references: [id], onDelete: SetNull)
+  to             String
+  subject        String
+  contextType    String? // nfse, boleto, pix, recibo, cobranca, test
+  contextId      String?
+  status         String      @default("sent") // sent, failed
+  errorMsg       String?     @db.Text
+  sentAt         DateTime    @default(now())
+  createdAt      DateTime    @default(now())
+  trackingToken  String?     @unique @map("tracking_token")
+  openedAt       DateTime?   @map("opened_at")
 
   @@index([companyId])
   @@index([status])
   @@index([createdAt])
   @@index([smtpConfigId])
+  @@index([trackingToken])
 }
 
 model EmailQueue {
