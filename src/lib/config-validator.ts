@@ -66,6 +66,15 @@ export function validateSecurityConfig(): ConfigCheck[] {
     'Redis não configurado — rate limiting degradado para memória local (não compartilhado entre instâncias)',
   );
 
+  // ── Fiscal / Focus NFe ────────────────────────────────────────────────────
+  add(
+    'FOCUSNFE_WEBHOOK_SECRET_VALUE',
+    !process.env.FOCUSNFE_WEBHOOK_SECRET ||
+      process.env.FOCUSNFE_WEBHOOK_SECRET === '697fbc2dd22cb5648d9ad71f548bb15caae38f29b153e11aa66cb41b8bd278ef',
+    'critical',
+    'FOCUSNFE_WEBHOOK_SECRET difere do valor canônico Winner Soluções — webhooks Focus NFe rejeitados',
+  );
+
   // Relatório no log
   const failures = checks.filter((c) => !c.ok);
   if (failures.length === 0) {
@@ -75,6 +84,12 @@ export function validateSecurityConfig(): ConfigCheck[] {
       const prefix = f.severity === 'critical' ? 'CRÍTICO' : 'ALERTA';
       const log = f.severity === 'critical' && isProd ? console.error : console.warn;
       log(`[ConfigValidator] ${prefix}: ${f.name} — ${f.message}`);
+    }
+    if (isProd) {
+      console.warn(
+        '[ConfigValidator] Para verificar/restaurar configurações fiscais, execute no VPS:\n' +
+        '  cd /var/www/wnrfinance && npx ts-node --project tsconfig.scripts.json scripts/ensure-fiscal-config.ts',
+      );
     }
   }
 

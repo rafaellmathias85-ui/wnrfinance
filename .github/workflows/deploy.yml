@@ -102,7 +102,17 @@ jobs:
             pm2 logs wnrfinance --lines 20 2>/dev/null || true
           fi
 
-      # ─── 9. Resumo ────────────────────────────────────────────────────
+      # ─── 9. Verificação fiscal pós-deploy ────────────────────────────
+      - name: Verificar configuração fiscal (Focus NFe)
+        working-directory: /var/www/wnrfinance
+        run: |
+          echo "🔍 Verificando configuração fiscal Winner Soluções..."
+          MODE=check npx tsx scripts/ensure-fiscal-config.ts 2>/dev/null || {
+            echo "⚠️  Alerta: configuração fiscal pode estar incompleta."
+            echo "   Execute: MODE=restore npx tsx scripts/ensure-fiscal-config.ts"
+          }
+
+      # ─── 10. Resumo ───────────────────────────────────────────────────
       - name: Resumo do deploy
         if: always()
         run: |
