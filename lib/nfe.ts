@@ -524,7 +524,7 @@ export async function queryNFeStatus(
 // ─────────────────────────────────────────────────────────────────────────────
 // Cancel NF-e
 // ─────────────────────────────────────────────────────────────────────────────
-export async function cancelNFe(companyId: string, providerNFeId: string, justification: string): Promise<NFeResult> {
+export async function cancelNFe(companyId: string, providerNFeId: string, justification: string, type: 'nfe' | 'nfse' = 'nfe'): Promise<NFeResult> {
   const conn = await getNFeConnection(companyId);
   if (!conn) return { success: false, errorMessage: 'Conexão NF-e não encontrada' };
 
@@ -535,9 +535,11 @@ export async function cancelNFe(companyId: string, providerNFeId: string, justif
     const baseUrl = environment === 'homologacao'
       ? 'https://homologacao.focusnfe.com.br'
       : 'https://api.focusnfe.com.br';
+    // NFS-e uses /v2/nfse/{ref}; NF-e uses /v2/nfe/{ref}
+    const path = type === 'nfse' ? `/v2/nfse/${providerNFeId}` : `/v2/nfe/${providerNFeId}`;
 
     try {
-      const res = await fetch(`${baseUrl}/v2/nfe/${providerNFeId}`, {
+      const res = await fetch(`${baseUrl}${path}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,

@@ -74,7 +74,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (!nfe.providerNFeId) return NextResponse.json({ error: 'NF-e não emitida, não pode ser cancelada' }, { status: 400 });
       if (!cancelReason || cancelReason.length < 15) return NextResponse.json({ error: 'Justificativa deve ter pelo menos 15 caracteres' }, { status: 400 });
 
-      const result = await cancelNFe(companyId, nfe.providerNFeId, cancelReason);
+      const result = await cancelNFe(companyId, nfe.providerNFeId, cancelReason, nfe.type as 'nfe' | 'nfse');
       if (result.success) {
         await prisma.nFe.update({ where: { id: nfe.id }, data: { status: 'cancelada', cancelReason, canceledAt: new Date() } });
         await createAuditLog({ userId: session.user.id, companyId, action: 'CANCEL', entity: 'nfe', entityId: nfe.id, metadata: { reason: cancelReason }, request });

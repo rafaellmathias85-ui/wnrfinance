@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         for (const nfe of nfes) {
           try {
             if (nfe.providerNFeId && ['enviada', 'autorizada'].includes(nfe.status)) {
-              const r = await cancelNFe(companyId, nfe.providerNFeId, justification);
+              const r = await cancelNFe(companyId, nfe.providerNFeId, justification, nfe.type as 'nfe' | 'nfse');
               if (!r.success) {
                 results.push({ id: nfe.id, ok: false, error: r.errorMessage });
                 continue;
