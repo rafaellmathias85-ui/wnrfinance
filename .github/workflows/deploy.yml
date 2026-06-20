@@ -93,13 +93,13 @@ jobs:
         run: |
           echo "🔍 Aguardando aplicação iniciar..."
           sleep 8
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          HTTP_STATUS=$(curl -4 -s -o /dev/null -w "%{http_code}" \
             --max-time 15 http://localhost:3003/wnrfinance/app/login 2>/dev/null || echo "000")
           if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "307" ] || [ "$HTTP_STATUS" = "302" ] || [ "$HTTP_STATUS" = "401" ]; then
             echo "✅ Aplicação respondendo (HTTP $HTTP_STATUS)"
           else
             echo "⚠️  HTTP $HTTP_STATUS — verificando logs PM2..."
-            pm2 logs wnrfinance --lines 20 --nostream
+            pm2 logs wnrfinance --lines 20 2>/dev/null || true
           fi
 
       # ─── 9. Resumo ────────────────────────────────────────────────────
