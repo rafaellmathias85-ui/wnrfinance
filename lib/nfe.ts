@@ -434,8 +434,8 @@ async function emitFocusNFSe(payload: NFSePayload, config: any): Promise<NFeResu
         providerNFeId: ref,
         status: 'autorizado',
         accessKey: polled.codigo_verificacao || polled.numero_nfse || polled.numero,
-        xmlUrl: polled.caminho_xml_nfse || undefined,
-        pdfUrl: polled.caminho_pdf_nfse || polled.caminho_nfse_pdf || undefined,
+        xmlUrl: polled.caminho_xml_nota_fiscal || polled.caminho_xml_nfse || undefined,
+        pdfUrl: polled.url_danfse || polled.caminho_pdf_nfse || polled.caminho_nfse_pdf || undefined,
       };
     }
 
@@ -503,8 +503,8 @@ export async function queryNFeStatus(
       if (isNFSe) {
         return {
           status: data.status || 'desconhecido',
-          pdfUrl: data.caminho_pdf_nfse || data.caminho_nfse_pdf,
-          xmlUrl: data.caminho_xml_nfse,
+          pdfUrl: data.url_danfse || data.caminho_pdf_nfse || data.caminho_nfse_pdf,
+          xmlUrl: data.caminho_xml_nota_fiscal || data.caminho_xml_nfse,
         };
       }
       return {
