@@ -54,6 +54,8 @@ export default function ContasPagar() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilterValues>(EMPTY_FILTERS);
   const [showImport, setShowImport] = useState(false);
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
+  const [pendingSaveBody, setPendingSaveBody] = useState<any>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const { suggestion: aiSuggestion, loading: aiLoading, categorize: aiCategorize, clear: aiClear } = useAiCategorize();
 
@@ -210,6 +212,25 @@ export default function ContasPagar() {
     setShowForm(true);
   };
 
+  const doSave = async (body: any) => {
+    const url = editing ? `/api/pj/accounts-payable/${editing.id}` : '/api/pj/accounts-payable';
+    const method = editing ? 'PUT' : 'POST';
+    try {
+      const res = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res.ok) {
+        toast({ title: editing ? 'Conta atualizada' : 'Conta criada' });
+        setShowForm(false);
+        setEditing(null);
+        fetchData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: 'Erro ao salvar', description: err.error || `HTTP ${res.status}`, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err?.message || 'Erro desconhecido', variant: 'destructive' });
+    }
+  };
+
   const handleSave = async () => {
     if (!formRef.current) return;
     const fd = new FormData(formRef.current);
@@ -244,22 +265,14 @@ export default function ContasPagar() {
       body.transferAccountType = fd.get('transferAccountType') || null;
     }
 
-    const url = editing ? `/api/pj/accounts-payable/${editing.id}` : '/api/pj/accounts-payable';
-    const method = editing ? 'PUT' : 'POST';
-    try {
-      const res = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (res.ok) {
-        toast({ title: editing ? 'Conta atualizada' : 'Conta criada' });
-        setShowForm(false);
-        setEditing(null);
-        fetchData();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        toast({ title: 'Erro ao salvar', description: err.error || `HTTP ${res.status}`, variant: 'destructive' });
-      }
-    } catch (err: any) {
-      toast({ title: 'Erro ao salvar', description: err?.message || 'Erro desconhecido', variant: 'destructive' });
+    // Lançamento recorrente com série ativa: perguntar o escopo da atualização
+    if (editing?.isRecurring && editing?.recurrenceId) {
+      setPendingSaveBody(body);
+      setShowRecurringModal(true);
+      return;
     }
+
+    await doSave(body);
   };
 
   const handleDelete = async (id: string) => {
@@ -714,6 +727,20 @@ export default function ContasPagar() {
           onImported={() => { setShowImport(false); fetchData(); }}
         />
       )}
+
+      <Dialog open={showRecurringModal} onOpenChange={(open) => { if (!open) { setShowRecurringModal(false); setPendingSaveBody(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Repeat className="w-4 h-4" /> Atualizar lançamento recorrente</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Deseja atualizar apenas este mês ou este e todos os demais meses pendentes da série?</p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => { setShowRecurringModal(false); setPendingSaveBody(null); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setShowRecurringModal(false); doSave(pendingSaveBody); }}>Apenas este mês</Button>
+            <Button onClick={() => { setShowRecurringModal(false); doSave({ ...pendingSaveBody, updateSeries: true }); }}>Este e os demais meses</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

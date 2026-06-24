@@ -130,7 +130,8 @@ export async function PUT(req: NextRequest, { params }: any) {
     }
 
     // ── Alteração do número de parcelas em série já ativa ──────────────────────
-    if (existing.isRecurring && body.isRecurring !== false && recurrenceMonths > 0) {
+    // Só recria a série se o usuário optou por "Este e os demais meses"
+    if (existing.isRecurring && body.isRecurring !== false && recurrenceMonths > 0 && body.updateSeries) {
       // Busca o registro Recurrence existente; se não existir (recurrenceId nulo ou inválido), cria um novo
       let recurrenceRecord = existing.recurrenceId
         ? await prisma.recurrence.findUnique({ where: { id: existing.recurrenceId } })
