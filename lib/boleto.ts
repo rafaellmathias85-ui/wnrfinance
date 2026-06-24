@@ -58,6 +58,43 @@ async function getChargeConnection(companyId: string) {
   });
 }
 
+// Maps a BankConnection to the matching boleto CompanyConnection for that bank.
+// Allows Contas a Receber to route boleto emission to the same bank as the receiving account.
+async function getChargeConnectionForBank(companyId: string, bankConnectionId: string) {
+  const bank = await prisma.bankConnection.findFirst({
+    where: { id: bankConnectionId },
+    select: { provider: true, bankCode: true },
+  });
+  if (!bank) return null;
+
+  const providerByCode: Record<string, string> = {
+    INTER: 'inter',
+    ITAU: 'itau',
+    BRADESCO: 'bradesco',
+    SANTANDER: 'santander',
+    BB: 'bb',
+    SICOOB: 'sicoob',
+    SICREDI: 'sicredi',
+  };
+  const providerByProvider: Record<string, string> = {
+    inter_pj: 'inter',
+    inter_pf_ofx: 'inter',
+    itau_pj: 'itau',
+    itau_pf_ofx: 'itau',
+  };
+
+  const providerKey =
+    providerByProvider[bank.provider] ??
+    providerByCode[bank.bankCode ?? ''];
+
+  if (!providerKey) return null;
+
+  return prisma.companyConnection.findFirst({
+    where: { companyId, category: 'boleto', providerKey, isActive: true, status: { not: 'erro' } },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
 async function getNextNossoNumero(companyId: string): Promise<number> {
   const last = await prisma.boletoCharge.findFirst({
     where: { companyId, nossoNumero: { not: null } },
@@ -379,8 +416,10 @@ async function itauCreateCharge(
 // ─────────────────────────────────────────────────────────────────────────────
 // Main emission function
 // ─────────────────────────────────────────────────────────────────────────────
-export async function createCharge(companyId: string, payload: ChargePayload): Promise<ChargeResult> {
-  const conn = await getChargeConnection(companyId);
+export async function createCharge(companyId: string, payload: ChargePayload, bankConnectionId?: string): Promise<ChargeResult> {
+  // If a specific bank account is selected, try its matching boleto connection first.
+  const conn = (bankConnectionId ? await getChargeConnectionForBank(companyId, bankConnectionId) : null)
+    ?? await getChargeConnection(companyId);
 
   if (!conn) {
     // Fallback: Itaú via variáveis de ambiente (sem CompanyConnection configurada)

@@ -222,7 +222,7 @@ async function generateCharge(
     externalId: receivable.id,
   };
 
-  const chargeResult = await createCharge(companyId, payload);
+  const chargeResult = await createCharge(companyId, payload, receivable.bankConnectionId ?? undefined);
   const chargeRecord = await prisma.boletoCharge.create({
     data: {
       companyId,

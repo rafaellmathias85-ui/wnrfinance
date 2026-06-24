@@ -132,6 +132,14 @@ export default function ContasReceber() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id || items.length === 0) return;
+    const item = (items as any[]).find((i) => i.id === id);
+    if (item) openEdit(item);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, searchParams]);
+
   const openNew = () => {
     setDefaultLaunchType('');
     setEditing(null);

@@ -800,20 +800,19 @@ export default function MovimentacoesPage() {
               <th className="text-center px-3 py-3 text-muted-foreground font-medium w-28">Pago</th>
               <th className="text-center px-3 py-3 text-muted-foreground font-medium w-28">Conciliado</th>
               <th className="text-right px-3 py-3 text-muted-foreground font-medium">Valor</th>
-              <th className="text-right px-3 py-3 text-muted-foreground font-medium">Saldo</th>
               <th className="px-3 py-3 w-32 text-muted-foreground font-medium text-center">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {loading ? (
               <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
                   Carregando...
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
                   Nenhuma movimentação no período
                 </td>
               </tr>
@@ -928,11 +927,6 @@ export default function MovimentacoesPage() {
                     {/* Valor */}
                     <td className={`px-3 py-3 text-right font-semibold whitespace-nowrap ${m.tipo === 'entrada' ? 'text-green-400' : 'text-red-400'}`}>
                       {m.tipo === 'saida' ? '-' : '+'}{fmt(m.amount)}
-                    </td>
-
-                    {/* Saldo acumulado */}
-                    <td className={`px-3 py-3 text-right font-medium whitespace-nowrap ${m.saldoAcumulado >= 0 ? 'text-foreground' : 'text-red-500 dark:text-red-400'}`}>
-                      {fmt(m.saldoAcumulado)}
                     </td>
 
                     {/* Ações */}
