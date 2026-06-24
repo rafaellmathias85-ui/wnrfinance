@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -119,7 +119,7 @@ function ActionCard({ action, status, errorMsg, onConfirm, onCancel }: {
     delete_payable:      { title: 'Excluir Conta a Pagar',    Icon: Trash,    color: 'border-red-300    bg-red-100/60    dark:border-red-700    dark:bg-red-900/30',      iconCls: 'text-red-700'    },
     delete_receivable:   { title: 'Excluir Conta a Receber',  Icon: Trash,    color: 'border-orange-200  bg-orange-50/60  dark:border-orange-700  dark:bg-orange-950/20',  iconCls: 'text-orange-600' },
     reconcile_approve:   { title: 'Aprovar Conciliação',      Icon: Check,    color: 'border-teal-200    bg-teal-50/60    dark:border-teal-800    dark:bg-teal-950/20',    iconCls: 'text-teal-500'   },
-    reconcile_ignore:    { title: 'Ignorar Lançamento Banco', Icon: X,        color: 'border-slate-300   bg-slate-50/60   dark:border-slate-700   dark:bg-slate-900/40',   iconCls: 'text-slate-500'  },
+    reconcile_ignore:    { title: 'Ignorar Lançamento Banco', Icon: X,        color: 'border-slate-300   bg-slate-50/60   dark:border-border   dark:bg-muted/40',   iconCls: 'text-muted-foreground'  },
   }[action.type];
 
   const d = action.data;

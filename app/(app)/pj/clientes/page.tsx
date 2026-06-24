@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { usePJ } from '@/lib/pj-context';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -49,16 +49,16 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-slate-700 rounded-xl overflow-hidden">
+    <div className="border border-border rounded-xl overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/60 text-left"
+        className="w-full flex items-center justify-between px-4 py-3 bg-card/60 text-left"
       >
-        <span className="font-semibold text-slate-200 text-sm">{title}</span>
-        {open ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        <span className="font-semibold text-foreground text-sm">{title}</span>
+        {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
       </button>
-      {open && <div className="p-4 space-y-4 bg-slate-900/30">{children}</div>}
+      {open && <div className="p-4 space-y-4 bg-muted/30">{children}</div>}
     </div>
   );
 }
@@ -107,14 +107,14 @@ function AddressRow({
 
   if (!editing) {
     return (
-      <div className="flex items-start justify-between gap-2 p-3 bg-slate-800 rounded-lg border border-slate-700">
-        <div className="text-sm text-slate-300">
+      <div className="flex items-start justify-between gap-2 p-3 bg-card rounded-lg border border-border">
+        <div className="text-sm text-foreground">
           <div className="font-medium">{[form.logradouro, form.numero].filter(Boolean).join(', ')}</div>
-          <div className="text-slate-500">{[form.bairro, form.cidade, form.estado, form.cep].filter(Boolean).join(' — ')}</div>
+          <div className="text-muted-foreground">{[form.bairro, form.cidade, form.estado, form.cep].filter(Boolean).join(' — ')}</div>
           {form.isPrimary && <span className="inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-blue-900/30 text-blue-300 mt-1">Principal</span>}
         </div>
         <div className="flex gap-1 shrink-0">
-          <button type="button" onClick={() => setEditing(true)} className="p-1 rounded hover:bg-slate-700 text-slate-400"><Pencil className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setEditing(true)} className="p-1 rounded hover:bg-muted text-muted-foreground"><Pencil className="w-3.5 h-3.5" /></button>
           <button type="button" onClick={onDelete} className="p-1 rounded hover:bg-red-900/40 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       </div>
@@ -122,12 +122,12 @@ function AddressRow({
   }
 
   return (
-    <div className="p-3 bg-slate-800 rounded-lg border border-blue-700/40 space-y-3">
+    <div className="p-3 bg-card rounded-lg border border-blue-700/40 space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="sm:col-span-1">
-          <label className="text-xs text-slate-400 mb-1 block">CEP</label>
+          <label className="text-xs text-muted-foreground mb-1 block">CEP</label>
           <input
-            className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm"
+            className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm"
             value={form.cep || ''}
             onChange={(e) => handleCEP(e.target.value)}
             placeholder="00000-000"
@@ -135,37 +135,37 @@ function AddressRow({
           {cepLoading && <span className="text-xs text-blue-400">Buscando...</span>}
         </div>
         <div className="sm:col-span-2">
-          <label className="text-xs text-slate-400 mb-1 block">Logradouro</label>
-          <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.logradouro || ''} onChange={(e) => setForm((f: any) => ({ ...f, logradouro: e.target.value }))} />
+          <label className="text-xs text-muted-foreground mb-1 block">Logradouro</label>
+          <input className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.logradouro || ''} onChange={(e) => setForm((f: any) => ({ ...f, logradouro: e.target.value }))} />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Número</label>
-          <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.numero || ''} onChange={(e) => setForm((f: any) => ({ ...f, numero: e.target.value }))} />
+          <label className="text-xs text-muted-foreground mb-1 block">Número</label>
+          <input className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.numero || ''} onChange={(e) => setForm((f: any) => ({ ...f, numero: e.target.value }))} />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Complemento</label>
-          <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.complemento || ''} onChange={(e) => setForm((f: any) => ({ ...f, complemento: e.target.value }))} />
+          <label className="text-xs text-muted-foreground mb-1 block">Complemento</label>
+          <input className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.complemento || ''} onChange={(e) => setForm((f: any) => ({ ...f, complemento: e.target.value }))} />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Bairro</label>
-          <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.bairro || ''} onChange={(e) => setForm((f: any) => ({ ...f, bairro: e.target.value }))} />
+          <label className="text-xs text-muted-foreground mb-1 block">Bairro</label>
+          <input className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.bairro || ''} onChange={(e) => setForm((f: any) => ({ ...f, bairro: e.target.value }))} />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Cidade</label>
-          <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.cidade || ''} onChange={(e) => setForm((f: any) => ({ ...f, cidade: e.target.value }))} />
+          <label className="text-xs text-muted-foreground mb-1 block">Cidade</label>
+          <input className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.cidade || ''} onChange={(e) => setForm((f: any) => ({ ...f, cidade: e.target.value }))} />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Estado</label>
-          <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.estado || ''} onChange={(e) => setForm((f: any) => ({ ...f, estado: e.target.value }))} maxLength={2} />
+          <label className="text-xs text-muted-foreground mb-1 block">Estado</label>
+          <input className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.estado || ''} onChange={(e) => setForm((f: any) => ({ ...f, estado: e.target.value }))} maxLength={2} />
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" checked={form.isPrimary} onChange={(e) => setForm((f: any) => ({ ...f, isPrimary: e.target.checked }))} className="accent-blue-500" />
           Endereço principal
         </label>
         <div className="flex gap-2">
-          <button type="button" onClick={() => setEditing(false)} className="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg">Cancelar</button>
+          <button type="button" onClick={() => setEditing(false)} className="px-3 py-1 text-sm bg-muted hover:bg-muted text-foreground rounded-lg">Cancelar</button>
           <button type="button" onClick={() => { onSave(form); setEditing(false); }} className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg">Salvar</button>
         </div>
       </div>
@@ -180,17 +180,17 @@ function ContactRow({ contact, onSave, onDelete }: { contact: any; onSave: (data
 
   if (!editing) {
     return (
-      <div className="flex items-center justify-between gap-2 p-3 bg-slate-800 rounded-lg border border-slate-700">
+      <div className="flex items-center justify-between gap-2 p-3 bg-card rounded-lg border border-border">
         <div className="text-sm">
-          <div className="font-medium text-slate-200">{form.name}</div>
-          <div className="text-slate-500 flex items-center gap-3 mt-0.5">
+          <div className="font-medium text-foreground">{form.name}</div>
+          <div className="text-muted-foreground flex items-center gap-3 mt-0.5">
             {form.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{form.email}</span>}
             {form.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{form.phone}</span>}
           </div>
           {form.isBilling && <span className="inline-flex items-center px-1.5 py-0.5 text-xs rounded bg-emerald-900/30 text-emerald-300 mt-1">Faturamento</span>}
         </div>
         <div className="flex gap-1 shrink-0">
-          <button type="button" onClick={() => setEditing(true)} className="p-1 rounded hover:bg-slate-700 text-slate-400"><Pencil className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setEditing(true)} className="p-1 rounded hover:bg-muted text-muted-foreground"><Pencil className="w-3.5 h-3.5" /></button>
           <button type="button" onClick={onDelete} className="p-1 rounded hover:bg-red-900/40 text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
         </div>
       </div>
@@ -198,28 +198,28 @@ function ContactRow({ contact, onSave, onDelete }: { contact: any; onSave: (data
   }
 
   return (
-    <div className="p-3 bg-slate-800 rounded-lg border border-blue-700/40 space-y-3">
+    <div className="p-3 bg-card rounded-lg border border-blue-700/40 space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Nome *</label>
-          <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.name || ''} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} required />
+          <label className="text-xs text-muted-foreground mb-1 block">Nome *</label>
+          <input className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.name || ''} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} required />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Email</label>
-          <input type="email" className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.email || ''} onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))} />
+          <label className="text-xs text-muted-foreground mb-1 block">Email</label>
+          <input type="email" className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.email || ''} onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))} />
         </div>
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Telefone</label>
-          <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-2 py-1.5 text-sm" value={form.phone || ''} onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
+          <label className="text-xs text-muted-foreground mb-1 block">Telefone</label>
+          <input className="w-full bg-muted border border-border text-foreground rounded-lg px-2 py-1.5 text-sm" value={form.phone || ''} onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" checked={form.isBilling} onChange={(e) => setForm((f: any) => ({ ...f, isBilling: e.target.checked }))} className="accent-emerald-500" />
           Contato de faturamento
         </label>
         <div className="flex gap-2">
-          <button type="button" onClick={() => setEditing(false)} className="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg">Cancelar</button>
+          <button type="button" onClick={() => setEditing(false)} className="px-3 py-1 text-sm bg-muted hover:bg-muted text-foreground rounded-lg">Cancelar</button>
           <button type="button" onClick={() => { if (!form.name?.trim()) return; onSave(form); setEditing(false); }} className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg">Salvar</button>
         </div>
       </div>
@@ -360,9 +360,9 @@ function ClientFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-white p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-slate-700">
-          <DialogTitle className="text-white">{isNew ? 'Novo Cliente' : `Editar: ${form.name}`}</DialogTitle>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-muted border-border text-white p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+          <DialogTitle className="text-foreground">{isNew ? 'Novo Cliente' : `Editar: ${form.name}`}</DialogTitle>
         </DialogHeader>
         <div className="px-6 pb-6 space-y-4 mt-4">
 
@@ -374,7 +374,7 @@ function ClientFormDialog({
                   key={t}
                   type="button"
                   onClick={() => set('clientType', t)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${form.clientType === t ? 'bg-blue-700 border-blue-600 text-white' : 'bg-slate-800 border-slate-600 text-slate-400 hover:text-white'}`}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${form.clientType === t ? 'bg-blue-700 border-blue-600 text-white' : 'bg-card border-border text-muted-foreground hover:text-foreground'}`}
                 >
                   {t === 'PJ' ? <Building2 className="w-4 h-4" /> : <User className="w-4 h-4" />}
                   {t === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}
@@ -383,58 +383,58 @@ function ClientFormDialog({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Nome / Razão Social *</label>
-                <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.name} onChange={(e) => set('name', e.target.value)} required />
+                <label className="text-xs text-muted-foreground mb-1 block">Nome / Razão Social *</label>
+                <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.name} onChange={(e) => set('name', e.target.value)} required />
               </div>
               {form.clientType === 'PJ' ? (
                 <>
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">Nome Fantasia</label>
-                    <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.tradeName || ''} onChange={(e) => set('tradeName', e.target.value)} />
+                    <label className="text-xs text-muted-foreground mb-1 block">Nome Fantasia</label>
+                    <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.tradeName || ''} onChange={(e) => set('tradeName', e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">CNPJ</label>
-                    <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.cnpj || ''} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0001-00" />
+                    <label className="text-xs text-muted-foreground mb-1 block">CNPJ</label>
+                    <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.cnpj || ''} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0001-00" />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">Inscrição Estadual</label>
-                    <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.stateRegistration || ''} onChange={(e) => set('stateRegistration', e.target.value)} />
+                    <label className="text-xs text-muted-foreground mb-1 block">Inscrição Estadual</label>
+                    <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.stateRegistration || ''} onChange={(e) => set('stateRegistration', e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">UF IE</label>
-                    <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.stateRegistrationUF || ''} onChange={(e) => set('stateRegistrationUF', e.target.value)} maxLength={2} />
+                    <label className="text-xs text-muted-foreground mb-1 block">UF IE</label>
+                    <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.stateRegistrationUF || ''} onChange={(e) => set('stateRegistrationUF', e.target.value)} maxLength={2} />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-400 mb-1 block">Inscrição Municipal</label>
-                    <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.municipalRegistration || ''} onChange={(e) => set('municipalRegistration', e.target.value)} />
+                    <label className="text-xs text-muted-foreground mb-1 block">Inscrição Municipal</label>
+                    <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.municipalRegistration || ''} onChange={(e) => set('municipalRegistration', e.target.value)} />
                   </div>
                 </>
               ) : (
                 <div>
-                  <label className="text-xs text-slate-400 mb-1 block">CPF</label>
-                  <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.cpf || ''} onChange={(e) => set('cpf', e.target.value)} placeholder="000.000.000-00" />
+                  <label className="text-xs text-muted-foreground mb-1 block">CPF</label>
+                  <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.cpf || ''} onChange={(e) => set('cpf', e.target.value)} placeholder="000.000.000-00" />
                 </div>
               )}
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Email</label>
-                <input type="email" className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.email || ''} onChange={(e) => set('email', e.target.value)} />
+                <label className="text-xs text-muted-foreground mb-1 block">Email</label>
+                <input type="email" className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.email || ''} onChange={(e) => set('email', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Telefone</label>
-                <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} />
+                <label className="text-xs text-muted-foreground mb-1 block">Telefone</label>
+                <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} />
               </div>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Ramo de Atividade</label>
-                <input className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.activityBranch || ''} onChange={(e) => set('activityBranch', e.target.value)} />
+                <label className="text-xs text-muted-foreground mb-1 block">Ramo de Atividade</label>
+                <input className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.activityBranch || ''} onChange={(e) => set('activityBranch', e.target.value)} />
               </div>
             </div>
             {form.clientType === 'PJ' && (
               <div className="flex gap-4 mt-2">
-                <label className="flex items-center gap-2 text-sm text-slate-300">
+                <label className="flex items-center gap-2 text-sm text-foreground">
                   <input type="checkbox" checked={form.simplesNacional} onChange={(e) => set('simplesNacional', e.target.checked)} className="accent-blue-500" />
                   Simples Nacional
                 </label>
-                <label className="flex items-center gap-2 text-sm text-slate-300">
+                <label className="flex items-center gap-2 text-sm text-foreground">
                   <input type="checkbox" checked={form.ignoreIMNfse} onChange={(e) => set('ignoreIMNfse', e.target.checked)} className="accent-blue-500" />
                   Ignorar IM na NFS-e
                 </label>
@@ -488,16 +488,16 @@ function ClientFormDialog({
           <Section title="4. Faturamento" defaultOpen={false}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Antecipação (dias)</label>
-                <input type="number" className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.billingDaysAntecipation || ''} onChange={(e) => set('billingDaysAntecipation', e.target.value)} placeholder="0" />
+                <label className="text-xs text-muted-foreground mb-1 block">Antecipação (dias)</label>
+                <input type="number" className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.billingDaysAntecipation || ''} onChange={(e) => set('billingDaysAntecipation', e.target.value)} placeholder="0" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Dia de Faturamento</label>
-                <input type="number" min="1" max="31" className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.billingDay || ''} onChange={(e) => set('billingDay', e.target.value)} placeholder="1-31" />
+                <label className="text-xs text-muted-foreground mb-1 block">Dia de Faturamento</label>
+                <input type="number" min="1" max="31" className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.billingDay || ''} onChange={(e) => set('billingDay', e.target.value)} placeholder="1-31" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Emissão NFS-e</label>
-                <select className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.nfseEmissionMode || 'company'} onChange={(e) => set('nfseEmissionMode', e.target.value)}>
+                <label className="text-xs text-muted-foreground mb-1 block">Emissão NFS-e</label>
+                <select className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.nfseEmissionMode || 'company'} onChange={(e) => set('nfseEmissionMode', e.target.value)}>
                   <option value="company">Padrão da empresa</option>
                   <option value="on_billing">No faturamento</option>
                   <option value="on_payment">No pagamento</option>
@@ -510,13 +510,13 @@ function ClientFormDialog({
           <Section title="5. Informações Adicionais" defaultOpen={false}>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-slate-400 mb-2 block">Classificação</label>
+                <label className="text-xs text-muted-foreground mb-2 block">Classificação</label>
                 <StarRating value={form.rating || 3} onChange={(v) => set('rating', v)} />
               </div>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Observações</label>
+                <label className="text-xs text-muted-foreground mb-1 block">Observações</label>
                 <textarea
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm min-h-[80px]"
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm min-h-[80px]"
                   value={form.notes || ''}
                   onChange={(e) => set('notes', e.target.value)}
                 />
@@ -527,11 +527,11 @@ function ClientFormDialog({
           {/* 6. Portal do Cliente */}
           <Section title="6. Portal do Cliente" defaultOpen={false}>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-foreground">
                 <input type="checkbox" checked={form.portalSupportEnabled} onChange={(e) => set('portalSupportEnabled', e.target.checked)} className="accent-blue-500" />
                 Habilitar portal de suporte
               </label>
-              <label className="flex items-center gap-2 text-sm text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-foreground">
                 <input type="checkbox" checked={form.portalFinanceEnabled} onChange={(e) => set('portalFinanceEnabled', e.target.checked)} className="accent-blue-500" />
                 Habilitar portal financeiro
               </label>
@@ -539,7 +539,7 @@ function ClientFormDialog({
           </Section>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 pt-2 border-t border-slate-700">
+          <div className="flex justify-end gap-3 pt-2 border-t border-border">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button onClick={handleSaveClient} disabled={saving}>
               {saving ? 'Salvando...' : isNew ? 'Criar Cliente' : 'Salvar Alterações'}
@@ -620,8 +620,8 @@ export default function ClientesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Clientes</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Cadastro de clientes PJ e PF</p>
+          <h1 className="text-2xl font-bold">Clientes</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Cadastro de clientes PJ e PF</p>
         </div>
         <div className="flex gap-2">
           <label className="cursor-pointer">
@@ -637,22 +637,22 @@ export default function ClientesPage() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-slate-800 border-slate-700">
+      <Card className="bg-card border-border">
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nome, CNPJ, CPF ou email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-slate-900 border-slate-600 text-white placeholder:text-slate-500"
+                className="pl-9 bg-muted border-border text-white placeholder:text-muted-foreground"
               />
             </div>
             <select
               value={clientType}
               onChange={(e) => setClientType(e.target.value)}
-              className="bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
+              className="bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm"
             >
               <option value="">Todos os tipos</option>
               <option value="PJ">Pessoa Jurídica</option>
@@ -668,40 +668,40 @@ export default function ClientesPage() {
           <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
         </div>
       ) : clients.length === 0 ? (
-        <Card className="bg-slate-800 border-slate-700">
-          <CardContent className="py-12 text-center text-slate-500">
+        <Card className="bg-card border-border">
+          <CardContent className="py-12 text-center text-muted-foreground">
             <Users className="w-12 h-12 mx-auto mb-4 opacity-30" />
             <p>Nenhum cliente cadastrado</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-slate-900/60">
+            <thead className="bg-muted/60">
               <tr>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Nome</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium hidden sm:table-cell">Tipo</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium hidden md:table-cell">CNPJ/CPF</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium hidden md:table-cell">Contato Faturamento</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium hidden lg:table-cell">Cidade/UF</th>
-                <th className="text-center px-4 py-3 text-slate-400 font-medium hidden lg:table-cell">Rating</th>
-                <th className="px-4 py-3 text-right text-slate-400 font-medium">Ações</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Nome</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium hidden sm:table-cell">Tipo</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium hidden md:table-cell">CNPJ/CPF</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium hidden md:table-cell">Contato Faturamento</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium hidden lg:table-cell">Cidade/UF</th>
+                <th className="text-center px-4 py-3 text-muted-foreground font-medium hidden lg:table-cell">Rating</th>
+                <th className="px-4 py-3 text-right text-muted-foreground font-medium">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700">
+            <tbody className="divide-y divide-border">
               {clients.map((c: any) => {
                 const billingContact = c.contacts?.find((ct: any) => ct.isBilling);
                 const hasBillingContact = !!billingContact;
                 return (
-                  <tr key={c.id} className="hover:bg-slate-700/30 transition-colors">
+                  <tr key={c.id} className="hover:bg-muted/40 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${c.clientType === 'PF' ? 'bg-purple-900/40 text-purple-300' : 'bg-blue-900/40 text-blue-300'}`}>
                           {c.name?.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div className="font-medium text-white">{c.name}</div>
-                          {c.tradeName && <div className="text-xs text-slate-500">{c.tradeName}</div>}
+                          <div className="font-medium text-foreground">{c.name}</div>
+                          {c.tradeName && <div className="text-xs text-muted-foreground">{c.tradeName}</div>}
                         </div>
                         {!hasBillingContact && (
                           <span title="Sem contato de faturamento"><AlertCircle className="w-4 h-4 text-orange-400 shrink-0" /></span>
@@ -713,15 +713,15 @@ export default function ClientesPage() {
                         {c.clientType}
                       </span>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell text-slate-400">
+                    <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">
                       {c.cnpj || c.cpf || c.document || '—'}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       {billingContact ? (
                         <div className="text-sm">
-                          <div className="text-slate-200">{billingContact.name}</div>
+                          <div className="text-foreground">{billingContact.name}</div>
                           {billingContact.email && (
-                            <div className="text-xs text-slate-500 flex items-center gap-1">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
                               <Mail className="w-3 h-3" /> {billingContact.email}
                             </div>
                           )}
@@ -732,7 +732,7 @@ export default function ClientesPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-slate-400 text-sm">
+                    <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground text-sm">
                       {[c.city, c.state].filter(Boolean).join('/') || '—'}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell text-center">
@@ -746,13 +746,13 @@ export default function ClientesPage() {
                       <div className="flex justify-end gap-1">
                         <button
                           onClick={() => { setEditing(c); setShowForm(true); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-600 text-slate-400 hover:text-white"
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(c.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-900/40 text-slate-400 hover:text-red-400"
+                          className="p-1.5 rounded-lg hover:bg-red-900/40 text-muted-foreground hover:text-red-400"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

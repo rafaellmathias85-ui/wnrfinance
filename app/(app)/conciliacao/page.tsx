@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { EXPENSE_CATEGORIES, INCOME_TYPES, formatDate, toInputDate } from '@/lib/format';
 import { BankImportDialog } from '@/components/bank-import-dialog';
@@ -23,8 +23,8 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = 
   DIVERGENT: { label: 'Divergente', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400', icon: AlertTriangle },
   SUGGESTED: { label: 'Sugestão', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400', icon: HelpCircle },
   BANK_ONLY: { label: 'Só no Banco', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: HelpCircle },
-  PENDING: { label: 'Pendente', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300', icon: RefreshCw },
-  IGNORED: { label: 'Ignorado', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500', icon: EyeOff },
+  PENDING: { label: 'Pendente', color: 'bg-gray-100 text-gray-800 dark:bg-card dark:text-foreground', icon: RefreshCw },
+  IGNORED: { label: 'Ignorado', color: 'bg-gray-100 text-muted-foreground dark:bg-card dark:text-muted-foreground', icon: EyeOff },
   NOT_FOUND: { label: 'Não Encontrado', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
 };
 
@@ -466,9 +466,9 @@ export default function ConciliacaoPage() {
             <button
               onClick={() => handleAction(item.id, 'ignore')}
               disabled={actionLoading === item.id}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" title="Ignorar"
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-card" title="Ignorar"
             >
-              <EyeOff className="w-4 h-4 text-gray-400" />
+              <EyeOff className="w-4 h-4 text-muted-foreground" />
             </button>
           </>
         )}
@@ -579,7 +579,7 @@ export default function ConciliacaoPage() {
           <Button onClick={() => setShowImport(true)} variant="outline" size="sm">
             <Upload className="w-4 h-4 mr-1" /> Importar Extrato
           </Button>
-          <Button onClick={runEngine} disabled={running} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button onClick={runEngine} disabled={running} size="sm" className="bg-blue-600 hover:bg-blue-700 text-foreground">
             <Play className="w-4 h-4 mr-1" /> {running ? 'Processando...' : 'Conciliar'}
           </Button>
           <Button onClick={cleanupPF} disabled={cleaning} variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50">
@@ -596,7 +596,7 @@ export default function ConciliacaoPage() {
           { label: 'Divergentes', value: s.divergent || 0, color: 'text-amber-600' },
           { label: 'Só no Banco', value: s.bankOnly || 0, color: 'text-blue-600' },
           { label: 'Pendentes', value: s.pending || 0, color: 'text-gray-600' },
-          { label: 'Ignorados', value: s.ignored || 0, color: 'text-gray-400' },
+          { label: 'Ignorados', value: s.ignored || 0, color: 'text-muted-foreground' },
         ].map(k => (
           <Card key={k.label} className="shadow-sm">
             <CardContent className="p-4 text-center">
@@ -727,7 +727,7 @@ export default function ConciliacaoPage() {
                         </span>
                       )}
                       {batch.stats.pending > 0 && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" title="Pendentes">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-card dark:text-foreground" title="Pendentes">
                           ⏳ {batch.stats.pending}
                         </span>
                       )}
@@ -869,7 +869,7 @@ export default function ConciliacaoPage() {
               )}
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => { setShowImport(false); setImportResult(null); }} className="flex-1">Cancelar</Button>
-                <Button onClick={handleImport} disabled={!importText.trim()} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">Importar Texto</Button>
+                <Button onClick={handleImport} disabled={!importText.trim()} className="flex-1 bg-blue-600 hover:bg-blue-700 text-foreground">Importar Texto</Button>
               </div>
             </div>
           )}
@@ -904,7 +904,7 @@ export default function ConciliacaoPage() {
               </div>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setEditItem(null)} className="flex-1">Cancelar</Button>
-                <Button onClick={saveEdit} disabled={editSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                <Button onClick={saveEdit} disabled={editSaving} className="flex-1 bg-blue-600 hover:bg-blue-700 text-foreground">
                   {editSaving ? 'Salvando...' : 'Salvar Correção'}
                 </Button>
               </div>
@@ -979,7 +979,7 @@ export default function ConciliacaoPage() {
                     </>
                   )}
                   <Button size="sm" onClick={() => handleAction(showDetail.id, 'approve', { internalId: showDetail.internalId, internalType: showDetail.internalType })}
-                    disabled={actionLoading === showDetail.id || !showDetail.internalId} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    disabled={actionLoading === showDetail.id || !showDetail.internalId} className="bg-blue-600 hover:bg-blue-700 text-foreground">
                     <CheckCircle2 className="w-4 h-4 mr-1" /> Conciliar
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { setForceItem(showDetail); setForceReason(''); setShowDetail(null); }} className="border-amber-300 text-amber-700 hover:bg-amber-50">
@@ -1220,7 +1220,7 @@ export default function ConciliacaoPage() {
                     <Button variant="outline" onClick={() => setLinkItem(null)} className="flex-1">Cancelar</Button>
                     <Button onClick={submitCreateEntry}
                       disabled={createEntryLoading || !createEntryForm.description || !createEntryForm.amount || !createEntryForm.date}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-foreground">
                       {createEntryLoading ? 'Salvando...' : 'Lançar e Conciliar'}
                     </Button>
                   </div>
@@ -1268,7 +1268,7 @@ export default function ConciliacaoPage() {
                   setForceItem(null);
                 }}
                 disabled={actionLoading === forceItem?.id}
-                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white">
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-foreground">
                 <Zap className="w-4 h-4 mr-1" /> Forçar Conciliação
               </Button>
             </div>

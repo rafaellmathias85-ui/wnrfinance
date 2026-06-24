@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -21,7 +21,7 @@ interface AdminUser {
 }
 
 const PLAN_COLORS: Record<string, string> = {
-  free: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+  free: 'bg-gray-100 text-gray-700 dark:bg-card dark:text-muted-foreground',
   pro: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
   premium: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
 };

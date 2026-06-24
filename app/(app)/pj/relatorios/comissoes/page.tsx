@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -32,7 +32,7 @@ const STATUS_BADGE: Record<string, string> = {
   pendente: 'bg-yellow-500/20 text-yellow-400',
   aprovada: 'bg-blue-500/20 text-blue-400',
   paga: 'bg-green-500/20 text-green-400',
-  cancelada: 'bg-slate-700 text-slate-400',
+  cancelada: 'bg-muted text-muted-foreground',
 };
 
 function currentYear() { return new Date().getFullYear(); }
@@ -81,18 +81,18 @@ export default function RelatorioComissoesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-slate-300" />
+          <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Relatório de Comissões</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Comissões agrupadas por vendedor</p>
+            <h1 className="text-2xl font-bold">Relatório de Comissões</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Comissões agrupadas por vendedor</p>
           </div>
         </div>
         <select
           value={year}
           onChange={e => setYear(parseInt(e.target.value))}
-          className="bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
+          className="bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm"
         >
           {[currentYear(), currentYear() - 1, currentYear() - 2].map(y => (
             <option key={y} value={y}>{y}</option>
@@ -103,38 +103,38 @@ export default function RelatorioComissoesPage() {
       {/* Summary */}
       {!loading && agents.length > 0 && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
-            <Users className="w-5 h-5 text-slate-400" />
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+            <Users className="w-5 h-5 text-muted-foreground" />
             <div>
-              <p className="text-white font-bold text-lg">{agents.length}</p>
-              <p className="text-slate-400 text-xs">Agentes ativos</p>
+              <p className="font-bold text-lg">{agents.length}</p>
+              <p className="text-muted-foreground text-xs">Agentes ativos</p>
             </div>
           </div>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
             <DollarSign className="w-5 h-5 text-blue-400" />
             <div>
               <p className="text-blue-400 font-bold text-lg">{fmt(grandTotal)}</p>
-              <p className="text-slate-400 text-xs">Total de comissões</p>
+              <p className="text-muted-foreground text-xs">Total de comissões</p>
             </div>
           </div>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
             <TrendingUp className="w-5 h-5 text-green-400" />
             <div>
               <p className="text-green-400 font-bold text-lg">
                 {fmt(agents.reduce((s, a) => s + a.paga, 0))}
               </p>
-              <p className="text-slate-400 text-xs">Total pago</p>
+              <p className="text-muted-foreground text-xs">Total pago</p>
             </div>
           </div>
         </div>
       )}
 
       {loading ? (
-        <div className="text-slate-500 text-sm">Carregando...</div>
+        <div className="text-muted-foreground text-sm">Carregando...</div>
       ) : agents.length === 0 ? (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-12 text-center">
+        <div className="bg-card border border-border rounded-xl p-12 text-center">
           <DollarSign className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-          <p className="text-slate-400">Nenhuma comissão registrada em {year}</p>
+          <p className="text-muted-foreground">Nenhuma comissão registrada em {year}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -143,9 +143,9 @@ export default function RelatorioComissoesPage() {
             const isExpanded = expanded === agent.agentName;
 
             return (
-              <div key={agent.agentName} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+              <div key={agent.agentName} className="bg-card border border-border rounded-xl overflow-hidden">
                 <div
-                  className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-700/30 transition-colors"
+                  className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-muted/40 transition-colors"
                   onClick={() => setExpanded(isExpanded ? null : agent.agentName)}
                 >
                   <div className="w-8 h-8 bg-blue-600/20 rounded-full flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0">
@@ -153,50 +153,50 @@ export default function RelatorioComissoesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <p className="text-white font-medium">{agent.agentName}</p>
-                      <span className="text-slate-500 text-xs">{agent.count} lançamento{agent.count !== 1 ? 's' : ''}</span>
+                      <p className="text-foreground font-medium">{agent.agentName}</p>
+                      <span className="text-muted-foreground text-xs">{agent.count} lançamento{agent.count !== 1 ? 's' : ''}</span>
                     </div>
-                    <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden w-full max-w-xs">
+                    <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden w-full max-w-xs">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-white font-bold">{fmt(agent.totalCommission)}</p>
-                    <p className="text-slate-500 text-xs">{pct.toFixed(1)}% do total</p>
+                    <p className="text-muted-foreground text-xs">{pct.toFixed(1)}% do total</p>
                   </div>
                   <div className="hidden md:flex gap-2 flex-shrink-0">
                     {agent.pendente > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400">{fmt(agent.pendente)}</span>}
                     {agent.paga > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">{fmt(agent.paga)}</span>}
                   </div>
-                  {isExpanded ? <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+                  {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
                 </div>
 
                 {isExpanded && (
-                  <div className="border-t border-slate-700">
+                  <div className="border-t border-border">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-slate-700 bg-slate-900/30">
-                          <th className="px-4 py-2 text-left text-slate-400 font-medium text-xs">Descrição</th>
-                          <th className="px-4 py-2 text-right text-slate-400 font-medium text-xs hidden md:table-cell">Venda</th>
-                          <th className="px-4 py-2 text-right text-slate-400 font-medium text-xs hidden md:table-cell">Taxa</th>
-                          <th className="px-4 py-2 text-right text-slate-400 font-medium text-xs">Comissão</th>
-                          <th className="px-4 py-2 text-center text-slate-400 font-medium text-xs">Status</th>
-                          <th className="px-4 py-2 text-right text-slate-400 font-medium text-xs hidden lg:table-cell">Período</th>
+                        <tr className="border-b border-border bg-muted/30">
+                          <th className="px-4 py-2 text-left text-muted-foreground font-medium text-xs">Descrição</th>
+                          <th className="px-4 py-2 text-right text-muted-foreground font-medium text-xs hidden md:table-cell">Venda</th>
+                          <th className="px-4 py-2 text-right text-muted-foreground font-medium text-xs hidden md:table-cell">Taxa</th>
+                          <th className="px-4 py-2 text-right text-muted-foreground font-medium text-xs">Comissão</th>
+                          <th className="px-4 py-2 text-center text-muted-foreground font-medium text-xs">Status</th>
+                          <th className="px-4 py-2 text-right text-muted-foreground font-medium text-xs hidden lg:table-cell">Período</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-700/50">
+                      <tbody className="divide-y divide-border/50">
                         {agent.commissions.map(c => (
-                          <tr key={c.id} className="hover:bg-slate-700/20">
-                            <td className="px-4 py-2 text-slate-300">{c.description ?? '—'}</td>
-                            <td className="px-4 py-2 text-right text-slate-400 hidden md:table-cell">{c.saleAmount > 0 ? fmt(c.saleAmount) : '—'}</td>
-                            <td className="px-4 py-2 text-right text-slate-400 hidden md:table-cell">{c.rate > 0 ? `${c.rate}%` : '—'}</td>
-                            <td className="px-4 py-2 text-right text-white font-medium">{fmt(c.amount)}</td>
+                          <tr key={c.id} className="hover:bg-muted/20">
+                            <td className="px-4 py-2 text-foreground">{c.description ?? '—'}</td>
+                            <td className="px-4 py-2 text-right text-muted-foreground hidden md:table-cell">{c.saleAmount > 0 ? fmt(c.saleAmount) : '—'}</td>
+                            <td className="px-4 py-2 text-right text-muted-foreground hidden md:table-cell">{c.rate > 0 ? `${c.rate}%` : '—'}</td>
+                            <td className="px-4 py-2 text-right text-foreground font-medium">{fmt(c.amount)}</td>
                             <td className="px-4 py-2 text-center">
                               <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_BADGE[c.status] ?? ''}`}>
                                 {c.status}
                               </span>
                             </td>
-                            <td className="px-4 py-2 text-right text-slate-500 text-xs hidden lg:table-cell">{c.period}</td>
+                            <td className="px-4 py-2 text-right text-muted-foreground text-xs hidden lg:table-cell">{c.period}</td>
                           </tr>
                         ))}
                       </tbody>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -113,14 +113,14 @@ export default function FiscalSettingsPage() {
     }
   };
 
-  const inputClass = 'w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
-  const labelClass = 'block text-xs text-slate-400 mb-1';
+  const inputClass = 'w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
+  const labelClass = 'block text-xs text-muted-foreground mb-1';
   const selectClass = `${inputClass} cursor-pointer`;
 
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <div className="text-slate-400">Carregando...</div>
+        <div className="text-muted-foreground">Carregando...</div>
       </div>
     );
   }
@@ -129,12 +129,12 @@ export default function FiscalSettingsPage() {
     <div className="p-6 space-y-6 max-w-2xl">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/pj/configuracoes" className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+        <Link href="/pj/configuracoes" className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-white">Configurações Fiscais</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Regime tributário, notas fiscais e SEFAZ</p>
+          <h1 className="text-2xl font-bold">Configurações Fiscais</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Regime tributário, notas fiscais e SEFAZ</p>
         </div>
       </div>
 
@@ -142,10 +142,10 @@ export default function FiscalSettingsPage() {
       <SefazStatusBadge />
 
       {/* Regime & Inscrições */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-xl p-6 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <Building2 className="w-4 h-4 text-blue-400" />
-          <h3 className="text-white font-medium">Dados Tributários</h3>
+          <h3 className="text-foreground font-medium">Dados Tributários</h3>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
@@ -186,10 +186,10 @@ export default function FiscalSettingsPage() {
       </div>
 
       {/* NF-e / NFC-e */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-xl p-6 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <Calculator className="w-4 h-4 text-green-400" />
-          <h3 className="text-white font-medium">Notas Fiscais & SEFAZ</h3>
+          <h3 className="text-foreground font-medium">Notas Fiscais & SEFAZ</h3>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -210,11 +210,11 @@ export default function FiscalSettingsPage() {
             <input value={form.nfceSerie} onChange={(e) => set('nfceSerie', e.target.value)}
               placeholder="65"
               className={inputClass} />
-            <p className="text-slate-500 text-xs mt-0.5">NFC-e sempre usa série 65</p>
+            <p className="text-muted-foreground text-xs mt-0.5">NFC-e sempre usa série 65</p>
           </div>
         </div>
-        <div className="border-t border-slate-700 pt-4">
-          <p className="text-xs text-slate-400 mb-3">CSC — Código de Segurança do Contribuinte (obrigatório para NFC-e em produção)</p>
+        <div className="border-t border-border pt-4">
+          <p className="text-xs text-muted-foreground mb-3">CSC — Código de Segurança do Contribuinte (obrigatório para NFC-e em produção)</p>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>CSC ID</label>
@@ -240,12 +240,12 @@ export default function FiscalSettingsPage() {
       </div>
 
       {/* Endereço do Emitente */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-xl p-6 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <ShieldCheck className="w-4 h-4 text-purple-400" />
           <div>
-            <h3 className="text-white font-medium">Endereço do Emitente</h3>
-            <p className="text-slate-400 text-xs mt-0.5">Endereço fiscal da empresa para emissão de NF-e / NFS-e</p>
+            <h3 className="text-foreground font-medium">Endereço do Emitente</h3>
+            <p className="text-muted-foreground text-xs mt-0.5">Endereço fiscal da empresa para emissão de NF-e / NFS-e</p>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-4">
@@ -289,12 +289,12 @@ export default function FiscalSettingsPage() {
       </div>
 
       {/* Certificado Digital A1 */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
+      <div className="bg-card border border-border rounded-xl p-6 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <Key className="w-4 h-4 text-amber-400" />
           <div>
-            <h3 className="text-white font-medium">Certificado Digital A1</h3>
-            <p className="text-slate-400 text-xs mt-0.5">Envie o .pfx para autorizar o CNPJ no Focus NFe e corrigir "CNPJ do emitente não autorizado"</p>
+            <h3 className="text-foreground font-medium">Certificado Digital A1</h3>
+            <p className="text-muted-foreground text-xs mt-0.5">Envie o .pfx para autorizar o CNPJ no Focus NFe e corrigir "CNPJ do emitente não autorizado"</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -305,7 +305,7 @@ export default function FiscalSettingsPage() {
               type="file"
               accept=".pfx,.p12"
               onChange={(e) => setCertFile(e.target.files?.[0] ?? null)}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-1.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-slate-700 file:text-slate-200 hover:file:bg-slate-600 cursor-pointer"
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-1.5 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-muted file:text-foreground hover:file:bg-slate-600 cursor-pointer"
             />
           </div>
           <div>
@@ -320,7 +320,7 @@ export default function FiscalSettingsPage() {
           </div>
         </div>
         {certFile && (
-          <p className="text-slate-400 text-xs">Arquivo selecionado: <span className="text-white">{certFile.name}</span> ({(certFile.size / 1024).toFixed(1)} KB)</p>
+          <p className="text-muted-foreground text-xs">Arquivo selecionado: <span className="text-foreground">{certFile.name}</span> ({(certFile.size / 1024).toFixed(1)} KB)</p>
         )}
         <div className="flex justify-end pt-2">
           <button onClick={handleUploadCertificado} disabled={certLoading || !certFile}

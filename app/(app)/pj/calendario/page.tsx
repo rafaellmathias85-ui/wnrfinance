@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -78,22 +78,22 @@ export default function CalendarioPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-slate-300" />
+          <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Calendário Financeiro</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Vencimentos de contas a pagar e a receber</p>
+            <h1 className="text-2xl font-bold">Calendário Financeiro</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Vencimentos de contas a pagar e a receber</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+          <button onClick={prevMonth} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-white font-medium text-sm w-36 text-center">
+          <span className="text-foreground font-medium text-sm w-36 text-center">
             {MONTHS_PT[month - 1]} {year}
           </span>
-          <button onClick={nextMonth} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+          <button onClick={nextMonth} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -101,39 +101,39 @@ export default function CalendarioPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
+        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
           <ArrowUpCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
           <div>
             <p className="text-green-400 font-bold">{fmt(totalReceivable)}</p>
-            <p className="text-slate-400 text-xs">A receber no mês</p>
+            <p className="text-muted-foreground text-xs">A receber no mês</p>
           </div>
         </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
+        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
           <ArrowDownCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
           <div>
             <p className="text-red-400 font-bold">{fmt(totalPayable)}</p>
-            <p className="text-slate-400 text-xs">A pagar no mês</p>
+            <p className="text-muted-foreground text-xs">A pagar no mês</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar grid */}
-        <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+        <div className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-7 border-b border-slate-700">
+          <div className="grid grid-cols-7 border-b border-border">
             {DAYS_PT.map(d => (
-              <div key={d} className="py-3 text-center text-xs font-medium text-slate-400">{d}</div>
+              <div key={d} className="py-3 text-center text-xs font-medium text-muted-foreground">{d}</div>
             ))}
           </div>
 
           {loading ? (
-            <div className="py-16 text-center text-slate-500 text-sm">Carregando...</div>
+            <div className="py-16 text-center text-muted-foreground text-sm">Carregando...</div>
           ) : (
             <div className="grid grid-cols-7">
               {/* Empty cells before first day */}
               {Array.from({ length: firstDay }).map((_, i) => (
-                <div key={`empty-${i}`} className="h-20 border-b border-r border-slate-700/50" />
+                <div key={`empty-${i}`} className="h-20 border-b border-r border-border/50" />
               ))}
 
               {/* Day cells */}
@@ -154,12 +154,12 @@ export default function CalendarioPage() {
                   <div
                     key={key}
                     onClick={() => setSelected(isSelected ? null : key)}
-                    className={`h-20 border-b border-r border-slate-700/50 p-1.5 cursor-pointer transition-colors hover:bg-slate-700/30
+                    className={`h-20 border-b border-r border-border/50 p-1.5 cursor-pointer transition-colors hover:bg-muted/40
                       ${isSelected ? 'bg-blue-900/30 border-blue-700' : ''}
                       ${(i + firstDay + 1) % 7 === 0 ? 'border-r-0' : ''}`}
                   >
                     <div className={`w-6 h-6 flex items-center justify-center text-xs font-medium rounded-full mb-1
-                      ${isToday ? 'bg-blue-600 text-white' : 'text-slate-300'}`}>
+                      ${isToday ? 'bg-blue-600 text-white' : 'text-foreground'}`}>
                       {d}
                     </div>
                     <div className="flex flex-col gap-0.5">
@@ -173,7 +173,7 @@ export default function CalendarioPage() {
                         <div className="h-1.5 rounded-full bg-orange-500 opacity-80" title="Pagável" />
                       )}
                       {dayEvents.length > 0 && (
-                        <span className="text-slate-500 text-[10px] leading-none">{dayEvents.length}</span>
+                        <span className="text-muted-foreground text-[10px] leading-none">{dayEvents.length}</span>
                       )}
                     </div>
                   </div>
@@ -183,7 +183,7 @@ export default function CalendarioPage() {
           )}
 
           {/* Legend */}
-          <div className="px-4 py-2 border-t border-slate-700 flex gap-4">
+          <div className="px-4 py-2 border-t border-border flex gap-4">
             {[
               { color: 'bg-green-500', label: 'A receber' },
               { color: 'bg-orange-500', label: 'A pagar' },
@@ -191,27 +191,27 @@ export default function CalendarioPage() {
             ].map(l => (
               <div key={l.label} className="flex items-center gap-1.5">
                 <div className={`w-2.5 h-2.5 rounded-full ${l.color}`} />
-                <span className="text-slate-400 text-xs">{l.label}</span>
+                <span className="text-muted-foreground text-xs">{l.label}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Event sidebar */}
-        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-700">
-            <p className="text-white font-medium text-sm">
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-foreground font-medium text-sm">
               {selected
                 ? new Date(selected + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
                 : 'Selecione um dia'}
             </p>
           </div>
           {selectedEvents.length === 0 ? (
-            <div className="px-4 py-8 text-center text-slate-500 text-sm">
+            <div className="px-4 py-8 text-center text-muted-foreground text-sm">
               {selected ? 'Nenhum vencimento neste dia' : 'Clique em um dia para ver os eventos'}
             </div>
           ) : (
-            <div className="divide-y divide-slate-700 overflow-y-auto max-h-[480px]">
+            <div className="divide-y divide-border overflow-y-auto max-h-[480px]">
               {selectedEvents.map(e => (
                 <div key={e.id} className="px-4 py-3">
                   <div className="flex items-start gap-2">
@@ -221,7 +221,7 @@ export default function CalendarioPage() {
                     }
                     <div className="min-w-0 flex-1">
                       <p className="text-white text-sm font-medium truncate">{e.title}</p>
-                      {e.category && <p className="text-slate-500 text-xs">{e.category}</p>}
+                      {e.category && <p className="text-muted-foreground text-xs">{e.category}</p>}
                       <p className={`text-sm font-bold mt-1 ${e.type === 'receivable' ? 'text-green-400' : 'text-red-400'}`}>
                         {fmt(e.amount)}
                       </p>

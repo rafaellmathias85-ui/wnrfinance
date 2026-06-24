@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useTheme } from 'next-themes';
 import { Palette } from 'lucide-react';
@@ -104,7 +104,7 @@ export default function ConfiguracoesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground dark:text-white">Configurações</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">Gerencie sua conta e preferências</p>
+        <p className="text-muted-foreground dark:text-muted-foreground mt-1">Gerencie sua conta e preferências</p>
       </div>
 
       {/* Profile */}
@@ -117,7 +117,7 @@ export default function ConfiguracoesPage() {
             </div>
             <div>
               <p className="font-medium text-foreground dark:text-white">{session?.user?.name || 'Usuário'}</p>
-              <p className="text-sm text-gray-500">{session?.user?.email || ''}</p>
+              <p className="text-sm text-muted-foreground">{session?.user?.email || ''}</p>
             </div>
           </div>
         </CardContent>
@@ -156,7 +156,7 @@ export default function ConfiguracoesPage() {
                 key={t.key}
                 onClick={() => setTheme(t.key)}
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all text-sm font-medium ${
-                  theme === t.key ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                  theme === t.key ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-border dark:text-muted-foreground'
                 }`}
               >
                 <t.icon className="w-4 h-4" /> {t.label}
@@ -172,12 +172,12 @@ export default function ConfiguracoesPage() {
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {plans.map(p => (
-              <div key={p.id} className={`p-4 rounded-xl border-2 transition-all ${subscription?.plan === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : p.recommended ? 'border-amber-400 bg-amber-50/50 dark:bg-amber-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
+              <div key={p.id} className={`p-4 rounded-xl border-2 transition-all ${subscription?.plan === p.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : p.recommended ? 'border-amber-400 bg-amber-50/50 dark:bg-amber-900/10' : 'border-gray-200 dark:border-border'}`}>
                 {p.recommended && <span className="text-xs font-bold text-amber-600 uppercase">Recomendado</span>}
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-1">{p.name}</h3>
                 <p className="text-2xl font-bold text-blue-600 mt-1">{p.price}</p>
                 <ul className="mt-3 space-y-1">
-                  {p.features.map(f => <li key={f} className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">✓ {f}</li>)}
+                  {p.features.map(f => <li key={f} className="text-sm text-gray-600 dark:text-muted-foreground flex items-center gap-1">✓ {f}</li>)}
                 </ul>
                 {subscription?.plan === p.id ? (
                   <p className="mt-3 text-xs font-medium text-blue-600">Plano atual</p>
@@ -243,7 +243,7 @@ export default function ConfiguracoesPage() {
           ) : !mfaSetupData ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Adicione uma camada extra de segurança à sua conta usando um aplicativo autenticador (Google Authenticator, Authy, etc).</p>
-              <Button onClick={handleMfaSetup} disabled={mfaLoading} className="bg-blue-500 hover:bg-blue-600 text-white">
+              <Button onClick={handleMfaSetup} disabled={mfaLoading} className="bg-blue-500 hover:bg-blue-600 text-foreground">
                 <Shield className="w-4 h-4 mr-2" /> {mfaLoading ? 'Configurando...' : 'Ativar MFA'}
               </Button>
             </div>
@@ -264,7 +264,7 @@ export default function ConfiguracoesPage() {
                 <p className="text-sm text-muted-foreground"><strong>2.</strong> Digite o código de 6 dígitos do app:</p>
                 <div className="flex gap-2">
                   <Input value={mfaCode} onChange={e => setMfaCode(e.target.value)} placeholder="000000" maxLength={6} className="w-40 text-center text-lg tracking-widest" />
-                  <Button onClick={handleMfaVerify} disabled={mfaLoading || mfaCode.length < 6} className="bg-blue-500 hover:bg-blue-600 text-white">
+                  <Button onClick={handleMfaVerify} disabled={mfaLoading || mfaCode.length < 6} className="bg-blue-500 hover:bg-blue-600 text-foreground">
                     {mfaLoading ? 'Verificando...' : 'Verificar'}
                   </Button>
                 </div>
@@ -274,7 +274,7 @@ export default function ConfiguracoesPage() {
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-300">⚠️ Códigos de backup — salve em local seguro!</p>
                   <div className="grid grid-cols-2 gap-1">
                     {mfaSetupData.backupCodes.map((c, i) => (
-                      <code key={i} className="text-sm font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded border">{c}</code>
+                      <code key={i} className="text-sm font-mono bg-white dark:bg-card px-2 py-1 rounded border">{c}</code>
                     ))}
                   </div>
                   <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(mfaSetupData!.backupCodes.join('\n')); }}>
@@ -297,7 +297,7 @@ export default function ConfiguracoesPage() {
             <Input value={disableCode} onChange={e => setDisableCode(e.target.value)} placeholder="Código TOTP ou backup" className="text-center" />
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setShowDisableDialog(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={handleMfaDisable} disabled={!disableCode.trim() || mfaLoading} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+              <Button onClick={handleMfaDisable} disabled={!disableCode.trim() || mfaLoading} className="flex-1 bg-red-600 hover:bg-red-700 text-foreground">
                 {mfaLoading ? 'Desativando...' : 'Desativar'}
               </Button>
             </div>
@@ -370,7 +370,7 @@ export default function ConfiguracoesPage() {
       <Card className="shadow-sm border-red-200 dark:border-red-800">
         <CardHeader><CardTitle className="text-lg text-red-600 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> Zona de Perigo</CardTitle></CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Ao excluir sua conta, todos os seus dados serão permanentemente removidos. Esta ação é irreversível.</p>
+          <p className="text-sm text-gray-600 dark:text-muted-foreground mb-3">Ao excluir sua conta, todos os seus dados serão permanentemente removidos. Esta ação é irreversível.</p>
           <Button variant="outline" onClick={() => setShowDelete(true)} className="border-red-300 text-red-600 hover:bg-red-50">
             <Trash2 className="w-4 h-4 mr-2" /> Excluir Minha Conta
           </Button>
@@ -390,7 +390,7 @@ export default function ConfiguracoesPage() {
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setShowDelete(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={handleDeleteAccount} disabled={deleteConfirm !== 'EXCLUIR' || deleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+              <Button onClick={handleDeleteAccount} disabled={deleteConfirm !== 'EXCLUIR' || deleting} className="flex-1 bg-red-600 hover:bg-red-700 text-foreground">
                 {deleting ? 'Excluindo...' : 'Confirmar Exclusão'}
               </Button>
             </div>

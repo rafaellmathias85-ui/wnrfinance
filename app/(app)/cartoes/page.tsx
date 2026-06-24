@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { CARD_COLORS, EXPENSE_CATEGORIES } from '@/lib/format';
 import { useCallback, useEffect, useState } from 'react';
@@ -305,15 +305,15 @@ export default function CartoesPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="shadow-sm"><CardContent className="p-5">
-          <p className="text-sm text-gray-500">Total Faturas</p>
+          <p className="text-sm text-muted-foreground">Total Faturas</p>
           <p className="text-2xl font-bold text-red-600">{formatCurrency(totalInvoice)}</p>
         </CardContent></Card>
         <Card className="shadow-sm"><CardContent className="p-5">
-          <p className="text-sm text-gray-500">Limite Total</p>
+          <p className="text-sm text-muted-foreground">Limite Total</p>
           <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalLimit)}</p>
         </CardContent></Card>
         <Card className="shadow-sm"><CardContent className="p-5">
-          <p className="text-sm text-gray-500">Disponível</p>
+          <p className="text-sm text-muted-foreground">Disponível</p>
           <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalLimit - totalInvoice)}</p>
         </CardContent></Card>
       </div>
@@ -321,8 +321,8 @@ export default function CartoesPage() {
       {loading ? (
         <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" /></div>
       ) : cards.length === 0 ? (
-        <Card className="shadow-sm"><CardContent className="py-16 text-center text-gray-500">
-          <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+        <Card className="shadow-sm"><CardContent className="py-16 text-center text-muted-foreground">
+          <CreditCard className="w-12 h-12 mx-auto mb-4 text-foreground" />
           <p>Nenhum cartão cadastrado</p>
         </CardContent></Card>
       ) : (
@@ -348,7 +348,7 @@ export default function CartoesPage() {
                       <span className="font-bold text-red-600 dark:text-red-400">{formatCurrency(card.currentInvoice)}</span>
                     </div>
                     <div>
-                      <div className="flex justify-between text-xs text-gray-500 mb-1"><span>Limite utilizado</span><span>{usedPct.toFixed(0)}%</span></div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Limite utilizado</span><span>{usedPct.toFixed(0)}%</span></div>
                       <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div className={`h-2.5 rounded-full ${usedPct >= 80 ? 'bg-red-500' : usedPct >= 50 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
                       </div>
@@ -514,7 +514,7 @@ export default function CartoesPage() {
               Importe a fatura do seu cartão a partir de um arquivo <strong>PDF</strong>, CSV ou Excel.
               Para PDF, a IA irá extrair automaticamente as transações.
             </p>
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+            <div className="border-2 border-dashed border-gray-300 dark:border-border rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
               {importLoading ? (
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -523,7 +523,7 @@ export default function CartoesPage() {
                 </div>
               ) : (
                 <>
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                  <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                   <label className="cursor-pointer">
                     <span className="text-sm text-blue-600 hover:text-blue-700 font-medium">Clique para selecionar arquivo</span>
                     <input
@@ -533,7 +533,7 @@ export default function CartoesPage() {
                       onChange={handleImportFatura}
                     />
                   </label>
-                  <p className="text-xs text-gray-400 mt-1">PDF, CSV, XLSX ou XLS</p>
+                  <p className="text-xs text-muted-foreground mt-1">PDF, CSV, XLSX ou XLS</p>
                 </>
               )}
             </div>

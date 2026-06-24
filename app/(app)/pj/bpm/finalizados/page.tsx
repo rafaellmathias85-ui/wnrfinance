@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useEffect, useState } from 'react';
 import { CheckCircle, Search } from 'lucide-react';
@@ -45,7 +45,7 @@ export default function Page() {
                   <h4 className="font-semibold">{inst.title || 'Sem título'}</h4>
                   <p className="text-sm text-muted-foreground mt-1">{inst.requester || '—'}</p>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${inst.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${inst.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-muted-foreground dark:bg-card dark:text-muted-foreground'}`}>
                   {inst.status === 'completed' ? '✅ Concluído' : '❌ Cancelado'}
                 </span>
               </div>

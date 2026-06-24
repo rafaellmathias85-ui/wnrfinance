@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -101,15 +101,15 @@ export default function PoupancaPage() {
 
   const totalBalance = buckets.reduce((s, b) => s + Number(b.balance), 0);
 
-  const inputCls = 'w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
+  const inputCls = 'w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Poupança</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Buckets de poupança com aportes, rendimentos e resgates</p>
+          <h1 className="text-2xl font-bold">Poupança</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Buckets de poupança com aportes, rendimentos e resgates</p>
         </div>
         <button onClick={() => setShowNewBucket(true)}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -118,36 +118,36 @@ export default function PoupancaPage() {
       </div>
 
       {/* Total */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 flex items-center gap-4">
+      <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-4">
         <div className="p-3 bg-blue-600/20 rounded-xl">
           <PiggyBank className="w-6 h-6 text-blue-400" />
         </div>
         <div>
-          <p className="text-slate-400 text-sm">Total em Poupança</p>
-          <p className="text-2xl font-bold text-white">{fmt(totalBalance)}</p>
+          <p className="text-muted-foreground text-sm">Total em Poupança</p>
+          <p className="text-2xl font-bold">{fmt(totalBalance)}</p>
         </div>
         <div className="ml-auto text-right">
-          <p className="text-slate-400 text-sm">{buckets.length} bucket{buckets.length !== 1 ? 's' : ''} ativos</p>
+          <p className="text-muted-foreground text-sm">{buckets.length} bucket{buckets.length !== 1 ? 's' : ''} ativos</p>
         </div>
       </div>
 
       {/* Formulário novo bucket */}
       {showNewBucket && (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-white font-medium">Novo Bucket</h3>
-            <button onClick={() => setShowNewBucket(false)} className="text-slate-400 hover:text-white">
+            <h3 className="text-foreground font-medium">Novo Bucket</h3>
+            <button onClick={() => setShowNewBucket(false)} className="text-muted-foreground hover:text-foreground">
               <X className="w-4 h-4" />
             </button>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Nome</label>
+              <label className="block text-xs text-muted-foreground mb-1">Nome</label>
               <input value={bucketForm.name} onChange={e => setBucketForm(p => ({ ...p, name: e.target.value }))}
                 placeholder="Ex: Longo Prazo" className={inputCls} />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Cor</label>
+              <label className="block text-xs text-muted-foreground mb-1">Cor</label>
               <div className="flex gap-2 mt-1.5">
                 {COLORS.map(c => (
                   <button key={c} onClick={() => setBucketForm(p => ({ ...p, color: c }))}
@@ -157,7 +157,7 @@ export default function PoupancaPage() {
               </div>
             </div>
             <div className="col-span-2">
-              <label className="block text-xs text-slate-400 mb-1">Descrição (opcional)</label>
+              <label className="block text-xs text-muted-foreground mb-1">Descrição (opcional)</label>
               <input value={bucketForm.description} onChange={e => setBucketForm(p => ({ ...p, description: e.target.value }))}
                 placeholder="Finalidade do bucket" className={inputCls} />
             </div>
@@ -173,9 +173,9 @@ export default function PoupancaPage() {
 
       {/* Buckets */}
       {loading ? (
-        <div className="p-8 text-center text-slate-400">Carregando...</div>
+        <div className="p-8 text-center text-muted-foreground">Carregando...</div>
       ) : buckets.length === 0 ? (
-        <div className="p-8 text-center text-slate-400 bg-slate-800 border border-slate-700 rounded-xl">
+        <div className="p-8 text-center text-muted-foreground bg-card border border-border rounded-xl">
           Nenhum bucket criado ainda.{' '}
           <button onClick={() => setShowNewBucket(true)} className="text-blue-400 hover:underline">Criar primeiro bucket</button>
         </div>
@@ -186,20 +186,20 @@ export default function PoupancaPage() {
             const entries = bucket.entries ?? [];
 
             return (
-              <div key={bucket.id} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+              <div key={bucket.id} className="bg-card border border-border rounded-xl overflow-hidden">
                 {/* Bucket header */}
                 <div className="flex items-center justify-between px-5 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-10 rounded-full" style={{ backgroundColor: bucket.color }} />
                     <div>
-                      <p className="text-white font-semibold">{bucket.name}</p>
-                      {bucket.description && <p className="text-slate-400 text-xs">{bucket.description}</p>}
+                      <p className="text-foreground font-semibold">{bucket.name}</p>
+                      {bucket.description && <p className="text-muted-foreground text-xs">{bucket.description}</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className="text-xs text-slate-400">Saldo</p>
-                      <p className="text-lg font-bold text-white">{fmt(Number(bucket.balance))}</p>
+                      <p className="text-xs text-muted-foreground">Saldo</p>
+                      <p className="text-lg font-bold">{fmt(Number(bucket.balance))}</p>
                     </div>
                     <div className="flex gap-1">
                       <button onClick={() => { setActiveEntry(isAddingEntry ? null : bucket.id); setEntryForm(p => ({ ...p, amount: '', notes: '' })); }}
@@ -207,7 +207,7 @@ export default function PoupancaPage() {
                         <Plus className="w-3.5 h-3.5" /> Lançar
                       </button>
                       <button onClick={() => handleDeleteBucket(bucket.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-400 rounded">
+                        className="p-1.5 text-muted-foreground hover:text-red-400 rounded">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -216,26 +216,26 @@ export default function PoupancaPage() {
 
                 {/* Formulário de lançamento */}
                 {isAddingEntry && (
-                  <div className="border-t border-slate-700 px-5 py-4 bg-slate-700/20">
+                  <div className="border-t border-border px-5 py-4 bg-muted/20">
                     <div className="grid grid-cols-4 gap-3">
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Data</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Data</label>
                         <input type="date" value={entryForm.date} onChange={e => setEntryForm(p => ({ ...p, date: e.target.value }))}
                           className={inputCls} />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Tipo</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Tipo</label>
                         <select value={entryForm.type} onChange={e => setEntryForm(p => ({ ...p, type: e.target.value }))} className={inputCls}>
                           {ENTRY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Valor (R$)</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Valor (R$)</label>
                         <input type="number" min="0" step="0.01" value={entryForm.amount}
                           onChange={e => setEntryForm(p => ({ ...p, amount: e.target.value }))} placeholder="0,00" className={inputCls} />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-400 mb-1">Obs</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Obs</label>
                         <input value={entryForm.notes} onChange={e => setEntryForm(p => ({ ...p, notes: e.target.value }))}
                           placeholder="Opcional" className={inputCls} />
                       </div>
@@ -245,21 +245,21 @@ export default function PoupancaPage() {
                         className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-60">
                         {savingEntry ? 'Salvando...' : 'Registrar'}
                       </button>
-                      <button onClick={() => setActiveEntry(null)} className="text-slate-400 hover:text-white px-3 py-1.5 text-sm">Cancelar</button>
+                      <button onClick={() => setActiveEntry(null)} className="text-muted-foreground hover:text-foreground px-3 py-1.5 text-sm">Cancelar</button>
                     </div>
                   </div>
                 )}
 
                 {/* Extrato */}
                 {entries.length > 0 && (
-                  <div className="border-t border-slate-700">
+                  <div className="border-t border-border">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-slate-700/60">
-                          <th className="text-left px-5 py-2 text-slate-500 text-xs font-medium">Data</th>
-                          <th className="text-left px-4 py-2 text-slate-500 text-xs font-medium">Tipo</th>
-                          <th className="text-left px-4 py-2 text-slate-500 text-xs font-medium">Obs</th>
-                          <th className="text-right px-4 py-2 text-slate-500 text-xs font-medium">Valor</th>
+                        <tr className="border-b border-border/60">
+                          <th className="text-left px-5 py-2 text-muted-foreground text-xs font-medium">Data</th>
+                          <th className="text-left px-4 py-2 text-muted-foreground text-xs font-medium">Tipo</th>
+                          <th className="text-left px-4 py-2 text-muted-foreground text-xs font-medium">Obs</th>
+                          <th className="text-right px-4 py-2 text-muted-foreground text-xs font-medium">Valor</th>
                           <th className="px-4 py-2"></th>
                         </tr>
                       </thead>
@@ -267,12 +267,12 @@ export default function PoupancaPage() {
                         {entries.map((e) => {
                           const entryType = ENTRY_TYPES.find(t => t.value === e.type);
                           const Icon = entryType?.icon ?? TrendingUp;
-                          const color = entryType?.color ?? 'text-slate-400';
+                          const color = entryType?.color ?? 'text-muted-foreground';
                           const isResgate = e.type === 'resgate';
 
                           return (
-                            <tr key={e.id} className="border-b border-slate-700/30 hover:bg-slate-700/20">
-                              <td className="px-5 py-2.5 text-slate-300">
+                            <tr key={e.id} className="border-b border-border/30 hover:bg-muted/20">
+                              <td className="px-5 py-2.5 text-foreground">
                                 {new Date(e.date).toLocaleDateString('pt-BR')}
                               </td>
                               <td className="px-4 py-2.5">
@@ -281,13 +281,13 @@ export default function PoupancaPage() {
                                   <span className="text-xs capitalize">{e.type}</span>
                                 </div>
                               </td>
-                              <td className="px-4 py-2.5 text-slate-400 text-xs max-w-[180px] truncate">{e.notes ?? '—'}</td>
+                              <td className="px-4 py-2.5 text-muted-foreground text-xs max-w-[180px] truncate">{e.notes ?? '—'}</td>
                               <td className={`px-4 py-2.5 text-right font-medium ${isResgate ? 'text-red-400' : color}`}>
                                 {isResgate ? '−' : '+'}{fmt(Math.abs(Number(e.amount)))}
                               </td>
                               <td className="px-4 py-2.5">
                                 <button onClick={() => handleDeleteEntry(bucket.id, e.id)}
-                                  className="p-1 text-slate-400 hover:text-red-400 rounded">
+                                  className="p-1 text-muted-foreground hover:text-red-400 rounded">
                                   <Trash2 className="w-3 h-3" />
                                 </button>
                               </td>

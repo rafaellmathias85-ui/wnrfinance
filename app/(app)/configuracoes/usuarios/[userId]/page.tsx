@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState } from 'react';
@@ -168,7 +168,7 @@ export default function UsuarioDetalhePage() {
             <p className="text-muted-foreground">{user.email}</p>
           </div>
         </div>
-        <Button onClick={save} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white">
+        <Button onClick={save} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-foreground">
           {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
           Salvar
         </Button>

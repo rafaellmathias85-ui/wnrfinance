@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -69,8 +69,8 @@ export default function AlertasPage() {
       {loading ? (
         <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" /></div>
       ) : alerts.length === 0 ? (
-        <Card className="shadow-sm"><CardContent className="py-16 text-center text-gray-500">
-          <Bell className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+        <Card className="shadow-sm"><CardContent className="py-16 text-center text-muted-foreground">
+          <Bell className="w-12 h-12 mx-auto mb-4 text-foreground" />
           <p>Nenhum alerta no momento</p>
           <p className="text-sm mt-1">Você será notificado sobre eventos importantes</p>
         </CardContent></Card>
@@ -83,9 +83,9 @@ export default function AlertasPage() {
                 <div className="flex items-start gap-3">
                   {getIcon(alert.severity)}
                   <div className="flex-1">
-                    <p className={`font-medium text-sm ${alert.isRead ? 'text-gray-500' : 'text-gray-900'}`}>{alert.title}</p>
-                    <p className={`text-sm mt-0.5 ${alert.isRead ? 'text-gray-400' : 'text-gray-600'}`}>{alert.message}</p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className={`font-medium text-sm ${alert.isRead ? 'text-muted-foreground' : 'text-gray-900'}`}>{alert.title}</p>
+                    <p className={`text-sm mt-0.5 ${alert.isRead ? 'text-muted-foreground' : 'text-gray-600'}`}>{alert.message}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
                       {new Date(alert.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>

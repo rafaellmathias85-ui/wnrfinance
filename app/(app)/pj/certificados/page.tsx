@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { FileKey, KeyRound } from 'lucide-react';
 import { usePJ } from '@/lib/pj-context';
@@ -24,7 +24,7 @@ interface Certificate {
 }
 
 function certStatus(expiresAt: string | null) {
-  if (!expiresAt) return { label: 'Sem validade', color: 'text-slate-500', bg: 'bg-slate-100 dark:bg-slate-800' };
+  if (!expiresAt) return { label: 'Sem validade', color: 'text-muted-foreground', bg: 'bg-slate-100 dark:bg-card' };
   const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000);
   if (days < 0) return { label: 'Expirado', color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20', days };
   if (days <= 30) return { label: `Expira em ${days}d`, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20', days };

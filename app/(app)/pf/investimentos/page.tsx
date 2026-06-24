@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -116,8 +116,8 @@ export default function PfInvestimentosPage() {
     else toast.error('Erro ao arquivar');
   };
 
-  const inputCls = 'w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
-  const labelCls = 'block text-xs text-slate-400 mb-1';
+  const inputCls = 'w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
+  const labelCls = 'block text-xs text-muted-foreground mb-1';
 
   const summary = data?.summary;
 
@@ -126,8 +126,8 @@ export default function PfInvestimentosPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Investimentos PF</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Curto, médio e longo prazo — totalmente separado do PJ</p>
+          <h1 className="text-2xl font-bold">Investimentos PF</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Curto, médio e longo prazo — totalmente separado do PJ</p>
         </div>
         <button onClick={() => { setForm(EMPTY_FORM); setEditing(null); setShowForm(true); }}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -138,16 +138,16 @@ export default function PfInvestimentosPage() {
       {/* Resumo total */}
       {summary && (
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <p className="text-xs text-slate-400 mb-1">Total Aplicado</p>
-            <p className="text-xl font-bold text-white">{fmt(summary.totalApplied)}</p>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <p className="text-xs text-muted-foreground mb-1">Total Aplicado</p>
+            <p className="text-xl font-bold">{fmt(summary.totalApplied)}</p>
           </div>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <p className="text-xs text-slate-400 mb-1">Valor Atual</p>
-            <p className="text-xl font-bold text-white">{fmt(summary.totalCurrent)}</p>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <p className="text-xs text-muted-foreground mb-1">Valor Atual</p>
+            <p className="text-xl font-bold">{fmt(summary.totalCurrent)}</p>
           </div>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-            <p className="text-xs text-slate-400 mb-1">Rentabilidade</p>
+          <div className="bg-card border border-border rounded-xl p-4">
+            <p className="text-xs text-muted-foreground mb-1">Rentabilidade</p>
             <div className="flex items-center gap-2">
               {summary.totalReturn >= 0
                 ? <TrendingUp className="w-4 h-4 text-green-400" />
@@ -162,11 +162,11 @@ export default function PfInvestimentosPage() {
 
       {/* Formulário */}
       {showForm && (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
+        <div className="bg-card border border-border rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-medium">{editing ? 'Editar Investimento' : 'Novo Investimento'}</h3>
+            <h3 className="text-foreground font-medium">{editing ? 'Editar Investimento' : 'Novo Investimento'}</h3>
             <button onClick={() => { setShowForm(false); setEditing(null); setForm(EMPTY_FORM); }}>
-              <X className="w-4 h-4 text-slate-400 hover:text-white" />
+              <X className="w-4 h-4 text-muted-foreground hover:text-foreground" />
             </button>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -241,14 +241,14 @@ export default function PfInvestimentosPage() {
               {saving ? 'Salvando...' : (editing ? 'Atualizar' : 'Cadastrar')}
             </button>
             <button onClick={() => { setShowForm(false); setEditing(null); setForm(EMPTY_FORM); }}
-              className="text-slate-400 hover:text-white px-4 py-2 text-sm">Cancelar</button>
+              className="text-muted-foreground hover:text-foreground px-4 py-2 text-sm">Cancelar</button>
           </div>
         </div>
       )}
 
       {/* Horizonte cards */}
       {loading ? (
-        <div className="p-8 text-center text-slate-400">Carregando...</div>
+        <div className="p-8 text-center text-muted-foreground">Carregando...</div>
       ) : (
         <div className="space-y-4">
           {HORIZONS.map(({ key, label, sublabel, icon: Icon, color, bg }) => {
@@ -258,35 +258,35 @@ export default function PfInvestimentosPage() {
             const ret = applied > 0 ? ((total - applied) / applied) * 100 : 0;
 
             return (
-              <div key={key} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-                <div className={`flex items-center justify-between px-5 py-4 border-b border-slate-700/60`}>
+              <div key={key} className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className={`flex items-center justify-between px-5 py-4 border-b border-border/60`}>
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg border ${bg}`}>
                       <Icon className={`w-4 h-4 ${color}`} />
                     </div>
                     <div>
                       <p className={`font-semibold ${color}`}>{label}</p>
-                      <p className="text-xs text-slate-500">{sublabel} · {items.length} ativo{items.length !== 1 ? 's' : ''}</p>
+                      <p className="text-xs text-muted-foreground">{sublabel} · {items.length} ativo{items.length !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
                   <div className="flex gap-6 text-sm">
                     <div className="text-right">
-                      <p className="text-xs text-slate-500">Aplicado</p>
-                      <p className="text-white font-medium">{fmt(applied)}</p>
+                      <p className="text-xs text-muted-foreground">Aplicado</p>
+                      <p className="text-foreground font-medium">{fmt(applied)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-slate-500">Atual</p>
+                      <p className="text-xs text-muted-foreground">Atual</p>
                       <p className={`font-bold ${color}`}>{fmt(total)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-slate-500">Retorno</p>
+                      <p className="text-xs text-muted-foreground">Retorno</p>
                       <p className={`font-medium text-xs ${ret >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtPct(ret)}</p>
                     </div>
                   </div>
                 </div>
 
                 {items.length === 0 ? (
-                  <div className="px-5 py-4 text-slate-500 text-sm text-center">
+                  <div className="px-5 py-4 text-muted-foreground text-sm text-center">
                     Nenhum investimento de {label.toLowerCase()}.{' '}
                     <button onClick={() => { setForm({ ...EMPTY_FORM, horizon: key }); setEditing(null); setShowForm(true); }}
                       className="text-blue-400 hover:underline">Adicionar</button>
@@ -294,14 +294,14 @@ export default function PfInvestimentosPage() {
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-700/40">
-                        <th className="text-left px-5 py-2.5 text-slate-500 text-xs font-medium">Nome</th>
-                        <th className="text-left px-4 py-2.5 text-slate-500 text-xs font-medium">Tipo</th>
-                        <th className="text-left px-4 py-2.5 text-slate-500 text-xs font-medium">Taxa</th>
-                        <th className="text-left px-4 py-2.5 text-slate-500 text-xs font-medium">Liquidez</th>
-                        <th className="text-right px-4 py-2.5 text-slate-500 text-xs font-medium">Aplicado</th>
-                        <th className="text-right px-4 py-2.5 text-slate-500 text-xs font-medium">Atual</th>
-                        <th className="text-right px-4 py-2.5 text-slate-500 text-xs font-medium">Retorno</th>
+                      <tr className="border-b border-border/40">
+                        <th className="text-left px-5 py-2.5 text-muted-foreground text-xs font-medium">Nome</th>
+                        <th className="text-left px-4 py-2.5 text-muted-foreground text-xs font-medium">Tipo</th>
+                        <th className="text-left px-4 py-2.5 text-muted-foreground text-xs font-medium">Taxa</th>
+                        <th className="text-left px-4 py-2.5 text-muted-foreground text-xs font-medium">Liquidez</th>
+                        <th className="text-right px-4 py-2.5 text-muted-foreground text-xs font-medium">Aplicado</th>
+                        <th className="text-right px-4 py-2.5 text-muted-foreground text-xs font-medium">Atual</th>
+                        <th className="text-right px-4 py-2.5 text-muted-foreground text-xs font-medium">Retorno</th>
                         <th className="px-4 py-2.5"></th>
                       </tr>
                     </thead>
@@ -312,27 +312,27 @@ export default function PfInvestimentosPage() {
                         const invRet = amt > 0 ? ((cur - amt) / amt) * 100 : 0;
                         const liq = LIQUIDITY.find(l => l.value === inv.liquidity)?.label ?? inv.liquidity;
                         return (
-                          <tr key={inv.id} className="border-b border-slate-700/30 hover:bg-slate-700/20">
+                          <tr key={inv.id} className="border-b border-border/30 hover:bg-muted/20">
                             <td className="px-5 py-3">
-                              <p className="text-white font-medium">{inv.name}</p>
-                              <p className="text-xs text-slate-400">{inv.institution}</p>
+                              <p className="text-foreground font-medium">{inv.name}</p>
+                              <p className="text-xs text-muted-foreground">{inv.institution}</p>
                             </td>
-                            <td className="px-4 py-3 text-slate-300">{inv.type}</td>
-                            <td className="px-4 py-3 text-slate-300 text-xs">
+                            <td className="px-4 py-3 text-foreground">{inv.type}</td>
+                            <td className="px-4 py-3 text-foreground text-xs">
                               {inv.rate ? `${Number(inv.rate).toFixed(2)}% ${inv.rateIndex ?? ''}` : '—'}
                             </td>
-                            <td className="px-4 py-3 text-slate-400 text-xs">{liq}</td>
-                            <td className="px-4 py-3 text-right text-slate-300">{fmt(amt)}</td>
+                            <td className="px-4 py-3 text-muted-foreground text-xs">{liq}</td>
+                            <td className="px-4 py-3 text-right text-foreground">{fmt(amt)}</td>
                             <td className={`px-4 py-3 text-right font-medium ${color}`}>{fmt(cur)}</td>
                             <td className={`px-4 py-3 text-right text-xs font-medium ${invRet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {fmtPct(invRet)}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex gap-1 justify-end">
-                                <button onClick={() => handleEdit(inv)} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-600 rounded">
+                                <button onClick={() => handleEdit(inv)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded">
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
-                                <button onClick={() => handleDelete(inv.id)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-600 rounded">
+                                <button onClick={() => handleDelete(inv.id)} className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-muted rounded">
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>

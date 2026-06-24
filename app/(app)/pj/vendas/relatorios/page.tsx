@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useEffect, useState } from 'react';
 import { DollarSign, FileBarChart, ShoppingCart, TrendingUp } from 'lucide-react';
@@ -61,7 +61,7 @@ export default function Page() {
                         <p className="font-medium">{s.name}</p>
                         <p className="text-xs text-muted-foreground">Comissão: {s.commission || 0}%</p>
                       </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${s.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`px-2 py-1 text-xs rounded-full ${s.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-muted-foreground'}`}>
                         {s.status === 'active' ? 'Ativo' : 'Inativo'}
                       </span>
                     </div>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { usePJ } from '@/lib/pj-context';
 import { useCallback, useEffect, useState } from 'react';
@@ -16,7 +16,7 @@ const ACTIVITY_TYPE: Record<string, { label: string; icon: any; color: string }>
   email: { label: 'Email', icon: Mail, color: 'text-green-500' },
   reuniao: { label: 'Reunião', icon: Users, color: 'text-purple-500' },
   tarefa: { label: 'Tarefa', icon: CheckCircle2, color: 'text-amber-500' },
-  nota: { label: 'Nota', icon: Calendar, color: 'text-slate-400' },
+  nota: { label: 'Nota', icon: Calendar, color: 'text-muted-foreground' },
 };
 
 export default function CRMDashboard() {

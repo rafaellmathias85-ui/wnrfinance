@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -945,21 +945,21 @@ export default function MovimentacoesPage() {
                         <button
                           title={m.status === 'pago' || m.status === 'recebido' ? 'Quitado' : 'Quitar'}
                           onClick={() => handleRowAction(m.id, 'quitar')}
-                          className={`p-1.5 rounded hover:bg-emerald-600 ${m.status === 'pago' || m.status === 'recebido' ? 'text-green-500' : 'text-muted-foreground'} hover:text-white`}
+                          className={`p-1.5 rounded hover:bg-emerald-600 ${m.status === 'pago' || m.status === 'recebido' ? 'text-green-500' : 'text-muted-foreground'} hover:text-foreground`}
                         >
                           <HandCoins className="w-4 h-4" />
                         </button>
                         <button
                           title={m.isConciliado ? 'Desconciliar' : 'Conciliar'}
                           onClick={() => handleRowAction(m.id, m.isConciliado ? 'desconciliar' : 'conciliar')}
-                          className={`p-1.5 rounded hover:bg-blue-600 ${m.isConciliado ? 'text-blue-400' : 'text-muted-foreground'} hover:text-white`}
+                          className={`p-1.5 rounded hover:bg-blue-600 ${m.isConciliado ? 'text-blue-400' : 'text-muted-foreground'} hover:text-foreground`}
                         >
                           <GitMerge className="w-4 h-4" />
                         </button>
                         <button
                           title="Aprovar"
                           onClick={() => handleRowAction(m.id, 'aprovar')}
-                          className="p-1.5 rounded hover:bg-green-600 text-muted-foreground hover:text-white"
+                          className="p-1.5 rounded hover:bg-green-600 text-muted-foreground hover:text-foreground"
                         >
                           <ThumbsUp className="w-4 h-4" />
                         </button>

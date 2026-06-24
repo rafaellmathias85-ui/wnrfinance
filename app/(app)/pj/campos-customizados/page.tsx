@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -33,7 +33,7 @@ const FIELD_TYPES = [
 ];
 
 const TYPE_BADGE: Record<string, string> = {
-  text: 'bg-slate-700 text-slate-300',
+  text: 'bg-muted text-foreground',
   number: 'bg-blue-500/20 text-blue-400',
   date: 'bg-purple-500/20 text-purple-400',
   boolean: 'bg-green-500/20 text-green-400',
@@ -128,12 +128,12 @@ export default function CamposCustomizadosPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
-            <Layers className="w-5 h-5 text-slate-300" />
+          <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+            <Layers className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Campos Customizados</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Adicione campos extras aos cadastros da empresa</p>
+            <h1 className="text-2xl font-bold">Campos Customizados</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Adicione campos extras aos cadastros da empresa</p>
           </div>
         </div>
         <button
@@ -145,22 +145,22 @@ export default function CamposCustomizadosPage() {
       </div>
 
       {loading ? (
-        <div className="text-slate-500 text-sm">Carregando...</div>
+        <div className="text-muted-foreground text-sm">Carregando...</div>
       ) : (
         <div className="space-y-6">
           {grouped.map(group => (
-            <div key={group.value} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
-                <h3 className="text-white font-medium text-sm">{group.label}</h3>
-                <span className="text-slate-500 text-xs">{group.items.length} campo{group.items.length !== 1 ? 's' : ''}</span>
+            <div key={group.value} className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                <h3 className="text-foreground font-medium text-sm">{group.label}</h3>
+                <span className="text-muted-foreground text-xs">{group.items.length} campo{group.items.length !== 1 ? 's' : ''}</span>
               </div>
 
               {group.items.length === 0 ? (
-                <div className="px-4 py-6 text-center text-slate-500 text-sm">
+                <div className="px-4 py-6 text-center text-muted-foreground text-sm">
                   Nenhum campo customizado para {group.label.toLowerCase()}
                 </div>
               ) : (
-                <div className="divide-y divide-slate-700">
+                <div className="divide-y divide-border">
                   {group.items.map(field => (
                     <div key={field.id} className={`flex items-center gap-3 px-4 py-3 ${!field.isActive ? 'opacity-50' : ''}`}>
                       <GripVertical className="w-4 h-4 text-slate-600 flex-shrink-0" />
@@ -172,13 +172,13 @@ export default function CamposCustomizadosPage() {
                               value={editName}
                               onChange={e => setEditName(e.target.value)}
                               onKeyDown={e => { if (e.key === 'Enter') saveEditName(field.id); if (e.key === 'Escape') setEditingId(null); }}
-                              className="bg-slate-900 border border-slate-600 text-white rounded px-2 py-1 text-sm flex-1"
+                              className="bg-muted border border-border text-foreground rounded px-2 py-1 text-sm flex-1"
                               autoFocus
                             />
                             <button onClick={() => saveEditName(field.id)} className="text-green-400 hover:text-green-300">
                               <Check className="w-4 h-4" />
                             </button>
-                            <button onClick={() => setEditingId(null)} className="text-slate-400 hover:text-white">
+                            <button onClick={() => setEditingId(null)} className="text-muted-foreground hover:text-foreground">
                               <X className="w-4 h-4" />
                             </button>
                           </div>
@@ -188,33 +188,33 @@ export default function CamposCustomizadosPage() {
                             {field.required && <span className="text-red-400 text-xs">obrigatório</span>}
                             <button
                               onClick={() => { setEditingId(field.id); setEditName(field.name); }}
-                              className="text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100"
+                              className="text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
                             >
                               <Edit2 className="w-3 h-3" />
                             </button>
                           </div>
                         )}
-                        <p className="text-slate-500 text-xs font-mono mt-0.5">{field.fieldKey}</p>
+                        <p className="text-muted-foreground text-xs font-mono mt-0.5">{field.fieldKey}</p>
                         {field.fieldType === 'select' && Array.isArray(field.options) && field.options.length > 0 && (
-                          <p className="text-slate-500 text-xs mt-0.5 truncate">
+                          <p className="text-muted-foreground text-xs mt-0.5 truncate">
                             Opções: {field.options.join(', ')}
                           </p>
                         )}
                       </div>
 
-                      <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${TYPE_BADGE[field.fieldType] ?? 'bg-slate-700 text-slate-300'}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${TYPE_BADGE[field.fieldType] ?? 'bg-muted text-foreground'}`}>
                         {FIELD_TYPES.find(t => t.value === field.fieldType)?.label ?? field.fieldType}
                       </span>
 
                       <button
                         onClick={() => toggleActive(field)}
                         title={field.isActive ? 'Desativar' : 'Ativar'}
-                        className={`text-xs px-2 py-0.5 rounded flex-shrink-0 border ${field.isActive ? 'border-green-600 text-green-400 hover:bg-red-900/20 hover:text-red-400 hover:border-red-600' : 'border-slate-600 text-slate-500 hover:text-green-400 hover:border-green-600'}`}
+                        className={`text-xs px-2 py-0.5 rounded flex-shrink-0 border ${field.isActive ? 'border-green-600 text-green-400 hover:bg-red-900/20 hover:text-red-400 hover:border-red-600' : 'border-border text-muted-foreground hover:text-green-400 hover:border-green-600'}`}
                       >
                         {field.isActive ? 'Ativo' : 'Inativo'}
                       </button>
 
-                      <button onClick={() => remove(field.id)} className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded flex-shrink-0">
+                      <button onClick={() => remove(field.id)} className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-900/20 rounded flex-shrink-0">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -229,59 +229,59 @@ export default function CamposCustomizadosPage() {
       {/* New field modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-bold">Novo Campo Customizado</h3>
-              <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Entidade *</label>
+                <label className="text-xs text-muted-foreground block mb-1">Entidade *</label>
                 <select value={fEntity} onChange={e => setFEntity(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
                   {ENTITIES.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Nome do campo *</label>
+                <label className="text-xs text-muted-foreground block mb-1">Nome do campo *</label>
                 <input value={fName} onChange={e => handleNameChange(e.target.value)}
                   placeholder="ex: Segmento de Mercado"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Chave (gerada automaticamente)</label>
+                <label className="text-xs text-muted-foreground block mb-1">Chave (gerada automaticamente)</label>
                 <input value={fKey} onChange={e => setFKey(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 text-slate-400 rounded-lg px-3 py-2 text-sm font-mono" />
+                  className="w-full bg-muted border border-border text-muted-foreground rounded-lg px-3 py-2 text-sm font-mono" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Tipo</label>
+                <label className="text-xs text-muted-foreground block mb-1">Tipo</label>
                 <select value={fType} onChange={e => setFType(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
                   {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
               </div>
               {fType === 'select' && (
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Opções (uma por linha)</label>
+                  <label className="text-xs text-muted-foreground block mb-1">Opções (uma por linha)</label>
                   <textarea value={fOptions} onChange={e => setFOptions(e.target.value)}
                     rows={4}
                     placeholder={"Opção 1\nOpção 2\nOpção 3"}
-                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm resize-none" />
+                    className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm resize-none" />
                 </div>
               )}
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={fRequired} onChange={e => setFRequired(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-600 bg-slate-900" />
-                <span className="text-sm text-slate-300">Campo obrigatório</span>
+                  className="w-4 h-4 rounded border-border bg-muted" />
+                <span className="text-sm text-foreground">Campo obrigatório</span>
               </label>
             </div>
 
             <div className="flex gap-3">
               <button onClick={() => setShowForm(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+                className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">
                 Cancelar
               </button>
               <button onClick={create}

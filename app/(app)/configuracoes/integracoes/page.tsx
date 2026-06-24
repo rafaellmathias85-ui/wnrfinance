@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -210,7 +210,7 @@ export default function IntegracoesPage() {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 bg-gray-100 dark:bg-gray-800 dark:text-gray-300 px-3 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 bg-gray-100 dark:bg-card dark:text-foreground px-3 py-1 rounded-full">
                   <AlertCircle className="w-3.5 h-3.5" /> Não configurada
                 </span>
               </div>
@@ -250,7 +250,7 @@ export default function IntegracoesPage() {
                     <ExternalLink className="w-3.5 h-3.5" /> Documentação Pluggy
                   </a>
                 </Button>
-                <Button asChild size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+                <Button asChild size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-foreground">
                   <a href="https://dashboard.pluggy.ai/signup" target="_blank" rel="noopener noreferrer">
                     <Link2 className="w-3.5 h-3.5" /> Criar conta Pluggy
                   </a>

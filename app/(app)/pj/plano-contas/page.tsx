@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -62,11 +62,11 @@ function CategoryRow({ cat, depth, onEdit, onRefresh }: { cat: Category; depth: 
 
   return (
     <>
-      <tr className={`hover:bg-slate-700/20 ${!cat.isActive ? 'opacity-50' : ''}`}>
+      <tr className={`hover:bg-muted/20 ${!cat.isActive ? 'opacity-50' : ''}`}>
         <td className="px-4 py-2">
           <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 20}px` }}>
             {hasChildren ? (
-              <button onClick={() => setOpen((o) => !o)} className="p-0.5 text-slate-400 hover:text-white">
+              <button onClick={() => setOpen((o) => !o)} className="p-0.5 text-muted-foreground hover:text-foreground">
                 {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
               </button>
             ) : (
@@ -77,18 +77,18 @@ function CategoryRow({ cat, depth, onEdit, onRefresh }: { cat: Category; depth: 
               : <span className="w-4" />
             }
             <span className="text-white text-sm font-medium ml-1">{cat.name}</span>
-            {cat.isSystem && <span className="ml-2 px-1.5 py-0.5 bg-slate-600 text-slate-400 text-xs rounded">Sistema</span>}
+            {cat.isSystem && <span className="ml-2 px-1.5 py-0.5 bg-slate-600 text-muted-foreground text-xs rounded">Sistema</span>}
           </div>
         </td>
-        <td className="px-4 py-2 text-slate-400 text-xs">{cat.code || '—'}</td>
+        <td className="px-4 py-2 text-muted-foreground text-xs">{cat.code || '—'}</td>
         <td className="px-4 py-2">
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_BADGE[cat.type] || 'bg-slate-700 text-slate-300'}`}>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_BADGE[cat.type] || 'bg-muted text-foreground'}`}>
             {TYPE_LABEL[cat.type] || cat.type}
           </span>
         </td>
         <td className="px-4 py-2 text-center">
           {!cat.isSystem && (
-            <button onClick={() => onEdit(cat)} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+            <button onClick={() => onEdit(cat)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
               <Pencil className="w-3.5 h-3.5" />
             </button>
           )}
@@ -146,8 +146,8 @@ export default function PlanoContasPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Plano de Contas</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Hierarquia de categorias gerenciais</p>
+          <h1 className="text-2xl font-bold">Plano de Contas</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Hierarquia de categorias gerenciais</p>
         </div>
         <div className="flex items-center gap-2">
           {categories.length === 0 && (
@@ -162,25 +162,25 @@ export default function PlanoContasPage() {
         </div>
       </div>
 
-      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-900/60">
+          <thead className="bg-muted/60">
             <tr>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Nome</th>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Código</th>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Tipo</th>
-              <th className="text-center px-4 py-3 text-slate-400 font-medium">Ações</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Nome</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Código</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Tipo</th>
+              <th className="text-center px-4 py-3 text-muted-foreground font-medium">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-700/50">
+          <tbody className="divide-y divide-border/50">
             {loading ? (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>
+              <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Carregando...</td></tr>
             ) : categories.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-12 text-center">
                   <FolderOpen className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-                  <p className="text-slate-400">Nenhuma categoria cadastrada</p>
-                  <p className="text-slate-500 text-xs mt-1">Use "Criar Padrão" para gerar o plano gerencial brasileiro</p>
+                  <p className="text-muted-foreground">Nenhuma categoria cadastrada</p>
+                  <p className="text-muted-foreground text-xs mt-1">Use "Criar Padrão" para gerar o plano gerencial brasileiro</p>
                 </td>
               </tr>
             ) : categories.map((cat) => (
@@ -229,36 +229,36 @@ function CategoryFormModal({ editing, allFlat, onClose, onSaved }: { editing: Ca
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-white font-bold">{editing ? 'Editar Conta' : 'Nova Conta'}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="block text-xs text-slate-400 mb-1">Nome *</label>
+            <label className="block text-xs text-muted-foreground mb-1">Nome *</label>
             <input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Código</label>
+            <label className="block text-xs text-muted-foreground mb-1">Código</label>
             <input value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
               placeholder="ex: 3.1.2"
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Tipo</label>
+            <label className="block text-xs text-muted-foreground mb-1">Tipo</label>
             <select value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
               <option value="despesa">Despesa</option>
               <option value="receita">Receita</option>
               <option value="ambos">Ambos</option>
             </select>
           </div>
           <div className="col-span-2">
-            <label className="block text-xs text-slate-400 mb-1">Conta pai (opcional)</label>
+            <label className="block text-xs text-muted-foreground mb-1">Conta pai (opcional)</label>
             <select value={form.parentId} onChange={(e) => setForm((p) => ({ ...p, parentId: e.target.value }))}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
               <option value="">Nenhuma (conta raiz)</option>
               {allFlat.filter((c) => c.id !== editing?.id).map((c) => (
                 <option key={c.id} value={c.id}>{c.code ? `${c.code} — ` : ''}{c.name}</option>
@@ -267,13 +267,13 @@ function CategoryFormModal({ editing, allFlat, onClose, onSaved }: { editing: Ca
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-slate-200">
+          <label className="flex items-center gap-2 text-sm text-foreground">
             <input type="checkbox" checked={form.isActive} onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))} />
             Ativa
           </label>
         </div>
         <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">Cancelar</button>
+          <button onClick={onClose} className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">Cancelar</button>
           <button onClick={save} disabled={saving} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-60">
             {saving ? 'Salvando...' : 'Salvar'}
           </button>

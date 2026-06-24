@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -135,8 +135,8 @@ export default function LancamentosPage() {
 
   const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
-  const inputCls = 'w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
-  const labelCls = 'block text-xs text-slate-400 mb-1';
+  const inputCls = 'w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500';
+  const labelCls = 'block text-xs text-muted-foreground mb-1';
 
   const incomeTotal = txs.filter(t => t.group === 'Receita').reduce((s, t) => s + Number(t.amount), 0);
   const expenseTotal = txs.filter(t => t.group !== 'Receita' && t.group !== 'Poupança').reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
@@ -146,16 +146,16 @@ export default function LancamentosPage() {
     <div className="p-6 space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/pf/orcamento" className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+        <Link href="/pf/orcamento" className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-white">Lançamentos PF</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Registre receitas, despesas e poupança</p>
+          <h1 className="text-2xl font-bold">Lançamentos PF</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Registre receitas, despesas e poupança</p>
         </div>
         <div className="flex gap-2">
           <Link href="/pf/categorias"
-            className="flex items-center gap-2 text-slate-400 hover:text-white border border-slate-600 hover:border-slate-400 px-3 py-2 rounded-lg text-sm">
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground border border-border hover:border-slate-400 px-3 py-2 rounded-lg text-sm">
             <Settings2 className="w-4 h-4" /> Categorias
           </Link>
           <button
@@ -170,13 +170,13 @@ export default function LancamentosPage() {
       {/* Navegação mês */}
       <div className="flex items-center gap-3">
         <select value={year} onChange={e => setYear(Number(e.target.value))}
-          className="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-1.5 text-sm">
+          className="bg-card border border-border text-foreground rounded-lg px-3 py-1.5 text-sm">
           {[2024, 2025, 2026, 2027].map(y => <option key={y}>{y}</option>)}
         </select>
         <div className="flex gap-1">
           {months.map((m, i) => (
             <button key={i} onClick={() => setMonth(i + 1)}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${month === i + 1 ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}>
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${month === i + 1 ? 'bg-blue-600 text-white' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}>
               {m}
             </button>
           ))}
@@ -185,24 +185,24 @@ export default function LancamentosPage() {
 
       {/* KPI strip */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="w-4 h-4 text-green-400" />
-            <span className="text-xs text-slate-400">Receitas</span>
+            <span className="text-xs text-muted-foreground">Receitas</span>
           </div>
           <p className="text-lg font-bold text-green-400">{fmt(incomeTotal)}</p>
         </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
             <TrendingDown className="w-4 h-4 text-red-400" />
-            <span className="text-xs text-slate-400">Despesas</span>
+            <span className="text-xs text-muted-foreground">Despesas</span>
           </div>
           <p className="text-lg font-bold text-red-400">{fmt(expenseTotal)}</p>
         </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
             <Repeat className="w-4 h-4 text-blue-400" />
-            <span className="text-xs text-slate-400">Poupança</span>
+            <span className="text-xs text-muted-foreground">Poupança</span>
           </div>
           <p className="text-lg font-bold text-blue-400">{fmt(savingsTotal)}</p>
         </div>
@@ -210,8 +210,8 @@ export default function LancamentosPage() {
 
       {/* Formulário */}
       {showForm && (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 space-y-4">
-          <h3 className="text-white font-medium">{editing ? 'Editar Lançamento' : 'Novo Lançamento'}</h3>
+        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <h3 className="text-foreground font-medium">{editing ? 'Editar Lançamento' : 'Novo Lançamento'}</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Data</label>
@@ -242,7 +242,7 @@ export default function LancamentosPage() {
             <div className="col-span-2 flex items-center gap-2">
               <input type="checkbox" id="recurring" checked={form.isRecurring}
                 onChange={e => set('isRecurring', e.target.checked)} className="w-4 h-4 accent-blue-500" />
-              <label htmlFor="recurring" className="text-sm text-slate-300">Lançamento recorrente</label>
+              <label htmlFor="recurring" className="text-sm text-foreground">Lançamento recorrente</label>
             </div>
           </div>
           <div className="flex gap-3 pt-2">
@@ -251,7 +251,7 @@ export default function LancamentosPage() {
               {saving ? 'Salvando...' : (editing ? 'Atualizar' : 'Registrar')}
             </button>
             <button onClick={() => { setShowForm(false); setEditing(null); setForm(EMPTY_FORM); }}
-              className="text-slate-400 hover:text-white px-4 py-2 rounded-lg text-sm">
+              className="text-muted-foreground hover:text-foreground px-4 py-2 rounded-lg text-sm">
               Cancelar
             </button>
           </div>
@@ -259,23 +259,23 @@ export default function LancamentosPage() {
       )}
 
       {/* Tabela */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-400">Carregando...</div>
+          <div className="p-8 text-center text-muted-foreground">Carregando...</div>
         ) : txs.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">
+          <div className="p-8 text-center text-muted-foreground">
             Nenhum lançamento em {months[month - 1]}/{year}.{' '}
             <button onClick={() => setShowForm(true)} className="text-blue-400 hover:underline">Adicionar</button>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-700">
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Data</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Grupo</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Subgrupo</th>
-                <th className="text-left px-4 py-3 text-slate-400 font-medium">Descrição</th>
-                <th className="text-right px-4 py-3 text-slate-400 font-medium">Valor</th>
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Data</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Grupo</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Subgrupo</th>
+                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Descrição</th>
+                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Valor</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -285,8 +285,8 @@ export default function LancamentosPage() {
                 const isIncome = amt > 0;
                 const isSavings = tx.group === 'Poupança';
                 return (
-                  <tr key={tx.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                    <td className="px-4 py-3 text-slate-300">
+                  <tr key={tx.id} className="border-b border-border/50 hover:bg-muted/40">
+                    <td className="px-4 py-3 text-foreground">
                       {new Date(tx.date).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-4 py-3">
@@ -296,17 +296,17 @@ export default function LancamentosPage() {
                         'bg-red-900/40 text-red-400'
                       }`}>{tx.group}</span>
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{tx.subgroup}</td>
-                    <td className="px-4 py-3 text-slate-400 max-w-[200px] truncate">{tx.description ?? '—'}</td>
+                    <td className="px-4 py-3 text-foreground">{tx.subgroup}</td>
+                    <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{tx.description ?? '—'}</td>
                     <td className={`px-4 py-3 text-right font-medium ${isIncome ? 'text-green-400' : isSavings ? 'text-blue-400' : 'text-red-400'}`}>
                       {isIncome ? '+' : ''}{fmt(amt)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1 justify-end">
-                        <button onClick={() => handleEdit(tx)} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-600 rounded">
+                        <button onClick={() => handleEdit(tx)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(tx.id)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-600 rounded">
+                        <button onClick={() => handleDelete(tx.id)} className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-muted rounded">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>

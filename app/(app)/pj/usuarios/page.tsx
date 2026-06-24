@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,7 +34,7 @@ const roleIcons: Record<string, React.ElementType> = {
 };
 const roleColors: Record<string, string> = {
   OWNER: 'text-amber-500', ADMIN: 'text-blue-500', FINANCE: 'text-green-500',
-  ACCOUNTANT: 'text-purple-500', VIEWER: 'text-gray-500',
+  ACCOUNTANT: 'text-purple-500', VIEWER: 'text-muted-foreground',
 };
 
 // ─── Module badge definitions ────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { CARD_COLORS, EXPENSE_CATEGORIES } from '@/lib/format';
 import { useCallback, useEffect, useState } from 'react';
@@ -109,15 +109,15 @@ export default function CartoesPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="shadow-sm"><CardContent className="p-5">
-          <p className="text-sm text-gray-500">Total Faturas</p>
+          <p className="text-sm text-muted-foreground">Total Faturas</p>
           <p className="text-2xl font-bold text-red-600">{formatCurrency(totalInvoice)}</p>
         </CardContent></Card>
         <Card className="shadow-sm"><CardContent className="p-5">
-          <p className="text-sm text-gray-500">Limite Total</p>
+          <p className="text-sm text-muted-foreground">Limite Total</p>
           <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalLimit)}</p>
         </CardContent></Card>
         <Card className="shadow-sm"><CardContent className="p-5">
-          <p className="text-sm text-gray-500">Disponível</p>
+          <p className="text-sm text-muted-foreground">Disponível</p>
           <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalLimit - totalInvoice)}</p>
         </CardContent></Card>
       </div>
@@ -125,8 +125,8 @@ export default function CartoesPage() {
       {loading ? (
         <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" /></div>
       ) : cards.length === 0 ? (
-        <Card className="shadow-sm"><CardContent className="py-16 text-center text-gray-500">
-          <CreditCard className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+        <Card className="shadow-sm"><CardContent className="py-16 text-center text-muted-foreground">
+          <CreditCard className="w-12 h-12 mx-auto mb-4 text-foreground" />
           <p>Nenhum cartão cadastrado</p>
         </CardContent></Card>
       ) : (
@@ -148,11 +148,11 @@ export default function CartoesPage() {
                   </div>
                   <CardContent className="p-5 space-y-4">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Fatura atual</span>
+                      <span className="text-muted-foreground">Fatura atual</span>
                       <span className="font-bold text-red-600">{formatCurrency(card.currentInvoice)}</span>
                     </div>
                     <div>
-                      <div className="flex justify-between text-xs text-gray-500 mb-1"><span>Limite utilizado</span><span>{usedPct.toFixed(0)}%</span></div>
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1"><span>Limite utilizado</span><span>{usedPct.toFixed(0)}%</span></div>
                       <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div className={`h-2.5 rounded-full ${usedPct >= 80 ? 'bg-red-500' : usedPct >= 50 ? 'bg-amber-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
                       </div>
@@ -170,7 +170,7 @@ export default function CartoesPage() {
                     </div>
                     {card.transactions?.length > 0 && (
                       <div className="border-t pt-3">
-                        <p className="text-xs font-medium text-gray-500 mb-2">Últimos lançamentos</p>
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Últimos lançamentos</p>
                         {card.transactions.slice(0, 3).map((tx: any) => (
                           <div key={tx.id} className="flex justify-between text-sm py-1">
                             <span className="text-gray-700">{tx.description}</span>

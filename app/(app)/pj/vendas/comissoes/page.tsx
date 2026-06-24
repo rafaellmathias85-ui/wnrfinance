@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useState, useEffect } from 'react';
 import { DollarSign, Percent, Users, Pencil, Plus, Trash2, Save, X } from 'lucide-react';
@@ -84,7 +84,7 @@ export default function ComissoesPage() {
         subtitle="Gestão de vendedores e comissões"
         breadcrumbs={[{ label: 'Vendas', href: '/pj/vendas' }, { label: 'Comissões' }]}
         actions={
-          <Button onClick={openCreate} className="bg-blue-500 hover:bg-blue-600 text-white">
+          <Button onClick={openCreate} className="bg-blue-500 hover:bg-blue-600 text-foreground">
             <Plus className="w-4 h-4 mr-2" /> Novo Vendedor
           </Button>
         }
@@ -188,7 +188,7 @@ export default function ComissoesPage() {
               <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="flex-1">
                 <X className="w-4 h-4 mr-1" /> Cancelar
               </Button>
-              <Button type="submit" disabled={saving} className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">
+              <Button type="submit" disabled={saving} className="flex-1 bg-blue-500 hover:bg-blue-600 text-foreground">
                 <Save className="w-4 h-4 mr-1" /> {saving ? 'Salvando…' : 'Salvar'}
               </Button>
             </div>

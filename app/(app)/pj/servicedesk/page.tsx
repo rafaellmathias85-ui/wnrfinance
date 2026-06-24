@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/enterprise';
@@ -19,7 +19,7 @@ const STATUS_COLORS: Record<string, string> = {
   em_atendimento: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   pendente: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
   resolvido: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  fechado: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  fechado: 'bg-gray-100 text-gray-600 dark:bg-card dark:text-muted-foreground',
 };
 
 const STATUS_LABELS: Record<string, string> = {

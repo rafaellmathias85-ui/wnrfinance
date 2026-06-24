@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -113,7 +113,7 @@ export default function DREPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-foreground">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div><p className="text-sm opacity-90">Receita Bruta</p><p className="text-2xl font-bold mt-1">{fmt(totalRevenue)}</p></div>
@@ -121,7 +121,7 @@ export default function DREPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-red-500 to-red-600 text-white">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-red-500 to-red-600 text-foreground">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div><p className="text-sm opacity-90">Despesas Totais</p><p className="text-2xl font-bold mt-1">{fmt(totalExpense)}</p></div>

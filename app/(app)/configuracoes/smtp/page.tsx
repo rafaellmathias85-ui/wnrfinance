@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/enterprise';
@@ -280,7 +280,7 @@ export default function SmtpConfigPage() {
                           <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Padrão</span>
                         )}
                         {!config.isActive && (
-                          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Inativo</span>
+                          <span className="text-xs bg-gray-100 text-muted-foreground px-2 py-0.5 rounded-full">Inativo</span>
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">{config.senderEmail} · {config.host}:{config.port} · {config.encryption.toUpperCase()}</p>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -30,7 +30,7 @@ const STATUS_STYLES: Record<string, string> = {
   pendente: 'bg-yellow-500/20 text-yellow-400',
   aprovada: 'bg-blue-500/20 text-blue-400',
   paga: 'bg-green-500/20 text-green-400',
-  cancelada: 'bg-slate-700 text-slate-400',
+  cancelada: 'bg-muted text-muted-foreground',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -126,19 +126,19 @@ export default function ComissoesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
-            <DollarSign className="w-5 h-5 text-slate-300" />
+          <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Comissões</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Controle de comissões de vendedores e agentes</p>
+            <h1 className="text-2xl font-bold">Comissões</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Controle de comissões de vendedores e agentes</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <input type="month" value={period} onChange={e => setPeriod(e.target.value)}
-            className="bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+            className="bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+            className="bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm">
             <option value="">Todos os status</option>
             {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
@@ -156,45 +156,45 @@ export default function ComissoesPage() {
           { label: 'Aprovadas', value: totals.aprovada, color: 'text-blue-400' },
           { label: 'Pagas', value: totals.paga, color: 'text-green-400' },
         ].map(s => (
-          <div key={s.label} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div key={s.label} className="bg-card border border-border rounded-xl p-4">
             <p className={`text-xl font-bold ${s.color}`}>{fmt(s.value)}</p>
-            <p className="text-slate-400 text-xs mt-0.5">{s.label}</p>
+            <p className="text-muted-foreground text-xs mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
 
       {/* Table */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-500 text-sm">Carregando...</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">Carregando...</div>
         ) : commissions.length === 0 ? (
           <div className="p-12 text-center">
             <Banknote className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-            <p className="text-slate-400">Nenhuma comissão registrada para {period}</p>
+            <p className="text-muted-foreground">Nenhuma comissão registrada para {period}</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-700 text-left">
-                <th className="px-4 py-3 text-slate-400 font-medium">Agente</th>
-                <th className="px-4 py-3 text-slate-400 font-medium hidden md:table-cell">Descrição</th>
-                <th className="px-4 py-3 text-slate-400 font-medium hidden lg:table-cell">Venda</th>
-                <th className="px-4 py-3 text-slate-400 font-medium hidden lg:table-cell">Taxa</th>
-                <th className="px-4 py-3 text-slate-400 font-medium">Comissão</th>
-                <th className="px-4 py-3 text-slate-400 font-medium">Status</th>
-                <th className="px-4 py-3 text-slate-400 font-medium w-24"></th>
+              <tr className="border-b border-border text-left">
+                <th className="px-4 py-3 text-muted-foreground font-medium">Agente</th>
+                <th className="px-4 py-3 text-muted-foreground font-medium hidden md:table-cell">Descrição</th>
+                <th className="px-4 py-3 text-muted-foreground font-medium hidden lg:table-cell">Venda</th>
+                <th className="px-4 py-3 text-muted-foreground font-medium hidden lg:table-cell">Taxa</th>
+                <th className="px-4 py-3 text-muted-foreground font-medium">Comissão</th>
+                <th className="px-4 py-3 text-muted-foreground font-medium">Status</th>
+                <th className="px-4 py-3 text-muted-foreground font-medium w-24"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700">
+            <tbody className="divide-y divide-border">
               {commissions.map(c => (
-                <tr key={c.id} className="hover:bg-slate-700/30 transition-colors">
-                  <td className="px-4 py-3 text-white font-medium">{c.agentName}</td>
-                  <td className="px-4 py-3 text-slate-400 hidden md:table-cell">{c.description ?? '—'}</td>
-                  <td className="px-4 py-3 text-slate-300 hidden lg:table-cell">{c.saleAmount > 0 ? fmt(c.saleAmount) : '—'}</td>
-                  <td className="px-4 py-3 text-slate-300 hidden lg:table-cell">{c.rate > 0 ? `${c.rate}%` : '—'}</td>
-                  <td className="px-4 py-3 text-white font-semibold">{fmt(c.amount)}</td>
+                <tr key={c.id} className="hover:bg-muted/40 transition-colors">
+                  <td className="px-4 py-3 text-foreground font-medium">{c.agentName}</td>
+                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{c.description ?? '—'}</td>
+                  <td className="px-4 py-3 text-foreground hidden lg:table-cell">{c.saleAmount > 0 ? fmt(c.saleAmount) : '—'}</td>
+                  <td className="px-4 py-3 text-foreground hidden lg:table-cell">{c.rate > 0 ? `${c.rate}%` : '—'}</td>
+                  <td className="px-4 py-3 text-foreground font-semibold">{fmt(c.amount)}</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[c.status] ?? 'bg-slate-700 text-slate-300'}`}>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[c.status] ?? 'bg-muted text-foreground'}`}>
                       {STATUS_LABELS[c.status] ?? c.status}
                     </span>
                   </td>
@@ -203,12 +203,12 @@ export default function ComissoesPage() {
                       {nextStatus[c.status] && (
                         <button onClick={() => changeStatus(c.id, nextStatus[c.status])}
                           title={nextStatus[c.status] === 'aprovada' ? 'Aprovar' : 'Marcar como paga'}
-                          className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-900/20 rounded">
+                          className="p-1.5 text-muted-foreground hover:text-green-400 hover:bg-green-900/20 rounded">
                           <Check className="w-3.5 h-3.5" />
                         </button>
                       )}
                       <button onClick={() => remove(c.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded">
+                        className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-900/20 rounded">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -223,57 +223,57 @@ export default function ComissoesPage() {
       {/* Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-bold">Registrar Comissão</h3>
-              <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Agente / Vendedor *</label>
+                <label className="text-xs text-muted-foreground block mb-1">Agente / Vendedor *</label>
                 <input value={fAgent} onChange={e => setFAgent(e.target.value)}
                   placeholder="Nome do vendedor"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Descrição</label>
+                <label className="text-xs text-muted-foreground block mb-1">Descrição</label>
                 <input value={fDesc} onChange={e => setFDesc(e.target.value)}
                   placeholder="ex: Venda contrato #123"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Valor da venda</label>
+                  <label className="text-xs text-muted-foreground block mb-1">Valor da venda</label>
                   <input type="number" value={fSale} onChange={e => setFSale(e.target.value)} onBlur={calcAmount}
                     placeholder="0,00"
-                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                    className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Taxa (%)</label>
+                  <label className="text-xs text-muted-foreground block mb-1">Taxa (%)</label>
                   <input type="number" value={fRate} onChange={e => setFRate(e.target.value)} onBlur={calcAmount}
                     placeholder="5"
-                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                    className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Valor da comissão *</label>
+                <label className="text-xs text-muted-foreground block mb-1">Valor da comissão *</label>
                 <input type="number" value={fAmount} onChange={e => setFAmount(e.target.value)}
                   placeholder="Calculado automaticamente ou manual"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Observações</label>
+                <label className="text-xs text-muted-foreground block mb-1">Observações</label>
                 <input value={fNotes} onChange={e => setFNotes(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
             </div>
 
             <div className="flex gap-3">
               <button onClick={() => setShowForm(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+                className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">
                 Cancelar
               </button>
               <button onClick={create}

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // Conciliação V2 — "Arquivos de conciliação" (paridade BomControle)
 // Lista de lotes de importação com contadores Conciliados/Ignorados/Pendentes.
@@ -15,7 +15,7 @@ import { apiFetch } from '@/lib/fetch';
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   CONCILIADO: { label: 'CONCILIADO', cls: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   PARCIAL: { label: 'PARCIAL', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  PENDENTE: { label: 'PENDENTE', cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+  PENDENTE: { label: 'PENDENTE', cls: 'bg-slate-100 text-slate-700 dark:bg-card dark:text-foreground' },
 };
 
 const TYPE_BADGE: Record<string, string> = {

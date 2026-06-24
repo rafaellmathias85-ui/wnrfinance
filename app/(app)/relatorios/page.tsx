@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,19 +49,19 @@ export default function RelatoriosPage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="shadow-sm"><CardContent className="p-5 flex items-center gap-4">
           <div className="p-2.5 rounded-xl bg-blue-100"><Wallet className="w-5 h-5 text-blue-600" /></div>
-          <div><p className="text-sm text-gray-500">Patrimônio Total</p><p className="text-xl font-bold text-blue-600">{formatCurrency(patrimony.total)}</p></div>
+          <div><p className="text-sm text-muted-foreground">Patrimônio Total</p><p className="text-xl font-bold text-blue-600">{formatCurrency(patrimony.total)}</p></div>
         </CardContent></Card>
         <Card className="shadow-sm"><CardContent className="p-5 flex items-center gap-4">
           <div className="p-2.5 rounded-xl bg-blue-100"><TrendingUp className="w-5 h-5 text-blue-600" /></div>
-          <div><p className="text-sm text-gray-500">Investimentos</p><p className="text-xl font-bold text-blue-600">{formatCurrency(patrimony.investments)}</p></div>
+          <div><p className="text-sm text-muted-foreground">Investimentos</p><p className="text-xl font-bold text-blue-600">{formatCurrency(patrimony.investments)}</p></div>
         </CardContent></Card>
         <Card className="shadow-sm"><CardContent className="p-5 flex items-center gap-4">
           <div className="p-2.5 rounded-xl bg-amber-100"><PiggyBank className="w-5 h-5 text-amber-600" /></div>
-          <div><p className="text-sm text-gray-500">Caixinhas</p><p className="text-xl font-bold text-amber-600">{formatCurrency(patrimony.savings)}</p></div>
+          <div><p className="text-sm text-muted-foreground">Caixinhas</p><p className="text-xl font-bold text-amber-600">{formatCurrency(patrimony.savings)}</p></div>
         </CardContent></Card>
         <Card className="shadow-sm"><CardContent className="p-5 flex items-center gap-4">
           <div className="p-2.5 rounded-xl bg-green-100"><BarChart3 className="w-5 h-5 text-green-600" /></div>
-          <div><p className="text-sm text-gray-500">Retorno Investimentos</p><p className={`text-xl font-bold ${(patrimony.investmentReturn || 0) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{formatCurrency(patrimony.investmentReturn)}</p></div>
+          <div><p className="text-sm text-muted-foreground">Retorno Investimentos</p><p className={`text-xl font-bold ${(patrimony.investmentReturn || 0) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{formatCurrency(patrimony.investmentReturn)}</p></div>
         </CardContent></Card>
       </div>
 
@@ -98,7 +98,7 @@ export default function RelatoriosPage() {
           <CardContent>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead><tr className="border-b"><th className="text-left py-2 text-gray-500">Mês</th><th className="text-right py-2 text-gray-500">Receitas</th><th className="text-right py-2 text-gray-500">Despesas</th><th className="text-right py-2 text-gray-500">Saldo</th></tr></thead>
+                <thead><tr className="border-b"><th className="text-left py-2 text-muted-foreground">Mês</th><th className="text-right py-2 text-muted-foreground">Receitas</th><th className="text-right py-2 text-muted-foreground">Despesas</th><th className="text-right py-2 text-muted-foreground">Saldo</th></tr></thead>
                 <tbody>
                   {evolution.map((m: any, i: number) => (
                     <tr key={i} className={`border-b ${m.isProjection ? 'opacity-60' : ''}`}>
@@ -111,7 +111,7 @@ export default function RelatoriosPage() {
                 </tbody>
               </table>
               {evolution.some((m: any) => m.isProjection) && (
-                <p className="text-xs text-gray-400 mt-2">* Meses futuros são projeções baseadas em receitas/despesas recorrentes</p>
+                <p className="text-xs text-muted-foreground mt-2">* Meses futuros são projeções baseadas em receitas/despesas recorrentes</p>
               )}
             </div>
           </CardContent>
@@ -131,17 +131,17 @@ export default function RelatoriosPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 text-gray-500">Banco</th>
-                    <th className="text-right py-2 text-gray-500">Receitas</th>
-                    <th className="text-right py-2 text-gray-500">Despesas</th>
-                    <th className="text-right py-2 text-gray-500">Saldo</th>
+                    <th className="text-left py-2 text-muted-foreground">Banco</th>
+                    <th className="text-right py-2 text-muted-foreground">Receitas</th>
+                    <th className="text-right py-2 text-muted-foreground">Despesas</th>
+                    <th className="text-right py-2 text-muted-foreground">Saldo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bankBreakdown.map((b: any) => (
                     <tr key={b.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 text-gray-700 font-medium flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-gray-400" />
+                        <Building2 className="w-4 h-4 text-muted-foreground" />
                         {b.bankName}
                       </td>
                       <td className="text-right text-blue-600 font-medium">{formatCurrency(b.incomes)}</td>

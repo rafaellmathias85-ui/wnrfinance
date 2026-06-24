@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { INCOME_TYPES, RECURRENCE_TYPES, formatDate, toInputDate } from '@/lib/format';
 import { usePJ } from '@/lib/pj-context';
@@ -145,7 +145,7 @@ export default function ReceitasPage() {
         </div>
         <div className="flex items-center gap-2">
           <ExportButton type="incomes" startDate={getMonthRange(selectedYear, selectedMonth).startDate} endDate={getMonthRange(selectedYear, selectedMonth).endDate} />
-          <Button onClick={() => { setEditingId(null); setForm({ ...emptyForm }); setDialogOpen(true); }} className="bg-blue-500 hover:bg-blue-600 text-white">
+          <Button onClick={() => { setEditingId(null); setForm({ ...emptyForm }); setDialogOpen(true); }} className="bg-blue-500 hover:bg-blue-600 text-foreground">
             <Plus className="w-4 h-4 mr-1" /> Nova Receita
           </Button>
         </div>
@@ -338,7 +338,7 @@ export default function ReceitasPage() {
 
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" loading={saving} className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">{editingId ? 'Salvar' : 'Criar'}</Button>
+              <Button type="submit" loading={saving} className="flex-1 bg-blue-500 hover:bg-blue-600 text-foreground">{editingId ? 'Salvar' : 'Criar'}</Button>
             </div>
           </form>
         </DialogContent>

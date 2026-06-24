@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -226,7 +226,7 @@ export default function AssistentePage() {
       {/* Sidebar - Conversas */}
       <div className={`${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      } fixed lg:relative z-30 w-72 h-full flex flex-col bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl border-r border-border/30 transition-transform duration-300`}>
+      } fixed lg:relative z-30 w-72 h-full flex flex-col bg-white/80 dark:bg-muted/90 backdrop-blur-xl border-r border-border/30 transition-transform duration-300`}>
         <div className="p-4 border-b border-border/30">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ export default function AssistentePage() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 bg-white/60 dark:bg-muted/60 backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <Button onClick={() => setSidebarOpen(true)} variant="ghost" size="icon" className="lg:hidden h-8 w-8">
               <MenuIcon className="w-5 h-5" />
@@ -375,7 +375,7 @@ export default function AssistentePage() {
                     key={i}
                     onClick={() => canChat && handleSendMessage(s.text)}
                     disabled={!canChat || sending}
-                    className="group flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-white/80 dark:bg-slate-800/50 hover:border-blue-500/30 hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-cyan-500/5 hover:shadow-md hover:shadow-blue-500/10 transition-all duration-300 text-left disabled:opacity-50"
+                    className="group flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-white/80 dark:bg-card/50 hover:border-blue-500/30 hover:bg-gradient-to-r hover:from-blue-500/5 hover:to-cyan-500/5 hover:shadow-md hover:shadow-blue-500/10 transition-all duration-300 text-left disabled:opacity-50"
                   >
                     <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0 group-hover:from-blue-500/20 group-hover:to-cyan-500/20 transition">
                       <s.icon className="w-4 h-4 text-blue-500" />
@@ -399,11 +399,11 @@ export default function AssistentePage() {
                   <div className={`max-w-[75%] rounded-2xl px-4 py-3 ${
                     msg.role === 'user'
                       ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/20'
-                      : 'bg-white dark:bg-slate-800/80 border border-border/40 shadow-sm'
+                      : 'bg-white dark:bg-card/80 border border-border/40 shadow-sm'
                   }`}>
                     {msg.role === 'assistant' ? (
                       msg.content ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:mb-2 [&_ul]:mb-2 [&_ol]:mb-2 [&_li]:mb-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_pre]:bg-slate-900 [&_pre]:rounded-lg">
+                        <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:mb-2 [&_ul]:mb-2 [&_ol]:mb-2 [&_li]:mb-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_code]:bg-muted [&_code]:px-1 [&_code]:rounded [&_pre]:bg-muted [&_pre]:rounded-lg">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                         </div>
                       ) : (
@@ -434,9 +434,9 @@ export default function AssistentePage() {
           )}
         </div>
 
-        <div className="p-4 border-t border-border/30 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm">
+        <div className="p-4 border-t border-border/30 bg-white/60 dark:bg-muted/60 backdrop-blur-sm">
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-2 bg-white dark:bg-slate-800 rounded-2xl border border-border/50 shadow-lg shadow-blue-500/5 focus-within:border-blue-500/30 focus-within:shadow-blue-500/10 transition-all p-2">
+            <div className="flex items-end gap-2 bg-white dark:bg-card rounded-2xl border border-border/50 shadow-lg shadow-blue-500/5 focus-within:border-blue-500/30 focus-within:shadow-blue-500/10 transition-all p-2">
               <textarea
                 ref={textareaRef}
                 value={input}

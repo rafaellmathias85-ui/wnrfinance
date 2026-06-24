@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +42,7 @@ const STATUS_COLORS: Record<string, string> = {
   recebido: 'bg-emerald-100 text-emerald-700',
   pendente: 'bg-amber-100 text-amber-700',
   vencido: 'bg-red-100 text-red-700',
-  cancelado: 'bg-gray-100 text-gray-500',
+  cancelado: 'bg-gray-100 text-muted-foreground',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -88,7 +88,7 @@ function NFeIcon({ nfe, pdfUrl }: { nfe: any; pdfUrl?: string }) {
 function BoletoIcon({ boleto }: { boleto: any }) {
   if (!boleto) return <Banknote className="h-4 w-4 text-muted-foreground/40" />;
   if (boleto.status === 'pago') return <span title="Boleto pago"><Banknote className="h-4 w-4 text-emerald-600" /></span>;
-  if (boleto.status === 'cancelado') return <span title="Boleto cancelado"><Banknote className="h-4 w-4 text-gray-400" /></span>;
+  if (boleto.status === 'cancelado') return <span title="Boleto cancelado"><Banknote className="h-4 w-4 text-muted-foreground" /></span>;
   if (boleto.errorMessage) return (
     <span title={`Boleto com erro: ${boleto.errorMessage}`}>
       <Banknote className="h-4 w-4 text-red-500" />
@@ -193,9 +193,9 @@ function DetailModal({ id, open, onClose }: { id: string | null; open: boolean; 
                 <div><p className="text-muted-foreground text-xs mb-0.5">Criado em</p><p className="font-medium">{fmtDate(item.createdAt)}</p></div>
                 {item.notes && <div className="col-span-2"><p className="text-muted-foreground text-xs mb-0.5">Observações</p><p className="font-medium whitespace-pre-wrap">{item.notes}</p></div>}
                 <div className="col-span-2"><p className="text-muted-foreground text-xs mb-0.5">Descrição</p><p className="font-medium">{item.description}</p></div>
-                <div><p className="text-muted-foreground text-xs mb-0.5">Gerar Boleto</p><Badge variant="outline" className={item.generateBoleto ? 'text-emerald-600' : 'text-gray-400'}>{item.generateBoleto ? 'Sim' : 'Não'}</Badge></div>
-                <div><p className="text-muted-foreground text-xs mb-0.5">Gerar PIX</p><Badge variant="outline" className={item.generatePix ? 'text-emerald-600' : 'text-gray-400'}>{item.generatePix ? 'Sim' : 'Não'}</Badge></div>
-                <div><p className="text-muted-foreground text-xs mb-0.5">Emitir NF</p><Badge variant="outline" className={item.generateNfe ? 'text-emerald-600' : 'text-gray-400'}>{item.generateNfe ? 'Sim' : 'Não'}</Badge></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Gerar Boleto</p><Badge variant="outline" className={item.generateBoleto ? 'text-emerald-600' : 'text-muted-foreground'}>{item.generateBoleto ? 'Sim' : 'Não'}</Badge></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Gerar PIX</p><Badge variant="outline" className={item.generatePix ? 'text-emerald-600' : 'text-muted-foreground'}>{item.generatePix ? 'Sim' : 'Não'}</Badge></div>
+                <div><p className="text-muted-foreground text-xs mb-0.5">Emitir NF</p><Badge variant="outline" className={item.generateNfe ? 'text-emerald-600' : 'text-muted-foreground'}>{item.generateNfe ? 'Sim' : 'Não'}</Badge></div>
               </div>
             </TabsContent>
 
@@ -378,7 +378,7 @@ function QuitarModal({ item, open, onClose, onSaved }: { item: any; open: boolea
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-foreground">
             {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : 'Confirmar Quitação'}
           </Button>
         </DialogFooter>
@@ -532,7 +532,7 @@ function EmailModal({ item, open, onClose }: { item: any; open: boolean; onClose
           <Button variant="outline" onClick={onClose} disabled={sending}>
             Não Enviar E-mail
           </Button>
-          <Button onClick={handleSend} disabled={sending} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button onClick={handleSend} disabled={sending} className="bg-emerald-600 hover:bg-emerald-700 text-foreground">
             {sending
               ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</>
               : <><SendHorizonal className="h-4 w-4 mr-2" />Enviar</>}
@@ -892,7 +892,7 @@ function FaturamentoLista({ companyName }: { companyName?: string }) {
 
                   {/* Situação */}
                   <td className="px-3 py-2.5">
-                    <Badge className={`${STATUS_COLORS[item.status] || 'bg-gray-100 text-gray-500'} text-xs whitespace-nowrap`}>{STATUS_LABELS[item.status] || item.status}</Badge>
+                    <Badge className={`${STATUS_COLORS[item.status] || 'bg-gray-100 text-muted-foreground'} text-xs whitespace-nowrap`}>{STATUS_LABELS[item.status] || item.status}</Badge>
                   </td>
 
                   {/* Valor */}
@@ -1083,7 +1083,7 @@ export default function FaturamentoPJPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-foreground">
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1095,7 +1095,7 @@ export default function FaturamentoPJPage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="border-0 shadow-lg bg-gradient-to-br from-red-500 to-red-600 text-white">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-red-500 to-red-600 text-foreground">
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1119,7 +1119,7 @@ export default function FaturamentoPJPage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-amber-500 to-amber-600 text-foreground">
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>

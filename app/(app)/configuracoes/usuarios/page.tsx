@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -223,7 +223,7 @@ export default function UsuariosPage() {
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" disabled={creating} className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">
+              <Button type="submit" disabled={creating} className="flex-1 bg-blue-500 hover:bg-blue-600 text-foreground">
                 {creating ? 'Criando…' : 'Criar Usuário'}
               </Button>
             </div>
@@ -240,8 +240,8 @@ function RoleBadge({ role }: { role: string }) {
     admin: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     gestor: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
     operador: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    cliente: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-    user: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+    cliente: 'bg-gray-100 text-gray-700 dark:bg-muted dark:text-foreground',
+    user: 'bg-gray-100 text-gray-600 dark:bg-muted dark:text-muted-foreground',
   };
   const label = ROLE_LABELS[role] || role;
   return (

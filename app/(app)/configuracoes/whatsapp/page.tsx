@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -193,7 +193,7 @@ export default function WhatsAppConfigPage() {
                     <p className="font-medium text-sm">{step.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
                     {step.id === 1 && provider === 'evolution' && (
-                      <div className="mt-2 bg-slate-900 rounded-lg p-3 font-mono text-xs text-green-400 overflow-x-auto">
+                      <div className="mt-2 bg-muted rounded-lg p-3 font-mono text-xs text-green-400 overflow-x-auto">
                         docker run -d --name evolution \<br />
                         {'  '}-p 8080:8080 \<br />
                         {'  '}-e AUTHENTICATION_API_KEY=minha_chave_secreta \<br />
@@ -308,14 +308,14 @@ export default function WhatsAppConfigPage() {
             <p className="font-medium text-xs">Configurar agendador:</p>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Vercel Cron (vercel.json):</p>
-              <pre className="text-[10px] bg-slate-900 text-green-400 p-2 rounded overflow-x-auto">{`{"crons":[
+              <pre className="text-[10px] bg-muted text-green-400 p-2 rounded overflow-x-auto">{`{"crons":[
   {"path":"/api/cron/whatsapp-reminders","schedule":"0 11 * * *"},
   {"path":"/api/cron/whatsapp-smart-summary","schedule":"0 11 * * 1"}
 ]}`}</pre>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Crontab Linux:</p>
-              <pre className="text-[10px] bg-slate-900 text-green-400 p-2 rounded overflow-x-auto">{`# Lembrete diário 8h BRT
+              <pre className="text-[10px] bg-muted text-green-400 p-2 rounded overflow-x-auto">{`# Lembrete diário 8h BRT
 0 11 * * * curl -X POST https://seudominio.com/api/cron/whatsapp-reminders -H "Authorization: Bearer SEU_SECRET"
 # Resumo semanal toda segunda
 0 11 * * 1 curl -X POST https://seudominio.com/api/cron/whatsapp-smart-summary -H "Authorization: Bearer SEU_SECRET"`}</pre>

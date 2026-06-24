@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -30,7 +30,7 @@ interface Item {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  rascunho: { label: 'Rascunho', color: 'text-slate-400 bg-slate-800', icon: <Clock className="w-3.5 h-3.5" /> },
+  rascunho: { label: 'Rascunho', color: 'text-muted-foreground bg-card', icon: <Clock className="w-3.5 h-3.5" /> },
   enviada: { label: 'Enviada', color: 'text-blue-400 bg-blue-900/30', icon: <Send className="w-3.5 h-3.5" /> },
   autorizada: { label: 'Autorizada', color: 'text-green-400 bg-green-900/30', icon: <CheckCircle className="w-3.5 h-3.5" /> },
   cancelada: { label: 'Cancelada', color: 'text-red-400 bg-red-900/30', icon: <XCircle className="w-3.5 h-3.5" /> },
@@ -145,11 +145,11 @@ export default function NFCePage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">NFC-e</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Nota Fiscal do Consumidor Eletrônica — Série 65</p>
+          <h1 className="text-2xl font-bold">NFC-e</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Nota Fiscal do Consumidor Eletrônica — Série 65</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+          <button onClick={load} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
             <RefreshCw className="w-4 h-4" />
           </button>
           <button
@@ -166,46 +166,46 @@ export default function NFCePage() {
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm"
+          className="bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm"
         >
           <option value="">Todos os status</option>
           {Object.entries(STATUS_CONFIG).map(([key, { label }]) => (
             <option key={key} value={key}>{label}</option>
           ))}
         </select>
-        <span className="text-slate-400 text-sm">{total} nota(s)</span>
+        <span className="text-muted-foreground text-sm">{total} nota(s)</span>
       </div>
 
       {/* Table */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-900/60">
+          <thead className="bg-muted/60">
             <tr>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Número</th>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Consumidor</th>
-              <th className="text-right px-4 py-3 text-slate-400 font-medium">Total</th>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Status</th>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Data</th>
-              <th className="text-center px-4 py-3 text-slate-400 font-medium">Ações</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Número</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Consumidor</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Total</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Status</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Data</th>
+              <th className="text-center px-4 py-3 text-muted-foreground font-medium">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-700/50">
+          <tbody className="divide-y divide-border/50">
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Carregando...</td></tr>
             ) : nfces.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-slate-500">Nenhuma NFC-e encontrada</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">Nenhuma NFC-e encontrada</td></tr>
             ) : nfces.map((nfce) => {
               const cfg = STATUS_CONFIG[nfce.status] || STATUS_CONFIG.rascunho;
               return (
-                <tr key={nfce.id} className="hover:bg-slate-700/20">
-                  <td className="px-4 py-3 text-white font-mono text-xs">
-                    {nfce.number ? `65/${nfce.number}` : <span className="text-slate-500">Rascunho</span>}
+                <tr key={nfce.id} className="hover:bg-muted/20">
+                  <td className="px-4 py-3 text-foreground font-mono text-xs">
+                    {nfce.number ? `65/${nfce.number}` : <span className="text-muted-foreground">Rascunho</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-white text-sm">{nfce.customerName || <span className="text-slate-500 italic">Consumidor final</span>}</div>
-                    {nfce.customerDoc && <div className="text-slate-400 text-xs">{nfce.customerDoc}</div>}
+                    <div className="text-white text-sm">{nfce.customerName || <span className="text-muted-foreground italic">Consumidor final</span>}</div>
+                    {nfce.customerDoc && <div className="text-muted-foreground text-xs">{nfce.customerDoc}</div>}
                   </td>
-                  <td className="px-4 py-3 text-right text-white font-medium">
+                  <td className="px-4 py-3 text-right text-foreground font-medium">
                     {fmt(nfce.totals?.totalNota ?? 0)}
                   </td>
                   <td className="px-4 py-3">
@@ -216,7 +216,7 @@ export default function NFCePage() {
                       <div className="text-orange-400 text-xs mt-0.5 max-w-[200px] truncate">{nfce.errorMessage}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
                     {fmtDate(nfce.issuedAt || nfce.createdAt)}
                   </td>
                   <td className="px-4 py-3">
@@ -229,13 +229,13 @@ export default function NFCePage() {
                       )}
                       {nfce.pdfUrl && (
                         <a href={nfce.pdfUrl} target="_blank" rel="noopener noreferrer"
-                          className="px-2 py-1 bg-slate-700 text-slate-300 hover:bg-slate-600 rounded text-xs">
+                          className="px-2 py-1 bg-muted text-foreground hover:bg-muted rounded text-xs">
                           DANFC-e
                         </a>
                       )}
                       {nfce.status === 'autorizada' && (
                         <button onClick={() => { setCancelModal(nfce.id); setCancelReason(''); }}
-                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded">
+                          className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-900/20 rounded">
                           <XCircle className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -252,14 +252,14 @@ export default function NFCePage() {
       {total > 20 && (
         <div className="flex justify-center gap-2">
           <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-            className="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-sm disabled:opacity-40">
+            className="px-3 py-1.5 bg-muted text-white rounded-lg text-sm disabled:opacity-40">
             Anterior
           </button>
-          <span className="px-3 py-1.5 text-slate-400 text-sm">
+          <span className="px-3 py-1.5 text-muted-foreground text-sm">
             Pág. {page} / {Math.ceil(total / 20)}
           </span>
           <button onClick={() => setPage((p) => p + 1)} disabled={page >= Math.ceil(total / 20)}
-            className="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-sm disabled:opacity-40">
+            className="px-3 py-1.5 bg-muted text-white rounded-lg text-sm disabled:opacity-40">
             Próxima
           </button>
         </div>
@@ -268,29 +268,29 @@ export default function NFCePage() {
       {/* Create form modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-              <h3 className="text-white font-bold text-lg">Nova NFC-e</h3>
-              <button onClick={() => { setShowForm(false); resetForm(); }} className="text-slate-400 hover:text-white">
+          <div className="bg-card border border-border rounded-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h3 className="font-bold text-lg">Nova NFC-e</h3>
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="text-muted-foreground hover:text-foreground">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Consumidor */}
               <div>
-                <h4 className="text-slate-300 text-sm font-medium mb-3">Consumidor (opcional)</h4>
+                <h4 className="text-foreground text-sm font-medium mb-3">Consumidor (opcional)</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">Nome</label>
+                    <label className="text-xs text-muted-foreground block mb-1">Nome</label>
                     <input value={customerName} onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Consumidor final"
-                      className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                      className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">CPF (opcional)</label>
+                    <label className="text-xs text-muted-foreground block mb-1">CPF (opcional)</label>
                     <input value={customerDoc} onChange={(e) => setCustomerDoc(e.target.value)}
                       placeholder="000.000.000-00"
-                      className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                      className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
                   </div>
                 </div>
               </div>
@@ -298,32 +298,32 @@ export default function NFCePage() {
               {/* Items */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-slate-300 text-sm font-medium">Itens</h4>
+                  <h4 className="text-foreground text-sm font-medium">Itens</h4>
                   <button onClick={addItem} className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1">
                     <Plus className="w-3.5 h-3.5" /> Adicionar item
                   </button>
                 </div>
                 <div className="space-y-2">
                   {items.map((item, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-slate-900/50 p-2 rounded-lg">
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-muted/50 p-2 rounded-lg">
                       <div className="col-span-5">
                         <input value={item.descricao} onChange={(e) => updateItem(idx, 'descricao', e.target.value)}
                           placeholder="Descrição do produto"
-                          className="w-full bg-slate-900 border border-slate-600 text-white rounded px-2 py-1.5 text-xs" />
+                          className="w-full bg-muted border border-border text-foreground rounded px-2 py-1.5 text-xs" />
                       </div>
                       <div className="col-span-2">
                         <input type="number" min="1" value={item.quantidade}
                           onChange={(e) => updateItem(idx, 'quantidade', parseFloat(e.target.value) || 1)}
                           placeholder="Qtd"
-                          className="w-full bg-slate-900 border border-slate-600 text-white rounded px-2 py-1.5 text-xs" />
+                          className="w-full bg-muted border border-border text-foreground rounded px-2 py-1.5 text-xs" />
                       </div>
                       <div className="col-span-3">
                         <input type="number" min="0" step="0.01" value={item.valorUnitario}
                           onChange={(e) => updateItem(idx, 'valorUnitario', parseFloat(e.target.value) || 0)}
                           placeholder="Valor unit."
-                          className="w-full bg-slate-900 border border-slate-600 text-white rounded px-2 py-1.5 text-xs" />
+                          className="w-full bg-muted border border-border text-foreground rounded px-2 py-1.5 text-xs" />
                       </div>
-                      <div className="col-span-1 text-right text-slate-400 text-xs">
+                      <div className="col-span-1 text-right text-muted-foreground text-xs">
                         {fmt(item.quantidade * item.valorUnitario)}
                       </div>
                       <div className="col-span-1 text-right">
@@ -336,7 +336,7 @@ export default function NFCePage() {
                     </div>
                   ))}
                 </div>
-                <div className="text-right mt-2 text-white font-bold text-sm">
+                <div className="text-right mt-2 font-bold text-sm">
                   Total: {fmt(totalNota)}
                 </div>
               </div>
@@ -344,9 +344,9 @@ export default function NFCePage() {
               {/* Payment & observations */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Forma de pagamento</label>
+                  <label className="text-xs text-muted-foreground block mb-1">Forma de pagamento</label>
                   <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+                    className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
                     <option value="dinheiro">Dinheiro</option>
                     <option value="cartao_credito">Cartão de Crédito</option>
                     <option value="cartao_debito">Cartão de Débito</option>
@@ -355,22 +355,22 @@ export default function NFCePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Observações</label>
+                  <label className="text-xs text-muted-foreground block mb-1">Observações</label>
                   <input value={observations} onChange={(e) => setObservations(e.target.value)}
                     placeholder="Informações adicionais"
-                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                    className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                 <input type="checkbox" checked={emitNow} onChange={(e) => setEmitNow(e.target.checked)}
                   className="w-4 h-4" />
                 Emitir imediatamente (requer integração com SEFAZ)
               </label>
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-slate-700">
+            <div className="flex gap-3 px-6 py-4 border-t border-border">
               <button onClick={() => { setShowForm(false); resetForm(); }}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+                className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">
                 Cancelar
               </button>
               <button onClick={handleSubmit} disabled={saving}
@@ -385,15 +385,15 @@ export default function NFCePage() {
       {/* Cancel modal */}
       {cancelModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
             <h3 className="text-white font-bold">Cancelar NFC-e</h3>
-            <p className="text-slate-400 text-sm">Informe o motivo do cancelamento (mínimo 15 caracteres).</p>
+            <p className="text-muted-foreground text-sm">Informe o motivo do cancelamento (mínimo 15 caracteres).</p>
             <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
               rows={3} placeholder="Motivo do cancelamento..."
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
             <div className="flex gap-3">
               <button onClick={() => setCancelModal(null)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+                className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">
                 Voltar
               </button>
               <button onClick={cancelNFCe} disabled={cancelReason.length < 15}

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState } from 'react';
@@ -108,19 +108,19 @@ export default function InventarioPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
-            <ClipboardCheck className="w-5 h-5 text-slate-300" />
+          <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+            <ClipboardCheck className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Inventário de Estoque</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Contagem física e ajuste de estoque</p>
+            <h1 className="text-2xl font-bold">Inventário de Estoque</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Contagem física e ajuste de estoque</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {countMode ? (
             <>
               <button onClick={cancelCount}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm">
+                className="px-4 py-2 bg-muted hover:bg-muted text-foreground rounded-lg text-sm">
                 Cancelar
               </button>
               <button onClick={applyCount} disabled={saving}
@@ -131,7 +131,7 @@ export default function InventarioPage() {
             </>
           ) : (
             <>
-              <button onClick={load} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+              <button onClick={load} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
                 <RefreshCw className="w-4 h-4" />
               </button>
               <button onClick={startCount}
@@ -145,17 +145,17 @@ export default function InventarioPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-          <p className="text-2xl font-bold text-white">{products.length}</p>
-          <p className="text-slate-400 text-xs mt-0.5">Produtos cadastrados</p>
+        <div className="bg-card border border-border rounded-xl p-4">
+          <p className="text-2xl font-bold">{products.length}</p>
+          <p className="text-muted-foreground text-xs mt-0.5">Produtos cadastrados</p>
         </div>
-        <div className={`border rounded-xl p-4 ${lowCount > 0 ? 'bg-red-900/20 border-red-700' : 'bg-slate-800 border-slate-700'}`}>
+        <div className={`border rounded-xl p-4 ${lowCount > 0 ? 'bg-red-900/20 border-red-700' : 'bg-card border-border'}`}>
           <p className={`text-2xl font-bold ${lowCount > 0 ? 'text-red-400' : 'text-white'}`}>{lowCount}</p>
-          <p className="text-slate-400 text-xs mt-0.5">Estoque abaixo do mínimo</p>
+          <p className="text-muted-foreground text-xs mt-0.5">Estoque abaixo do mínimo</p>
         </div>
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <div className="bg-card border border-border rounded-xl p-4">
           <p className="text-2xl font-bold text-blue-400">{countMode ? pendingChanges : '—'}</p>
-          <p className="text-slate-400 text-xs mt-0.5">Diferenças encontradas</p>
+          <p className="text-muted-foreground text-xs mt-0.5">Diferenças encontradas</p>
         </div>
       </div>
 
@@ -168,43 +168,43 @@ export default function InventarioPage() {
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             placeholder="Buscar produto, SKU ou código..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg pl-10 pr-4 py-2 text-sm"
+            className="w-full bg-card border border-border text-foreground rounded-lg pl-10 pr-4 py-2 text-sm"
           />
         </div>
         <button
           onClick={() => setFilterLow(!filterLow)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border ${filterLow ? 'bg-red-900/30 border-red-700 text-red-400' : 'bg-slate-800 border-slate-600 text-slate-400'}`}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border ${filterLow ? 'bg-red-900/30 border-red-700 text-red-400' : 'bg-card border-border text-muted-foreground'}`}
         >
           <AlertTriangle className="w-4 h-4" /> Estoque baixo
         </button>
       </div>
 
       {/* Table */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-slate-500 text-sm">Carregando...</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-sm">Nenhum produto encontrado</div>
+          <div className="p-12 text-center text-muted-foreground text-sm">Nenhum produto encontrado</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-700 text-left">
-                <th className="px-4 py-3 text-slate-400 font-medium">SKU / Código</th>
-                <th className="px-4 py-3 text-slate-400 font-medium">Produto</th>
-                <th className="px-4 py-3 text-slate-400 font-medium hidden md:table-cell">Categoria</th>
-                <th className="px-4 py-3 text-right text-slate-400 font-medium">Estoque Sistema</th>
-                <th className="px-4 py-3 text-right text-slate-400 font-medium hidden lg:table-cell">Mínimo</th>
-                {countMode && <th className="px-4 py-3 text-right text-slate-400 font-medium">Contagem Física</th>}
-                {countMode && <th className="px-4 py-3 text-right text-slate-400 font-medium">Diferença</th>}
-                {!countMode && <th className="px-4 py-3 text-center text-slate-400 font-medium">Status</th>}
+              <tr className="border-b border-border text-left">
+                <th className="px-4 py-3 text-muted-foreground font-medium">SKU / Código</th>
+                <th className="px-4 py-3 text-muted-foreground font-medium">Produto</th>
+                <th className="px-4 py-3 text-muted-foreground font-medium hidden md:table-cell">Categoria</th>
+                <th className="px-4 py-3 text-right text-muted-foreground font-medium">Estoque Sistema</th>
+                <th className="px-4 py-3 text-right text-muted-foreground font-medium hidden lg:table-cell">Mínimo</th>
+                {countMode && <th className="px-4 py-3 text-right text-muted-foreground font-medium">Contagem Física</th>}
+                {countMode && <th className="px-4 py-3 text-right text-muted-foreground font-medium">Diferença</th>}
+                {!countMode && <th className="px-4 py-3 text-center text-muted-foreground font-medium">Status</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-700">
+            <tbody className="divide-y divide-border">
               {filtered.map(p => {
                 const low = (p.currentStock ?? 0) <= (p.minStock ?? 0) && (p.minStock ?? 0) > 0;
                 const row = counts[p.id];
@@ -212,14 +212,14 @@ export default function InventarioPage() {
                 const diff = countMode ? counted - (p.currentStock ?? 0) : 0;
 
                 return (
-                  <tr key={p.id} className={`hover:bg-slate-700/30 transition-colors ${low && !countMode ? 'bg-red-900/10' : ''}`}>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-400">{p.sku || p.code || '—'}</td>
-                    <td className="px-4 py-3 text-white font-medium">{p.name}</td>
-                    <td className="px-4 py-3 text-slate-400 hidden md:table-cell text-xs">{p.category?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-right font-bold text-white">
-                      {p.currentStock ?? 0} {p.unit && <span className="text-slate-500 text-xs ml-1">{p.unit}</span>}
+                  <tr key={p.id} className={`hover:bg-muted/40 transition-colors ${low && !countMode ? 'bg-red-900/10' : ''}`}>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.sku || p.code || '—'}</td>
+                    <td className="px-4 py-3 text-foreground font-medium">{p.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs">{p.category?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-right font-bold text-foreground">
+                      {p.currentStock ?? 0} {p.unit && <span className="text-muted-foreground text-xs ml-1">{p.unit}</span>}
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-400 hidden lg:table-cell">{p.minStock ?? 0}</td>
+                    <td className="px-4 py-3 text-right text-muted-foreground hidden lg:table-cell">{p.minStock ?? 0}</td>
 
                     {countMode && (
                       <td className="px-4 py-3 text-right">
@@ -231,12 +231,12 @@ export default function InventarioPage() {
                             ...prev,
                             [p.id]: { productId: p.id, currentStock: p.currentStock ?? 0, countedQty: e.target.value },
                           }))}
-                          className="w-24 bg-slate-900 border border-slate-600 text-white rounded px-2 py-1 text-sm text-right"
+                          className="w-24 bg-muted border border-border text-foreground rounded px-2 py-1 text-sm text-right"
                         />
                       </td>
                     )}
                     {countMode && (
-                      <td className={`px-4 py-3 text-right font-medium ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-slate-500'}`}>
+                      <td className={`px-4 py-3 text-right font-medium ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
                         {diff !== 0 ? (diff > 0 ? `+${diff}` : String(diff)) : '='}
                       </td>
                     )}

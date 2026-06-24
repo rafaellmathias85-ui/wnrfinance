@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -122,19 +122,19 @@ export default function RemessaBancariaPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Remessa Bancária</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Envio de remessa CNAB 240 e processamento de retorno bancário</p>
+        <h1 className="text-2xl font-bold">Remessa Bancária</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Envio de remessa CNAB 240 e processamento de retorno bancário</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-800/60 border border-slate-700 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-card/60 border border-border rounded-xl p-1 w-fit">
         {([
           { id: 'remessa' as Tab, label: 'Envio de Remessa' },
           { id: 'retorno' as Tab, label: 'Retorno Bancário' },
         ]).map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === t.id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'
+              tab === t.id ? 'bg-muted text-white' : 'text-muted-foreground hover:text-foreground'
             }`}>
             {t.label}
           </button>
@@ -146,9 +146,9 @@ export default function RemessaBancariaPage() {
           {/* Bank selector + actions */}
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Building className="w-4 h-4 text-slate-400" />
+              <Building className="w-4 h-4 text-muted-foreground" />
               <select value={selectedBank} onChange={(e) => setSelectedBank(e.target.value)}
-                className="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm">
+                className="bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm">
                 <option value="">Selecionar banco</option>
                 {bankConns.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
@@ -161,34 +161,34 @@ export default function RemessaBancariaPage() {
           </div>
 
           {/* Boletos table */}
-          <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-3">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border flex items-center gap-3">
               <input type="checkbox" checked={selectedIds.size === boletos.length && boletos.length > 0}
                 onChange={selectAll} className="rounded" />
-              <span className="text-white font-medium">Boletos pendentes ({boletos.length})</span>
+              <span className="text-foreground font-medium">Boletos pendentes ({boletos.length})</span>
             </div>
             <table className="w-full text-sm">
-              <thead className="bg-slate-900/60">
+              <thead className="bg-muted/60">
                 <tr>
                   <th className="w-10 px-4 py-3"></th>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Cliente</th>
-                  <th className="text-right px-4 py-3 text-slate-400 font-medium">Valor</th>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Vencimento</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Cliente</th>
+                  <th className="text-right px-4 py-3 text-muted-foreground font-medium">Valor</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Vencimento</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700">
+              <tbody className="divide-y divide-border">
                 {loading ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Carregando...</td></tr>
                 ) : boletos.length === 0 ? (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500">Nenhum boleto pendente</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Nenhum boleto pendente</td></tr>
                 ) : boletos.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-700/30 cursor-pointer" onClick={() => toggleSelect(b.id)}>
+                  <tr key={b.id} className="hover:bg-muted/40 cursor-pointer" onClick={() => toggleSelect(b.id)}>
                     <td className="px-4 py-3">
                       <input type="checkbox" checked={selectedIds.has(b.id)} readOnly className="rounded" />
                     </td>
-                    <td className="px-4 py-3 text-white">{b.customerName}</td>
-                    <td className="px-4 py-3 text-right text-white font-medium">{fmt(b.amount)}</td>
-                    <td className="px-4 py-3 text-slate-300">{fmtDate(b.dueDate)}</td>
+                    <td className="px-4 py-3 text-foreground">{b.customerName}</td>
+                    <td className="px-4 py-3 text-right text-foreground font-medium">{fmt(b.amount)}</td>
+                    <td className="px-4 py-3 text-foreground">{fmtDate(b.dueDate)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -201,7 +201,7 @@ export default function RemessaBancariaPage() {
         <div className="space-y-4">
           {/* Upload area */}
           <div
-            className="border-2 border-dashed border-slate-600 rounded-xl p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
+            className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
             onClick={() => fileInputRef.current?.click()}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
@@ -210,23 +210,23 @@ export default function RemessaBancariaPage() {
               if (file) handleRetornoFile(file);
             }}
           >
-            <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-            <p className="text-slate-300 font-medium">
+            <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-foreground font-medium">
               {retornoFile ? retornoFile.name : 'Arraste ou clique para enviar o arquivo .ret'}
             </p>
-            <p className="text-slate-500 text-xs mt-1">Formato CNAB 240</p>
+            <p className="text-muted-foreground text-xs mt-1">Formato CNAB 240</p>
             <input ref={fileInputRef} type="file" accept=".ret,.txt" className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRetornoFile(f); }} />
           </div>
 
           {/* Preview */}
           {retornoPreview && (
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3">
-              <h3 className="text-white font-medium">Preview do retorno</h3>
+            <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <h3 className="text-foreground font-medium">Preview do retorno</h3>
               <div className="grid grid-cols-3 gap-3">
-                <div className="bg-slate-900/60 rounded-lg p-3 text-center">
-                  <p className="text-slate-400 text-xs">Total</p>
-                  <p className="text-white font-bold text-lg">{retornoPreview.total}</p>
+                <div className="bg-muted/60 rounded-lg p-3 text-center">
+                  <p className="text-muted-foreground text-xs">Total</p>
+                  <p className="font-bold text-lg">{retornoPreview.total}</p>
                 </div>
                 <div className="bg-green-900/20 border border-green-700/40 rounded-lg p-3 text-center">
                   <p className="text-green-300 text-xs">Pagos</p>

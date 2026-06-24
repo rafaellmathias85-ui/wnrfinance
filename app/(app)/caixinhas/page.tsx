@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { SAVINGS_CATEGORIES } from '@/lib/format';
@@ -77,7 +77,7 @@ export default function CaixinhasPage() {
         </div>
         <Dialog open={showAdd} onOpenChange={setShowAdd}>
           <DialogTrigger asChild>
-            <Button className="bg-amber-500 hover:bg-amber-600 text-white"><Plus className="w-4 h-4 mr-2" />Nova Caixinha</Button>
+            <Button className="bg-amber-500 hover:bg-amber-600 text-foreground"><Plus className="w-4 h-4 mr-2" />Nova Caixinha</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Nova Caixinha</DialogTitle></DialogHeader>
@@ -94,7 +94,7 @@ export default function CaixinhasPage() {
               <Input placeholder="Nome da caixinha" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
               <Input type="number" placeholder="Meta (R$)" value={form.goal} onChange={e => setForm({ ...form, goal: e.target.value })} />
               <Input type="number" step="0.01" placeholder="Rendimento anual % (ex: 12.5)" value={form.annualYield} onChange={e => setForm({ ...form, annualYield: e.target.value })} />
-              <div><label className="text-xs text-gray-500">Data alvo (opcional)</label>
+              <div><label className="text-xs text-muted-foreground">Data alvo (opcional)</label>
                 <Input type="date" value={form.targetDate} onChange={e => setForm({ ...form, targetDate: e.target.value })} />
               </div>
               <Button onClick={addBox} className="w-full bg-amber-500 hover:bg-amber-600">Criar Caixinha</Button>
@@ -108,15 +108,15 @@ export default function CaixinhasPage() {
         <Card className="shadow-sm bg-gradient-to-br from-amber-50 to-amber-100/50">
           <CardContent className="p-5"><p className="text-sm text-amber-700">Total Guardado</p><p className="text-2xl font-bold text-amber-600">{formatCurrency(totalSaved)}</p></CardContent>
         </Card>
-        <Card className="shadow-sm"><CardContent className="p-5"><p className="text-sm text-gray-500">Meta Total</p><p className="text-2xl font-bold text-foreground">{formatCurrency(totalGoal)}</p></CardContent></Card>
-        <Card className="shadow-sm"><CardContent className="p-5"><p className="text-sm text-gray-500">Progresso Geral</p><p className="text-2xl font-bold text-blue-600">{totalGoal > 0 ? ((totalSaved / totalGoal) * 100).toFixed(1) : 0}%</p></CardContent></Card>
+        <Card className="shadow-sm"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Meta Total</p><p className="text-2xl font-bold text-foreground">{formatCurrency(totalGoal)}</p></CardContent></Card>
+        <Card className="shadow-sm"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Progresso Geral</p><p className="text-2xl font-bold text-blue-600">{totalGoal > 0 ? ((totalSaved / totalGoal) * 100).toFixed(1) : 0}%</p></CardContent></Card>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500" /></div>
       ) : boxes.length === 0 ? (
-        <Card className="shadow-sm"><CardContent className="py-16 text-center text-gray-500">
-          <PiggyBank className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+        <Card className="shadow-sm"><CardContent className="py-16 text-center text-muted-foreground">
+          <PiggyBank className="w-12 h-12 mx-auto mb-4 text-foreground" />
           <p>Nenhuma caixinha criada</p><p className="text-sm mt-1">Crie sua primeira meta de economia!</p>
         </CardContent></Card>
       ) : (
@@ -141,14 +141,14 @@ export default function CaixinhasPage() {
                         <span className="text-3xl">{box.emoji || cat?.emoji || '🎯'}</span>
                         <div>
                           <p className="font-semibold text-gray-900">{box.name}</p>
-                          <p className="text-xs text-gray-500">{cat?.label || box.category}</p>
+                          <p className="text-xs text-muted-foreground">{cat?.label || box.category}</p>
                         </div>
                       </div>
                       {isComplete && <Trophy className="w-6 h-6 text-amber-500" />}
                     </div>
                     <div className="mb-3">
                       <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-500">{formatCurrency(box.balance)}</span>
+                        <span className="text-muted-foreground">{formatCurrency(box.balance)}</span>
                         <span className="font-medium text-gray-700">{formatCurrency(box.goal)}</span>
                       </div>
                       <Progress value={pct} className="h-3" />

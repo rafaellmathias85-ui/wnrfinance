@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -37,7 +37,7 @@ function ChangeBadge({ change, invert = false }: { change: number | null; invert
   if (change == null) return null;
   const positive = invert ? change < 0 : change > 0;
   return (
-    <span className={`flex items-center gap-0.5 text-xs font-medium ${positive ? 'text-green-400' : change === 0 ? 'text-slate-400' : 'text-red-400'}`}>
+    <span className={`flex items-center gap-0.5 text-xs font-medium ${positive ? 'text-green-400' : change === 0 ? 'text-muted-foreground' : 'text-red-400'}`}>
       {change > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
       {Math.abs(change)}% vs mês ant.
     </span>
@@ -48,15 +48,15 @@ function KpiCard({ title, value, sub, icon: Icon, color, change, invert }: {
   title: string; value: string; sub?: string; icon: any; color: string; change?: number | null; invert?: boolean;
 }) {
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+    <div className="bg-card border border-border rounded-xl p-5">
       <div className="flex items-start justify-between">
-        <p className="text-slate-400 text-sm">{title}</p>
+        <p className="text-muted-foreground text-sm">{title}</p>
         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
           <Icon className="w-4 h-4" />
         </div>
       </div>
-      <p className="text-2xl font-bold text-white mt-2">{value}</p>
-      {sub && <p className="text-slate-500 text-xs mt-0.5">{sub}</p>}
+      <p className="text-2xl font-bold mt-2">{value}</p>
+      {sub && <p className="text-muted-foreground text-xs mt-0.5">{sub}</p>}
       {change !== undefined && <div className="mt-1"><ChangeBadge change={change ?? null} invert={invert} /></div>}
     </div>
   );
@@ -95,17 +95,17 @@ export default function DashboardExecutivoPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard Executivo</h1>
-          <p className="text-slate-400 text-sm mt-0.5 capitalize">{nowLabel}</p>
+          <h1 className="text-2xl font-bold">Dashboard Executivo</h1>
+          <p className="text-muted-foreground text-sm mt-0.5 capitalize">{nowLabel}</p>
         </div>
         <button onClick={load} disabled={loading}
-          className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg disabled:opacity-50">
+          className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg disabled:opacity-50">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
       {loading || !data ? (
-        <div className="text-slate-500 text-sm">Carregando...</div>
+        <div className="text-muted-foreground text-sm">Carregando...</div>
       ) : (
         <>
           {/* KPI row 1 */}
@@ -171,24 +171,24 @@ export default function DashboardExecutivoPage() {
               value={String(data.nfe.thisMonth)}
               sub={`Mês ant: ${data.nfe.prevMonth}`}
               icon={ReceiptText}
-              color="bg-slate-600 text-slate-300"
+              color="bg-slate-600 text-foreground"
               change={data.nfe.change}
             />
           </div>
 
           {/* Goals */}
           {data.goals.total > 0 && (
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+            <div className="bg-card border border-border rounded-xl p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Target className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-400 text-sm font-medium">Metas do Mês</span>
+                  <Target className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground text-sm font-medium">Metas do Mês</span>
                 </div>
                 <span className={`text-sm font-bold ${data.goals.rate >= 80 ? 'text-green-400' : data.goals.rate >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
                   {data.goals.achieved}/{data.goals.total} atingidas ({data.goals.rate}%)
                 </span>
               </div>
-              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${data.goals.rate >= 80 ? 'bg-green-500' : data.goals.rate >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
                   style={{ width: `${data.goals.rate}%` }}
@@ -199,8 +199,8 @@ export default function DashboardExecutivoPage() {
 
           {/* Chart */}
           {chartData.length > 0 && (
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
-              <p className="text-white font-medium mb-4">Receita vs Despesa — Últimos 6 meses</p>
+            <div className="bg-card border border-border rounded-xl p-5">
+              <p className="text-foreground font-medium mb-4">Receita vs Despesa — Últimos 6 meses</p>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>

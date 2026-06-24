@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { INVESTMENT_TYPES, formatDate, toInputDate } from '@/lib/format';
 import InvestmentChart from '@/components/investment-chart';
@@ -132,7 +132,7 @@ export default function InvestimentosPage() {
                     <div><p className="text-muted-foreground">Atual</p><p className="font-medium text-blue-600">{formatCurrency(inv.currentValue)}</p></div>
                     <div><p className="text-muted-foreground">Retorno</p><p className={`font-medium ${ret >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{retPct.toFixed(1)}%</p></div>
                   </div>
-                  {inv.purchaseDate && <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Compra: {formatDate(inv.purchaseDate)}{inv.maturityDate ? ` • Vence: ${formatDate(inv.maturityDate)}` : ''}</p>}
+                  {inv.purchaseDate && <p className="text-xs text-muted-foreground dark:text-muted-foreground mt-2">Compra: {formatDate(inv.purchaseDate)}{inv.maturityDate ? ` • Vence: ${formatDate(inv.maturityDate)}` : ''}</p>}
                 </CardContent></Card>
               </motion.div>
             );

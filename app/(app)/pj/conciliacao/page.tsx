@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { formatDate } from '@/lib/format';
 import { usePJ } from '@/lib/pj-context';
@@ -19,8 +19,8 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = 
   DIVERGENT: { label: 'Divergente', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400', icon: AlertTriangle },
   SUGGESTED: { label: 'Sugestão', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400', icon: FileText },
   BANK_ONLY: { label: 'Só no Banco', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: FileText },
-  PENDING: { label: 'Pendente', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300', icon: RefreshCw },
-  IGNORED: { label: 'Ignorado', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500', icon: EyeOff },
+  PENDING: { label: 'Pendente', color: 'bg-gray-100 text-gray-800 dark:bg-card dark:text-foreground', icon: RefreshCw },
+  IGNORED: { label: 'Ignorado', color: 'bg-gray-100 text-muted-foreground dark:bg-card dark:text-muted-foreground', icon: EyeOff },
   NOT_FOUND: { label: 'Não Encontrado', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
 };
 
@@ -348,9 +348,9 @@ export default function ConciliacaoPJ() {
             <button
               onClick={() => handleAction(item.id, 'ignore')}
               disabled={actionLoading === item.id}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" title="Ignorar"
+              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-card" title="Ignorar"
             >
-              <EyeOff className="w-4 h-4 text-gray-400" />
+              <EyeOff className="w-4 h-4 text-muted-foreground" />
             </button>
           </>
         )}
@@ -431,7 +431,7 @@ export default function ConciliacaoPJ() {
                 <Zap className="w-3 h-3 text-amber-500" />
               </button>
               <button onClick={() => handleAction(item.id, 'ignore')} disabled={actionLoading === item.id} className="p-0.5 rounded hover:bg-muted" title="Ignorar">
-                <EyeOff className="w-3 h-3 text-gray-400" />
+                <EyeOff className="w-3 h-3 text-muted-foreground" />
               </button>
             </div>
           )}
@@ -593,7 +593,7 @@ export default function ConciliacaoPJ() {
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
@@ -607,7 +607,7 @@ export default function ConciliacaoPJ() {
           <Button onClick={() => { setShowImport(true); setParsedEntries([]); setImportResult(null); }} variant="outline" size="sm">
             <Upload className="w-4 h-4 mr-1" /> Importar Extrato
           </Button>
-          <Button onClick={runEngine} disabled={running} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button onClick={runEngine} disabled={running} size="sm" className="bg-blue-600 hover:bg-blue-700 text-foreground">
             <RefreshCw className={`w-4 h-4 mr-1 ${running ? 'animate-spin' : ''}`} /> {running ? 'Processando...' : 'Conciliar'}
           </Button>
         </div>
@@ -622,7 +622,7 @@ export default function ConciliacaoPJ() {
           { label: 'Sugestões', value: s.suggested || 0, color: 'text-indigo-600' },
           { label: 'Só no Banco', value: s.bankOnly || 0, color: 'text-blue-600' },
           { label: 'Pendentes', value: s.pending || 0, color: 'text-gray-600' },
-          { label: 'Ignorados', value: s.ignored || 0, color: 'text-gray-400' },
+          { label: 'Ignorados', value: s.ignored || 0, color: 'text-muted-foreground' },
         ].map(k => (
           <Card key={k.label} className="shadow-sm">
             <CardContent className="p-4 text-center">
@@ -708,7 +708,7 @@ export default function ConciliacaoPJ() {
                       <span className="font-medium truncate block">{sg.bankEntry.reference}</span>
                       <span className="text-xs text-muted-foreground">{sg.bankEntry.date} • {formatCurrency(Math.abs(sg.bankEntry.amount))}</span>
                     </div>
-                    {sg.matches.length === 0 && <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800">Sem correspondência</span>}
+                    {sg.matches.length === 0 && <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-muted-foreground dark:bg-card">Sem correspondência</span>}
                   </div>
                   {sg.matches.length > 0 && (
                     <div className="space-y-2 pl-7">
@@ -731,7 +731,7 @@ export default function ConciliacaoPJ() {
                           </label>
                         );
                       })}
-                      <label className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors text-sm ${selectedId === null ? 'border-gray-400 bg-gray-50 dark:bg-gray-900' : 'border-dashed border-border hover:bg-muted/20'}`}>
+                      <label className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors text-sm ${selectedId === null ? 'border-gray-400 bg-gray-50 dark:bg-muted' : 'border-dashed border-border hover:bg-muted/20'}`}>
                         <input type="radio" name={`match-${key}`} value="" checked={selectedId === null}
                           onChange={() => setConfirmedMatches(prev => ({ ...prev, [key]: null }))} className="accent-primary" />
                         <span className="text-muted-foreground text-xs">Ignorar esta transação</span>
@@ -804,7 +804,7 @@ export default function ConciliacaoPJ() {
                       {batch.stats.divergent > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title="Divergentes">⚠ {batch.stats.divergent}</span>}
                       {batch.stats.suggested > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" title="Sugestões">~ {batch.stats.suggested}</span>}
                       {batch.stats.bankOnly > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Só no Banco">? {batch.stats.bankOnly}</span>}
-                      {batch.stats.pending > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" title="Pendentes">⏳ {batch.stats.pending}</span>}
+                      {batch.stats.pending > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-card dark:text-foreground" title="Pendentes">⏳ {batch.stats.pending}</span>}
                       <span className="text-xs font-medium text-muted-foreground">{batch.stats.total} total</span>
                       <button
                         onClick={(e) => handleDeleteBatch(batch, e)}
@@ -985,7 +985,7 @@ export default function ConciliacaoPJ() {
                 <Button variant="outline" onClick={() => handleSuggest(parsedEntries)} disabled={suggestLoading || parsedEntries.length === 0}>
                   {suggestLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analisando...</> : <><Sparkles className="w-4 h-4 mr-2" />Analisar com IA</>}
                 </Button>
-                <Button onClick={() => handleReconcileEntries(parsedEntries)} disabled={processing || parsedEntries.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button onClick={() => handleReconcileEntries(parsedEntries)} disabled={processing || parsedEntries.length === 0} className="bg-blue-600 hover:bg-blue-700 text-foreground">
                   {processing ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4 mr-2" />Conciliar</>}
                 </Button>
               </div>
@@ -1073,7 +1073,7 @@ export default function ConciliacaoPJ() {
               )}
               {(showDetail.status === 'DIVERGENT' || showDetail.status === 'BANK_ONLY' || showDetail.status === 'PENDING' || showDetail.status === 'NOT_FOUND') && (
                 <div className="flex gap-2 pt-2 border-t flex-wrap">
-                  <Button size="sm" onClick={() => handleAction(showDetail.id, 'approve')} disabled={actionLoading === showDetail.id} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button size="sm" onClick={() => handleAction(showDetail.id, 'approve')} disabled={actionLoading === showDetail.id} className="bg-blue-600 hover:bg-blue-700 text-foreground">
                     <CheckCircle2 className="w-4 h-4 mr-1" /> Conciliar
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { setForceItem(showDetail); setForceReason(''); setForceUpdateAmount(false); setShowDetail(null); }} className="border-amber-300 text-amber-700 hover:bg-amber-50">
@@ -1209,7 +1209,7 @@ export default function ConciliacaoPJ() {
                       <span className={`shrink-0 text-sm font-bold ${isDebit ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
                         {formatCurrency(c.amount)}
                       </span>
-                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${c.status === 'pago' || c.status === 'recebido' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                      <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${c.status === 'pago' || c.status === 'recebido' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-card dark:text-muted-foreground'}`}>
                         {c.status}
                       </span>
                       <button
@@ -1259,7 +1259,7 @@ export default function ConciliacaoPJ() {
               </div>
               <div className="flex gap-2 pt-2 border-t">
                 <Button variant="outline" onClick={() => setLancamentoItem(null)} className="flex-1">Cancelar</Button>
-                <Button onClick={handleLancar} disabled={lancamentoLoading || !lancamentoDesc || !lancamentoAmount || !lancamentoDate} className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+                <Button onClick={handleLancar} disabled={lancamentoLoading || !lancamentoDesc || !lancamentoAmount || !lancamentoDate} className="flex-1 bg-green-600 hover:bg-green-700 text-foreground">
                   {lancamentoLoading ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Criando...</> : <><PlusCircle className="w-4 h-4 mr-1" />Criar e Vincular</>}
                 </Button>
               </div>

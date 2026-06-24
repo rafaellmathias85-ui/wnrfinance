@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { usePJ } from '@/lib/pj-context';
 import { useCallback, useEffect, useState } from 'react';
@@ -111,7 +111,7 @@ export default function CentrosCustoPage() {
               <BarChart3 className="w-4 h-4 inline mr-1" />Analise
             </button>
           </div>
-          <Button onClick={() => { setEditingId(null); setForm({ name: '', code: '' }); setDialogOpen(true); }} className="bg-blue-500 hover:bg-blue-600 text-white">
+          <Button onClick={() => { setEditingId(null); setForm({ name: '', code: '' }); setDialogOpen(true); }} className="bg-blue-500 hover:bg-blue-600 text-foreground">
             <Plus className="w-4 h-4 mr-1" /> Novo Centro
           </Button>
         </div>
@@ -241,7 +241,7 @@ export default function CentrosCustoPage() {
                           <span className="text-green-600">Receitas ({m.receivableCount})</span>
                           <span className="font-medium text-green-600">{formatCurrency(m.totalReceivables)}</span>
                         </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div className="w-full bg-gray-200 dark:bg-muted rounded-full h-2">
                           <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(m.totalReceivables / maxVal) * 100}%` }} />
                         </div>
                       </div>
@@ -250,7 +250,7 @@ export default function CentrosCustoPage() {
                           <span className="text-red-600">Despesas ({m.payableCount})</span>
                           <span className="font-medium text-red-600">{formatCurrency(m.totalPayables)}</span>
                         </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div className="w-full bg-gray-200 dark:bg-muted rounded-full h-2">
                           <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(m.totalPayables / maxVal) * 100}%` }} />
                         </div>
                       </div>
@@ -285,7 +285,7 @@ export default function CentrosCustoPage() {
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" disabled={saving} className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">{editingId ? 'Salvar' : 'Criar'}</Button>
+              <Button type="submit" disabled={saving} className="flex-1 bg-blue-500 hover:bg-blue-600 text-foreground">{editingId ? 'Salvar' : 'Criar'}</Button>
             </div>
           </form>
         </DialogContent>

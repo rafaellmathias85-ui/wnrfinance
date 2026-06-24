@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -127,12 +127,12 @@ export default function MetasPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
-            <Target className="w-5 h-5 text-slate-300" />
+          <div className="w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+            <Target className="w-5 h-5 text-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Metas & OKRs</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Defina e acompanhe as metas da empresa</p>
+            <h1 className="text-2xl font-bold">Metas & OKRs</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Defina e acompanhe as metas da empresa</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -140,7 +140,7 @@ export default function MetasPage() {
             type="month"
             value={period}
             onChange={e => setPeriod(e.target.value)}
-            className="bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
+            className="bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm"
           />
           <button
             onClick={() => setShowForm(true)}
@@ -159,20 +159,20 @@ export default function MetasPage() {
             { label: 'Atingidas', count: goals.filter(g => g.status === 'atingida').length, color: 'text-green-400' },
             { label: 'Em andamento', count: goals.filter(g => g.status === 'em_andamento').length, color: 'text-blue-400' },
           ].map(s => (
-            <div key={s.label} className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+            <div key={s.label} className="bg-card border border-border rounded-xl p-4 text-center">
               <p className={`text-2xl font-bold ${s.color}`}>{s.count}</p>
-              <p className="text-slate-400 text-xs mt-0.5">{s.label}</p>
+              <p className="text-muted-foreground text-xs mt-0.5">{s.label}</p>
             </div>
           ))}
         </div>
       )}
 
       {loading ? (
-        <div className="text-slate-500 text-sm">Carregando...</div>
+        <div className="text-muted-foreground text-sm">Carregando...</div>
       ) : goals.length === 0 ? (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-12 text-center">
+        <div className="bg-card border border-border rounded-xl p-12 text-center">
           <Target className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 font-medium">Nenhuma meta para {period}</p>
+          <p className="text-muted-foreground font-medium">Nenhuma meta para {period}</p>
           <button onClick={() => setShowForm(true)}
             className="mt-4 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm">
             Criar primeira meta
@@ -183,18 +183,18 @@ export default function MetasPage() {
           {goals.map(goal => {
             const pct = goal.targetValue > 0 ? Math.min((goal.currentValue / goal.targetValue) * 100, 100) : 0;
             return (
-              <div key={goal.id} className="bg-slate-800 border border-slate-700 rounded-xl p-5 space-y-4">
+              <div key={goal.id} className="bg-card border border-border rounded-xl p-5 space-y-4">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-3 min-w-0">
                     <div className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0" style={{ background: goal.color }} />
                     <div className="min-w-0">
-                      <p className="text-white font-medium truncate">{goal.title}</p>
-                      {goal.description && <p className="text-slate-400 text-xs mt-0.5 truncate">{goal.description}</p>}
+                      <p className="text-foreground font-medium truncate">{goal.title}</p>
+                      {goal.description && <p className="text-muted-foreground text-xs mt-0.5 truncate">{goal.description}</p>}
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                           {GOAL_TYPES.find(t => t.value === goal.type)?.label}
                         </span>
-                        <span className={`text-xs font-medium ${STATUS_STYLES[goal.status] ?? 'text-slate-400'}`}>
+                        <span className={`text-xs font-medium ${STATUS_STYLES[goal.status] ?? 'text-muted-foreground'}`}>
                           {goal.status === 'em_andamento' ? 'Em andamento' : goal.status === 'atingida' ? 'Atingida ✓' : 'Não atingida'}
                         </span>
                       </div>
@@ -202,11 +202,11 @@ export default function MetasPage() {
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button onClick={() => markStatus(goal.id, goal.status === 'atingida' ? 'em_andamento' : 'atingida')}
-                      className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-900/20 rounded">
+                      className="p-1.5 text-muted-foreground hover:text-green-400 hover:bg-green-900/20 rounded">
                       <Check className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => remove(goal.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded">
+                      className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-900/20 rounded">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -215,16 +215,16 @@ export default function MetasPage() {
                 {/* Progress bar */}
                 <div>
                   <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-slate-400">{fmt(goal.currentValue, goal.metric)}</span>
-                    <span className="text-slate-500">de {fmt(goal.targetValue, goal.metric)}</span>
+                    <span className="text-muted-foreground">{fmt(goal.currentValue, goal.metric)}</span>
+                    <span className="text-muted-foreground">de {fmt(goal.targetValue, goal.metric)}</span>
                   </div>
-                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{ width: `${pct}%`, background: goal.color }}
                     />
                   </div>
-                  <p className="text-right text-xs text-slate-500 mt-1">{pct.toFixed(0)}%</p>
+                  <p className="text-right text-xs text-muted-foreground mt-1">{pct.toFixed(0)}%</p>
                 </div>
 
                 {/* Update progress inline */}
@@ -236,20 +236,20 @@ export default function MetasPage() {
                       onChange={e => setUpdatingValue(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveProgress(goal); if (e.key === 'Escape') setUpdatingId(null); }}
                       placeholder="Valor atual"
-                      className="flex-1 bg-slate-900 border border-slate-600 text-white rounded px-2 py-1 text-sm"
+                      className="flex-1 bg-muted border border-border text-foreground rounded px-2 py-1 text-sm"
                       autoFocus
                     />
                     <button onClick={() => saveProgress(goal)} className="text-green-400 hover:text-green-300 p-1">
                       <Check className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setUpdatingId(null)} className="text-slate-400 hover:text-white p-1">
+                    <button onClick={() => setUpdatingId(null)} className="text-muted-foreground hover:text-foreground p-1">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 ) : (
                   <button
                     onClick={() => { setUpdatingId(goal.id); setUpdatingValue(String(goal.currentValue)); }}
-                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                   >
                     <TrendingUp className="w-3.5 h-3.5" /> Atualizar progresso
                   </button>
@@ -263,50 +263,50 @@ export default function MetasPage() {
       {/* Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-bold">Nova Meta</h3>
-              <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Título *</label>
+                <label className="text-xs text-muted-foreground block mb-1">Título *</label>
                 <input value={fTitle} onChange={e => setFTitle(e.target.value)}
                   placeholder="ex: Receita mensal de R$ 50.000"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Descrição</label>
+                <label className="text-xs text-muted-foreground block mb-1">Descrição</label>
                 <input value={fDesc} onChange={e => setFDesc(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Tipo</label>
+                  <label className="text-xs text-muted-foreground block mb-1">Tipo</label>
                   <select value={fType} onChange={e => setFType(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+                    className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
                     {GOAL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Métrica</label>
+                  <label className="text-xs text-muted-foreground block mb-1">Métrica</label>
                   <select value={fMetric} onChange={e => setFMetric(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+                    className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
                     {METRICS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Valor alvo *</label>
+                <label className="text-xs text-muted-foreground block mb-1">Valor alvo *</label>
                 <input type="number" value={fTarget} onChange={e => setFTarget(e.target.value)}
                   placeholder="50000"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Cor</label>
+                <label className="text-xs text-muted-foreground block mb-1">Cor</label>
                 <div className="flex gap-2">
                   {COLOR_OPTIONS.map(c => (
                     <button key={c} onClick={() => setFColor(c)}
@@ -319,7 +319,7 @@ export default function MetasPage() {
 
             <div className="flex gap-3">
               <button onClick={() => setShowForm(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+                className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">
                 Cancelar
               </button>
               <button onClick={create} disabled={saving}

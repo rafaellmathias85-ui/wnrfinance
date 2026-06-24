@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -338,7 +338,7 @@ export default function ChavesAPIPage() {
                       P{p.priority}
                     </Badge>
                     {p.isBuiltIn && (
-                      <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-0">
+                      <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 dark:bg-card dark:text-muted-foreground border-0">
                         Built-in
                       </Badge>
                     )}

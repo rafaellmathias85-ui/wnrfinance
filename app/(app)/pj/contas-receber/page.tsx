@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { CheckSquare } from 'lucide-react';
 import { useAiCategorize } from '@/hooks/use-ai-categorize';
@@ -23,7 +23,7 @@ const statusColors: Record<string, string> = {
   pendente: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   recebido: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   vencido: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  cancelado: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  cancelado: 'bg-gray-100 text-gray-600 dark:bg-card dark:text-muted-foreground',
 };
 
 export default function ContasReceber() {
@@ -702,7 +702,7 @@ export default function ContasReceber() {
                         </a>
                       ) : (
                         <button onClick={() => handleAutomate(item.id, true, false)} disabled={automating === item.id}
-                          className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600 transition-colors"
+                          className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-dashed border-slate-300 text-muted-foreground hover:border-blue-400 hover:text-blue-600 transition-colors"
                           title="Gerar NFS-e">
                           <FileText className="w-3 h-3" />NFS-e
                         </button>
@@ -718,7 +718,7 @@ export default function ContasReceber() {
                         </a>
                       ) : (
                         <button onClick={() => handleAutomate(item.id, false, true)} disabled={automating === item.id}
-                          className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-dashed border-slate-300 text-slate-400 hover:border-purple-400 hover:text-purple-600 transition-colors"
+                          className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-dashed border-slate-300 text-muted-foreground hover:border-purple-400 hover:text-purple-600 transition-colors"
                           title="Gerar Boleto">
                           <QrCode className="w-3 h-3" />Boleto
                         </button>

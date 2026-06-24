@@ -13,7 +13,7 @@ import { apiFetch } from '@/lib/fetch';
 import { useFormatCurrency } from '@/hooks/use-format-currency';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  rascunho:  { label: 'Rascunho',  color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+  rascunho:  { label: 'Rascunho',  color: 'bg-slate-100 text-slate-700 dark:bg-card dark:text-foreground' },
   ativo:     { label: 'Ativo',     color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   suspenso:  { label: 'Suspenso',  color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   encerrado: { label: 'Encerrado', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },

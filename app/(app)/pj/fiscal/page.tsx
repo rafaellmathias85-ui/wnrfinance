@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -18,7 +18,7 @@ const STATUS_BADGE: Record<string, string> = {
   aberto: 'text-yellow-400 bg-yellow-900/30',
   pago: 'text-green-400 bg-green-900/30',
   vencido: 'text-red-400 bg-red-900/30',
-  dispensado: 'text-slate-400 bg-slate-800',
+  dispensado: 'text-muted-foreground bg-card',
 };
 
 type Tab = 'das' | 'icms' | 'regras';
@@ -120,13 +120,13 @@ function FiscalPJContent() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Módulo Fiscal PJ</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Impostos, DAS, ICMS, ISS e outros tributos</p>
+          <h1 className="text-2xl font-bold">Módulo Fiscal PJ</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Impostos, DAS, ICMS, ISS e outros tributos</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-slate-800/60 border border-slate-700 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-card/60 border border-border rounded-xl p-1 w-fit">
         {([
           { id: 'das' as Tab, label: 'DAS / Simples Nacional', icon: Calculator },
           { id: 'icms' as Tab, label: 'ICMS / ISS', icon: FileText },
@@ -137,8 +137,8 @@ function FiscalPJContent() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-muted text-white'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <tab.icon className="w-4 h-4" />
@@ -152,41 +152,41 @@ function FiscalPJContent() {
           {/* Period selector */}
           <div className="flex items-center gap-3">
             <select value={month} onChange={e => setMonth(parseInt(e.target.value))}
-              className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2">
+              className="bg-card border border-border text-foreground text-sm rounded-lg px-3 py-2">
               {months.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
             </select>
             <select value={year} onChange={e => setYear(parseInt(e.target.value))}
-              className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2">
+              className="bg-card border border-border text-foreground text-sm rounded-lg px-3 py-2">
               {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => <option key={y}>{y}</option>)}
             </select>
           </div>
 
           {/* DAS Calculator */}
           {calc && (
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
+            <div className="bg-card border border-border rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                   <Calculator className="w-5 h-5 text-green-400" />
                   Cálculo DAS — {months[month - 1]}/{year}
                 </h2>
-                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
                   <Calendar className="w-4 h-4" />
-                  Vencimento: <span className="text-white font-medium">{dueDate}</span>
+                  Vencimento: <span className="text-foreground font-medium">{dueDate}</span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="bg-slate-900/60 rounded-lg p-3">
-                  <p className="text-slate-400 text-xs">Regime</p>
-                  <p className="text-white font-semibold mt-1">{calc.regime} {calc.anexo ? `— Anexo ${calc.anexo}` : ''}</p>
+                <div className="bg-muted/60 rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs">Regime</p>
+                  <p className="text-foreground font-semibold mt-1">{calc.regime} {calc.anexo ? `— Anexo ${calc.anexo}` : ''}</p>
                 </div>
-                <div className="bg-slate-900/60 rounded-lg p-3">
-                  <p className="text-slate-400 text-xs">Receita do Mês</p>
-                  <p className="text-white font-semibold mt-1">{fmtCurrency(calc.receitaMes)}</p>
+                <div className="bg-muted/60 rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs">Receita do Mês</p>
+                  <p className="text-foreground font-semibold mt-1">{fmtCurrency(calc.receitaMes)}</p>
                 </div>
-                <div className="bg-slate-900/60 rounded-lg p-3">
-                  <p className="text-slate-400 text-xs">Alíquota Efetiva</p>
-                  <p className="text-white font-semibold mt-1">{(calc.aliquotaEfetiva ?? 0).toFixed(2).replace('.', ',')}%</p>
+                <div className="bg-muted/60 rounded-lg p-3">
+                  <p className="text-muted-foreground text-xs">Alíquota Efetiva</p>
+                  <p className="text-foreground font-semibold mt-1">{(calc.aliquotaEfetiva ?? 0).toFixed(2).replace('.', ',')}%</p>
                 </div>
                 <div className="bg-green-900/40 border border-green-700/40 rounded-lg p-3">
                   <p className="text-green-300 text-xs">DAS a Pagar</p>
@@ -195,14 +195,14 @@ function FiscalPJContent() {
               </div>
 
               {calc.breakdown && (
-                <div className="flex flex-wrap gap-3 text-sm text-slate-400 mb-4">
+                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-4">
                   {Object.entries(calc.breakdown).map(([k, v]) => (
-                    <span key={k}>{k}: <span className="text-white">{fmtCurrency(v as number)}</span></span>
+                    <span key={k}>{k}: <span className="text-foreground">{fmtCurrency(v as number)}</span></span>
                   ))}
                 </div>
               )}
 
-              <p className="text-slate-500 text-xs mb-4">{calc.details}</p>
+              <p className="text-muted-foreground text-xs mb-4">{calc.details}</p>
 
               <button onClick={generateDAS} disabled={calcLoading}
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -213,37 +213,37 @@ function FiscalPJContent() {
           )}
 
           {/* DAS Records table */}
-          <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700">
-              <h2 className="text-white font-semibold">Registros Fiscais — {year}</h2>
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border">
+              <h2 className="text-foreground font-semibold">Registros Fiscais — {year}</h2>
             </div>
             <table className="w-full text-sm">
-              <thead className="bg-slate-900/60">
+              <thead className="bg-muted/60">
                 <tr>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Tipo</th>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Período</th>
-                  <th className="text-right px-4 py-3 text-slate-400 font-medium">Base</th>
-                  <th className="text-right px-4 py-3 text-slate-400 font-medium">Imposto</th>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Vencimento</th>
-                  <th className="text-center px-4 py-3 text-slate-400 font-medium">Status</th>
-                  <th className="text-center px-4 py-3 text-slate-400 font-medium">Ações</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Tipo</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Período</th>
+                  <th className="text-right px-4 py-3 text-muted-foreground font-medium">Base</th>
+                  <th className="text-right px-4 py-3 text-muted-foreground font-medium">Imposto</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Vencimento</th>
+                  <th className="text-center px-4 py-3 text-muted-foreground font-medium">Status</th>
+                  <th className="text-center px-4 py-3 text-muted-foreground font-medium">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700">
+              <tbody className="divide-y divide-border">
                 {loading ? (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Carregando...</td></tr>
                 ) : records.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Nenhum registro. Gere o DAS acima para começar.</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Nenhum registro. Gere o DAS acima para começar.</td></tr>
                 ) : records.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-700/30">
+                  <tr key={r.id} className="hover:bg-muted/40">
                     <td className="px-4 py-3">
-                      <span className="font-medium text-white">{r.type}</span>
-                      {r.rate && <span className="text-slate-400 text-xs ml-2">{r.rate.toFixed(2)}%</span>}
+                      <span className="font-medium text-foreground">{r.type}</span>
+                      {r.rate && <span className="text-muted-foreground text-xs ml-2">{r.rate.toFixed(2)}%</span>}
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{r.period}</td>
-                    <td className="px-4 py-3 text-right text-slate-300">{fmtCurrency(r.baseValue)}</td>
-                    <td className="px-4 py-3 text-right text-white font-semibold">{fmtCurrency(r.taxValue)}</td>
-                    <td className={`px-4 py-3 ${r.status === 'aberto' && r.dueDate && new Date(r.dueDate) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
+                    <td className="px-4 py-3 text-foreground">{r.period}</td>
+                    <td className="px-4 py-3 text-right text-foreground">{fmtCurrency(r.baseValue)}</td>
+                    <td className="px-4 py-3 text-right text-foreground font-semibold">{fmtCurrency(r.taxValue)}</td>
+                    <td className={`px-4 py-3 ${r.status === 'aberto' && r.dueDate && new Date(r.dueDate) < new Date() ? 'text-red-400' : 'text-foreground'}`}>
                       {fmtDate(r.dueDate || '')}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -256,7 +256,7 @@ function FiscalPJContent() {
                       {r.status === 'aberto' && (
                         <button onClick={() => setShowMarkPaid(r)} className="text-green-400 hover:text-green-300 text-xs">Marcar como pago</button>
                       )}
-                      {r.status === 'pago' && r.paidAt && <span className="text-slate-500 text-xs">Pago em {fmtDate(r.paidAt)}</span>}
+                      {r.status === 'pago' && r.paidAt && <span className="text-muted-foreground text-xs">Pago em {fmtDate(r.paidAt)}</span>}
                     </td>
                   </tr>
                 ))}
@@ -271,7 +271,7 @@ function FiscalPJContent() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <select value={icmsYear} onChange={e => setIcmsYear(parseInt(e.target.value))}
-                className="bg-slate-800 border border-slate-700 text-white text-sm rounded-lg px-3 py-2">
+                className="bg-card border border-border text-foreground text-sm rounded-lg px-3 py-2">
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => <option key={y}>{y}</option>)}
               </select>
             </div>
@@ -293,43 +293,43 @@ function FiscalPJContent() {
           </div>
 
           {/* ICMS/ISS Records */}
-          <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700">
-              <h2 className="text-white font-semibold">ICMS / ISS — {icmsYear}</h2>
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border">
+              <h2 className="text-foreground font-semibold">ICMS / ISS — {icmsYear}</h2>
             </div>
             <table className="w-full text-sm">
-              <thead className="bg-slate-900/60">
+              <thead className="bg-muted/60">
                 <tr>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Tipo</th>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Período</th>
-                  <th className="text-right px-4 py-3 text-slate-400 font-medium">Base</th>
-                  <th className="text-right px-4 py-3 text-slate-400 font-medium">Imposto</th>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Vencimento</th>
-                  <th className="text-center px-4 py-3 text-slate-400 font-medium">Status</th>
-                  <th className="text-center px-4 py-3 text-slate-400 font-medium">Ações</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Tipo</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Período</th>
+                  <th className="text-right px-4 py-3 text-muted-foreground font-medium">Base</th>
+                  <th className="text-right px-4 py-3 text-muted-foreground font-medium">Imposto</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Vencimento</th>
+                  <th className="text-center px-4 py-3 text-muted-foreground font-medium">Status</th>
+                  <th className="text-center px-4 py-3 text-muted-foreground font-medium">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700">
+              <tbody className="divide-y divide-border">
                 {icmsLoading ? (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Carregando...</td></tr>
                 ) : icmsRecords.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center">
                       <FileText className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                      <p className="text-slate-500">Nenhum lançamento de ICMS/ISS para {icmsYear}.</p>
+                      <p className="text-muted-foreground">Nenhum lançamento de ICMS/ISS para {icmsYear}.</p>
                       <p className="text-slate-600 text-xs mt-1">Use o botão "Lançar Imposto" para registrar.</p>
                     </td>
                   </tr>
                 ) : icmsRecords.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-700/30">
+                  <tr key={r.id} className="hover:bg-muted/40">
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${r.type === 'ICMS' ? 'bg-orange-900/30 text-orange-300' : 'bg-blue-900/30 text-blue-300'}`}>{r.type}</span>
-                      {r.rate && <span className="text-slate-400 text-xs ml-2">{r.rate.toFixed(2)}%</span>}
+                      {r.rate && <span className="text-muted-foreground text-xs ml-2">{r.rate.toFixed(2)}%</span>}
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{r.period}</td>
-                    <td className="px-4 py-3 text-right text-slate-300">{fmtCurrency(r.baseValue)}</td>
-                    <td className="px-4 py-3 text-right text-white font-semibold">{fmtCurrency(r.taxValue)}</td>
-                    <td className={`px-4 py-3 ${r.status === 'aberto' && r.dueDate && new Date(r.dueDate) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
+                    <td className="px-4 py-3 text-foreground">{r.period}</td>
+                    <td className="px-4 py-3 text-right text-foreground">{fmtCurrency(r.baseValue)}</td>
+                    <td className="px-4 py-3 text-right text-foreground font-semibold">{fmtCurrency(r.taxValue)}</td>
+                    <td className={`px-4 py-3 ${r.status === 'aberto' && r.dueDate && new Date(r.dueDate) < new Date() ? 'text-red-400' : 'text-foreground'}`}>
                       {fmtDate(r.dueDate || '')}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -342,7 +342,7 @@ function FiscalPJContent() {
                       {r.status === 'aberto' && (
                         <button onClick={() => setShowMarkPaid(r)} className="text-green-400 hover:text-green-300 text-xs">Marcar como pago</button>
                       )}
-                      {r.status === 'pago' && r.paidAt && <span className="text-slate-500 text-xs">Pago em {fmtDate(r.paidAt)}</span>}
+                      {r.status === 'pago' && r.paidAt && <span className="text-muted-foreground text-xs">Pago em {fmtDate(r.paidAt)}</span>}
                     </td>
                   </tr>
                 ))}
@@ -364,7 +364,7 @@ function FiscalPJContent() {
           </div>
 
           <div className="flex items-center justify-between">
-            <h2 className="text-white font-semibold">Regras fiscais de servico</h2>
+            <h2 className="text-foreground font-semibold">Regras fiscais de servico</h2>
             <button
               onClick={() => setShowRuleForm('new')}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium"
@@ -374,58 +374,58 @@ function FiscalPJContent() {
             </button>
           </div>
 
-          <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-900/60">
+              <thead className="bg-muted/60">
                 <tr>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Regra</th>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Servico</th>
-                  <th className="text-left px-4 py-3 text-slate-400 font-medium">Municipios</th>
-                  <th className="text-right px-4 py-3 text-slate-400 font-medium">ISS</th>
-                  <th className="text-center px-4 py-3 text-slate-400 font-medium">Status</th>
-                  <th className="text-right px-4 py-3 text-slate-400 font-medium">Acoes</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Regra</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Servico</th>
+                  <th className="text-left px-4 py-3 text-muted-foreground font-medium">Municipios</th>
+                  <th className="text-right px-4 py-3 text-muted-foreground font-medium">ISS</th>
+                  <th className="text-center px-4 py-3 text-muted-foreground font-medium">Status</th>
+                  <th className="text-right px-4 py-3 text-muted-foreground font-medium">Acoes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700">
+              <tbody className="divide-y divide-border">
                 {rulesLoading ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Carregando...</td></tr>
                 ) : rules.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-12 text-center">
                       <ShieldCheck className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                      <p className="text-slate-500">Nenhuma regra fiscal cadastrada.</p>
+                      <p className="text-muted-foreground">Nenhuma regra fiscal cadastrada.</p>
                       <p className="text-slate-600 text-xs mt-1">Crie uma regra padrao antes de automatizar NFS-e e cobrancas.</p>
                     </td>
                   </tr>
                 ) : rules.map(rule => (
-                  <tr key={rule.id} className="hover:bg-slate-700/30">
+                  <tr key={rule.id} className="hover:bg-muted/40">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">{rule.name}</span>
+                        <span className="font-medium text-foreground">{rule.name}</span>
                         {rule.isDefault && <span className="px-2 py-0.5 rounded bg-green-900/40 text-green-300 text-xs">Padrao</span>}
                       </div>
-                      <p className="text-xs text-slate-500">{rule.taxRegime} {rule.isSimplesNacional ? 'Simples Nacional' : ''}</p>
+                      <p className="text-xs text-muted-foreground">{rule.taxRegime} {rule.isSimplesNacional ? 'Simples Nacional' : ''}</p>
                     </td>
-                    <td className="px-4 py-3 text-slate-300">
+                    <td className="px-4 py-3 text-foreground">
                       LC 116: {rule.serviceCodeLc116}<br />
-                      <span className="text-xs text-slate-500">CNAE: {rule.cnae || '-'}</span>
+                      <span className="text-xs text-muted-foreground">CNAE: {rule.cnae || '-'}</span>
                     </td>
-                    <td className="px-4 py-3 text-slate-300">
+                    <td className="px-4 py-3 text-foreground">
                       Prestador: {rule.providerCityName || rule.providerCityCode}<br />
-                      <span className="text-xs text-slate-500">Tomador: {rule.customerCityName || rule.customerCityCode || '-'}</span>
+                      <span className="text-xs text-muted-foreground">Tomador: {rule.customerCityName || rule.customerCityCode || '-'}</span>
                     </td>
-                    <td className="px-4 py-3 text-right text-white">
+                    <td className="px-4 py-3 text-right text-foreground">
                       {rule.issRate.toFixed(2)}%
                       {rule.issWithheld && <p className="text-xs text-amber-300">Retido</p>}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${rule.isActive ? 'text-green-300 bg-green-900/30' : 'text-slate-400 bg-slate-900/70'}`}>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${rule.isActive ? 'text-green-300 bg-green-900/30' : 'text-muted-foreground bg-muted/70'}`}>
                         {rule.isActive ? <CheckCircle className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                         {rule.isActive ? 'Ativa' : 'Inativa'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => setShowRuleForm(rule)} className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg" title="Editar">
+                      <button onClick={() => setShowRuleForm(rule)} className="p-1.5 text-foreground hover:text-foreground hover:bg-muted rounded-lg" title="Editar">
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
@@ -490,11 +490,11 @@ function FiscalRuleDialog({ rule, onClose, onSaved }: { rule: any | null; onClos
   const set = (key: string, value: any) => setForm((prev: any) => ({ ...prev, [key]: value }));
   const field = (key: string, label: string, props: any = {}) => (
     <div>
-      <label className="block text-xs text-slate-400 mb-1">{label}</label>
+      <label className="block text-xs text-muted-foreground mb-1">{label}</label>
       <input
         value={form[key] ?? ''}
         onChange={e => set(key, e.target.value)}
-        className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
+        className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm"
         {...props}
       />
     </div>
@@ -534,13 +534,13 @@ function FiscalRuleDialog({ rule, onClose, onSaved }: { rule: any | null; onClos
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-5">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-white">{rule ? 'Editar regra NFS-e' : 'Nova regra NFS-e'}</h3>
-            <p className="text-xs text-slate-400 mt-1">Campos fiscais usados para validar e emitir NFS-e de servicos.</p>
+            <h3 className="text-lg font-bold">{rule ? 'Editar regra NFS-e' : 'Nova regra NFS-e'}</h3>
+            <p className="text-xs text-muted-foreground mt-1">Campos fiscais usados para validar e emitir NFS-e de servicos.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">Fechar</button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">Fechar</button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -554,9 +554,9 @@ function FiscalRuleDialog({ rule, onClose, onSaved }: { rule: any | null; onClos
           {field('customerCityName', 'Municipio tomador')}
           {field('operationNature', 'Natureza da operacao *')}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Regime tributario *</label>
+            <label className="block text-xs text-muted-foreground mb-1">Regime tributario *</label>
             <select value={form.taxRegime} onChange={e => set('taxRegime', e.target.value)}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
               <option value="simples_nacional">Simples Nacional</option>
               <option value="lucro_presumido">Lucro Presumido</option>
               <option value="lucro_real">Lucro Real</option>
@@ -564,11 +564,11 @@ function FiscalRuleDialog({ rule, onClose, onSaved }: { rule: any | null; onClos
           </div>
           {field('issRate', 'ISS (%) *', { type: 'number', step: '0.01', min: '0', max: '5' })}
           <div className="flex items-end gap-4 pb-2">
-            <label className="flex items-center gap-2 text-sm text-slate-200">
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input type="checkbox" checked={form.issWithheld} onChange={e => set('issWithheld', e.target.checked)} />
               ISS retido
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-200">
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input type="checkbox" checked={form.isSimplesNacional} onChange={e => set('isSimplesNacional', e.target.checked)} />
               Simples
             </label>
@@ -599,22 +599,22 @@ function FiscalRuleDialog({ rule, onClose, onSaved }: { rule: any | null; onClos
         </div>
 
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Descricao / observacoes</label>
+          <label className="block text-xs text-muted-foreground mb-1">Descricao / observacoes</label>
           <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
-            className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm min-h-20" />
+            className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm min-h-20" />
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-slate-200">
+          <label className="flex items-center gap-2 text-sm text-foreground">
             <input type="checkbox" checked={form.isDefault} onChange={e => set('isDefault', e.target.checked)} />
             Regra padrao
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-200">
+          <label className="flex items-center gap-2 text-sm text-foreground">
             <input type="checkbox" checked={form.isActive} onChange={e => set('isActive', e.target.checked)} />
             Ativa
           </label>
           <div className="flex-1" />
-          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm">Cancelar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg bg-muted hover:bg-muted text-foreground text-sm">Cancelar</button>
           <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium disabled:opacity-60">
             {saving ? 'Salvando...' : 'Salvar regra'}
           </button>
@@ -662,52 +662,52 @@ function NewIcmsDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
-        <h3 className="text-lg font-bold text-white">Lançar ICMS / ISS</h3>
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
+        <h3 className="text-lg font-bold">Lançar ICMS / ISS</h3>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Tipo</label>
+            <label className="block text-xs text-muted-foreground mb-1">Tipo</label>
             <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm">
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm">
               <option value="ISS">ISS</option>
               <option value="ICMS">ICMS</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Período (AAAA-MM)</label>
+            <label className="block text-xs text-muted-foreground mb-1">Período (AAAA-MM)</label>
             <input type="month" value={form.period} onChange={e => setForm(p => ({ ...p, period: e.target.value }))}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Base de Cálculo (R$)</label>
+            <label className="block text-xs text-muted-foreground mb-1">Base de Cálculo (R$)</label>
             <input type="number" step="0.01" value={form.baseValue}
               onChange={e => { setForm(p => ({ ...p, baseValue: e.target.value })); calcTax(e.target.value, form.rate); }}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Alíquota (%)</label>
+            <label className="block text-xs text-muted-foreground mb-1">Alíquota (%)</label>
             <input type="number" step="0.01" value={form.rate}
               onChange={e => { setForm(p => ({ ...p, rate: e.target.value })); calcTax(form.baseValue, e.target.value); }}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Valor do Imposto (R$)</label>
+            <label className="block text-xs text-muted-foreground mb-1">Valor do Imposto (R$)</label>
             <input type="number" step="0.01" value={form.taxValue} onChange={e => setForm(p => ({ ...p, taxValue: e.target.value }))}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Vencimento</label>
+            <label className="block text-xs text-muted-foreground mb-1">Vencimento</label>
             <input type="date" value={form.dueDate} onChange={e => setForm(p => ({ ...p, dueDate: e.target.value }))}
-              className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+              className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Observações</label>
+          <label className="block text-xs text-muted-foreground mb-1">Observações</label>
           <input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+            className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
         </div>
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">Cancelar</button>
+          <button onClick={onClose} className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">Cancelar</button>
           <button onClick={save} disabled={saving} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg text-sm font-medium">
             {saving ? 'Salvando...' : 'Salvar'}
           </button>
@@ -719,7 +719,7 @@ function NewIcmsDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
 export default function FiscalPJPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-slate-400">Carregando...</div>}>
+    <Suspense fallback={<div className="p-6 text-muted-foreground">Carregando...</div>}>
       <FiscalPJContent />
     </Suspense>
   );
@@ -730,21 +730,21 @@ function MarkPaidModal({ record, onClose, onSave }: { record: TaxRecord; onClose
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-sm space-y-4">
-        <h3 className="text-lg font-bold text-white">Registrar Pagamento</h3>
-        <p className="text-slate-400 text-sm">{record.type} — {record.period}</p>
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm space-y-4">
+        <h3 className="text-lg font-bold">Registrar Pagamento</h3>
+        <p className="text-muted-foreground text-sm">{record.type} — {record.period}</p>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Valor pago (R$)</label>
+          <label className="block text-xs text-muted-foreground mb-1">Valor pago (R$)</label>
           <input type="number" value={amount} onChange={e => setAmount(e.target.value)} step="0.01"
-            className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+            className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Data do pagamento</label>
+          <label className="block text-xs text-muted-foreground mb-1">Data do pagamento</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+            className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
         </div>
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">Cancelar</button>
+          <button onClick={onClose} className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">Cancelar</button>
           <button onClick={() => onSave(record, amount, date)} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-sm font-medium">Confirmar</button>
         </div>
       </div>

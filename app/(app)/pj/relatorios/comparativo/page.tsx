@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -38,7 +38,7 @@ function DeltaBadge({ a, b, invert = false }: { a: number; b: number; invert?: b
   const diff = a - b;
   const isPositive = invert ? diff < 0 : diff > 0;
   const isNeutral = diff === 0;
-  if (isNeutral) return <span className="text-slate-500 text-xs flex items-center gap-0.5"><Minus className="w-3 h-3" />0%</span>;
+  if (isNeutral) return <span className="text-muted-foreground text-xs flex items-center gap-0.5"><Minus className="w-3 h-3" />0%</span>;
   return (
     <span className={`text-xs flex items-center gap-0.5 font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
       {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -81,39 +81,39 @@ export default function ComparativoPeriodosPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Comparativo de Períodos</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Compare receitas e despesas entre dois períodos</p>
+        <h1 className="text-2xl font-bold">Comparativo de Períodos</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Compare receitas e despesas entre dois períodos</p>
       </div>
 
       {/* Period selectors */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-slate-800 border border-blue-500/40 rounded-xl p-4 space-y-3">
+        <div className="bg-card border border-blue-500/40 rounded-xl p-4 space-y-3">
           <h3 className="text-blue-400 font-medium text-sm">Período A</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-slate-400 block mb-1">De</label>
+              <label className="text-xs text-muted-foreground block mb-1">De</label>
               <input type="date" value={aFrom} onChange={(e) => setAFrom(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Até</label>
+              <label className="text-xs text-muted-foreground block mb-1">Até</label>
               <input type="date" value={aTo} onChange={(e) => setATo(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
             </div>
           </div>
         </div>
-        <div className="bg-slate-800 border border-purple-500/40 rounded-xl p-4 space-y-3">
+        <div className="bg-card border border-purple-500/40 rounded-xl p-4 space-y-3">
           <h3 className="text-purple-400 font-medium text-sm">Período B</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-slate-400 block mb-1">De</label>
+              <label className="text-xs text-muted-foreground block mb-1">De</label>
               <input type="date" value={bFrom} onChange={(e) => setBFrom(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="text-xs text-slate-400 block mb-1">Até</label>
+              <label className="text-xs text-muted-foreground block mb-1">Até</label>
               <input type="date" value={bTo} onChange={(e) => setBTo(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
             </div>
           </div>
         </div>
@@ -134,8 +134,8 @@ export default function ComparativoPeriodosPage() {
               { label: 'Total Despesas', a: result.periodA.totalDespesas, b: result.periodB.totalDespesas, invert: true },
               { label: 'Resultado', a: result.periodA.resultado, b: result.periodB.resultado, invert: false },
             ].map(({ label, a, b, invert }) => (
-              <div key={label} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-                <p className="text-slate-400 text-xs mb-2">{label}</p>
+              <div key={label} className="bg-card border border-border rounded-xl p-4">
+                <p className="text-muted-foreground text-xs mb-2">{label}</p>
                 <div className="flex items-end justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -144,7 +144,7 @@ export default function ComparativoPeriodosPage() {
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="w-2 h-2 rounded-full bg-purple-400 flex-shrink-0" />
-                      <span className="text-slate-300 text-sm">{fmt(b)}</span>
+                      <span className="text-foreground text-sm">{fmt(b)}</span>
                     </div>
                   </div>
                   <DeltaBadge a={a} b={b} invert={invert} />
@@ -192,23 +192,23 @@ function CompareTable({
   const totalB = rows.reduce((s, r) => s + r.amountB, 0);
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-700">
-        <h3 className="text-white font-medium">{title}</h3>
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-border">
+        <h3 className="text-foreground font-medium">{title}</h3>
       </div>
       <table className="w-full text-sm">
-        <thead className="bg-slate-900/40">
+        <thead className="bg-muted/40">
           <tr>
-            <th className="text-left px-4 py-2.5 text-slate-400 font-medium">Categoria</th>
+            <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Categoria</th>
             <th className={`text-right px-4 py-2.5 font-medium ${colorA}`}>Período A</th>
             <th className="text-right px-4 py-2.5 text-purple-400 font-medium">Período B</th>
-            <th className="text-right px-4 py-2.5 text-slate-400 font-medium">Variação</th>
+            <th className="text-right px-4 py-2.5 text-muted-foreground font-medium">Variação</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-700/50">
+        <tbody className="divide-y divide-border/50">
           {rows.map((row, i) => (
-            <tr key={i} className="hover:bg-slate-700/20">
-              <td className="px-4 py-2.5 text-slate-300">{row.name}</td>
+            <tr key={i} className="hover:bg-muted/20">
+              <td className="px-4 py-2.5 text-foreground">{row.name}</td>
               <td className={`px-4 py-2.5 text-right ${colorA} font-medium`}>{fmt(row.amountA)}</td>
               <td className="px-4 py-2.5 text-right text-purple-300">{fmt(row.amountB)}</td>
               <td className="px-4 py-2.5 text-right">
@@ -216,8 +216,8 @@ function CompareTable({
               </td>
             </tr>
           ))}
-          <tr className="bg-slate-900/30 font-bold">
-            <td className="px-4 py-2.5 text-white">Total</td>
+          <tr className="bg-muted/30 font-bold">
+            <td className="px-4 py-2.5 text-foreground">Total</td>
             <td className={`px-4 py-2.5 text-right ${colorA}`}>{fmt(totalA)}</td>
             <td className="px-4 py-2.5 text-right text-purple-300">{fmt(totalB)}</td>
             <td className="px-4 py-2.5 text-right">

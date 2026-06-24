@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { formatDate, toInputDate } from '@/lib/format';
 import { usePJ } from '@/lib/pj-context';
@@ -100,8 +100,8 @@ function EmailEditor({ value, onChange }: { value: string; onChange: (v: string)
   });
 
   return (
-    <div className="border border-slate-600 rounded-lg overflow-hidden">
-      <div className="flex gap-1 px-2 py-1.5 bg-slate-800 border-b border-slate-700">
+    <div className="border border-border rounded-lg overflow-hidden">
+      <div className="flex gap-1 px-2 py-1.5 bg-card border-b border-border">
         {[
           { label: 'B', action: () => editor?.chain().focus().toggleBold().run(), active: editor?.isActive('bold') },
           { label: 'I', action: () => editor?.chain().focus().toggleItalic().run(), active: editor?.isActive('italic') },
@@ -111,7 +111,7 @@ function EmailEditor({ value, onChange }: { value: string; onChange: (v: string)
             key={btn.label}
             type="button"
             onClick={btn.action}
-            className={`w-7 h-7 text-sm font-medium rounded transition-colors ${btn.active ? 'bg-blue-700 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
+            className={`w-7 h-7 text-sm font-medium rounded transition-colors ${btn.active ? 'bg-blue-700 text-white' : 'text-foreground hover:bg-muted'}`}
           >
             {btn.label}
           </button>
@@ -119,7 +119,7 @@ function EmailEditor({ value, onChange }: { value: string; onChange: (v: string)
       </div>
       <EditorContent
         editor={editor}
-        className="prose prose-invert prose-sm max-w-none min-h-[120px] px-3 py-2 text-slate-200 bg-slate-900 focus:outline-none"
+        className="prose prose-invert prose-sm max-w-none min-h-[120px] px-3 py-2 text-foreground bg-muted focus:outline-none"
       />
     </div>
   );
@@ -174,27 +174,27 @@ function EmailModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-white">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-muted border-border text-foreground">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Send className="w-5 h-5 text-blue-400" /> Enviar Email de Cobrança
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-slate-400 mb-1 block">Para *</label>
-            <input className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={to} onChange={(e) => setTo(e.target.value)} placeholder="email@cliente.com" />
+            <label className="text-xs text-muted-foreground mb-1 block">Para *</label>
+            <input className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={to} onChange={(e) => setTo(e.target.value)} placeholder="email@cliente.com" />
           </div>
           <div>
-            <label className="text-xs text-slate-400 mb-1 block">CC</label>
-            <input className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="copia@email.com" />
+            <label className="text-xs text-muted-foreground mb-1 block">CC</label>
+            <input className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="copia@email.com" />
           </div>
           <div>
-            <label className="text-xs text-slate-400 mb-1 block">Assunto *</label>
-            <input className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            <label className="text-xs text-muted-foreground mb-1 block">Assunto *</label>
+            <input className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs text-slate-400 mb-1 block">Corpo do email</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Corpo do email</label>
             <EmailEditor value={body} onChange={setBody} />
           </div>
         </div>
@@ -281,44 +281,44 @@ function RenegotiationModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg bg-slate-900 border-slate-700 text-white">
+      <DialogContent className="sm:max-w-lg bg-muted border-border text-foreground">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
+          <DialogTitle className="flex items-center gap-2 text-foreground">
             <Handshake className="w-5 h-5 text-emerald-400" /> Renegociar
-            {customer && <span className="text-slate-400 font-normal text-sm">— {customer.customerName}</span>}
+            {customer && <span className="text-muted-foreground font-normal text-sm">— {customer.customerName}</span>}
           </DialogTitle>
         </DialogHeader>
 
         {receivable && (
-          <div className="bg-slate-800 rounded-lg p-3 text-sm">
-            <p className="font-medium text-white">{receivable.description}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Vencimento: {formatDate(receivable.dueDate)}</p>
+          <div className="bg-card rounded-lg p-3 text-sm">
+            <p className="font-medium text-foreground">{receivable.description}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Vencimento: {formatDate(receivable.dueDate)}</p>
           </div>
         )}
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">Valor Original</label>
-              <input type="number" step="0.01" className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.originalAmount} onChange={(e) => set('originalAmount', parseFloat(e.target.value) || 0)} />
+              <label className="text-xs text-muted-foreground mb-1 block">Valor Original</label>
+              <input type="number" step="0.01" className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.originalAmount} onChange={(e) => set('originalAmount', parseFloat(e.target.value) || 0)} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">Multa (R$)</label>
-              <input type="number" step="0.01" min="0" className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.penalty} onChange={(e) => set('penalty', parseFloat(e.target.value) || 0)} />
+              <label className="text-xs text-muted-foreground mb-1 block">Multa (R$)</label>
+              <input type="number" step="0.01" min="0" className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.penalty} onChange={(e) => set('penalty', parseFloat(e.target.value) || 0)} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">Juros (R$)</label>
-              <input type="number" step="0.01" min="0" className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.interest} onChange={(e) => set('interest', parseFloat(e.target.value) || 0)} />
+              <label className="text-xs text-muted-foreground mb-1 block">Juros (R$)</label>
+              <input type="number" step="0.01" min="0" className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.interest} onChange={(e) => set('interest', parseFloat(e.target.value) || 0)} />
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">Desconto (R$)</label>
-              <input type="number" step="0.01" min="0" className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.discount} onChange={(e) => set('discount', parseFloat(e.target.value) || 0)} />
+              <label className="text-xs text-muted-foreground mb-1 block">Desconto (R$)</label>
+              <input type="number" step="0.01" min="0" className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.discount} onChange={(e) => set('discount', parseFloat(e.target.value) || 0)} />
             </div>
           </div>
 
           {/* Real-time total */}
           <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${totalAmount >= 0 ? 'bg-emerald-900/20 border border-emerald-700/40' : 'bg-red-900/20 border border-red-700/40'}`}>
-            <span className="text-sm text-slate-300">Total Renegociado</span>
+            <span className="text-sm text-foreground">Total Renegociado</span>
             <span className={`text-xl font-bold ${totalAmount >= 0 ? 'text-emerald-300' : 'text-red-300'}`}>
               {formatCurrency(totalAmount)}
             </span>
@@ -326,8 +326,8 @@ function RenegotiationModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">Forma de pagamento</label>
-              <select className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.paymentMethod} onChange={(e) => set('paymentMethod', e.target.value)}>
+              <label className="text-xs text-muted-foreground mb-1 block">Forma de pagamento</label>
+              <select className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.paymentMethod} onChange={(e) => set('paymentMethod', e.target.value)}>
                 <option value="">Selecionar...</option>
                 <option value="boleto">Boleto</option>
                 <option value="pix">PIX</option>
@@ -336,19 +336,19 @@ function RenegotiationModal({
               </select>
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">Previsão de pagamento</label>
-              <input type="date" className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.forecastDate} onChange={(e) => set('forecastDate', e.target.value)} />
+              <label className="text-xs text-muted-foreground mb-1 block">Previsão de pagamento</label>
+              <input type="date" className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.forecastDate} onChange={(e) => set('forecastDate', e.target.value)} />
             </div>
             <div className="col-span-2">
-              <label className="text-xs text-slate-400 mb-1 block">Próximo contato</label>
-              <input type="datetime-local" className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" value={form.nextContactAt} onChange={(e) => set('nextContactAt', e.target.value)} />
+              <label className="text-xs text-muted-foreground mb-1 block">Próximo contato</label>
+              <input type="datetime-local" className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm" value={form.nextContactAt} onChange={(e) => set('nextContactAt', e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="text-xs text-slate-400 mb-1 block">Observações</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Observações</label>
             <textarea
               rows={3}
-              className="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm"
+              className="w-full bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm"
               value={form.notes}
               onChange={(e) => set('notes', e.target.value)}
             />
@@ -412,29 +412,29 @@ function NegotiationModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+      <div className="bg-muted border border-border rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-white">{customer.customerName}</h2>
+            <h2 className="text-lg font-bold">{customer.customerName}</h2>
             <div className="flex items-center gap-3 mt-1">
               <Stars value={customer.clientRating} />
               <span className="text-red-400 font-semibold text-sm">{formatCurrency(customer.totalOverdue)} em atraso</span>
-              {customer.clientPhone && <span className="text-slate-500 text-sm flex items-center gap-1"><Phone className="w-3 h-3" />{customer.clientPhone}</span>}
-              {customer.clientEmail && <span className="text-slate-500 text-sm flex items-center gap-1"><Mail className="w-3 h-3" />{customer.clientEmail}</span>}
+              {customer.clientPhone && <span className="text-muted-foreground text-sm flex items-center gap-1"><Phone className="w-3 h-3" />{customer.clientPhone}</span>}
+              {customer.clientEmail && <span className="text-muted-foreground text-sm flex items-center gap-1"><Mail className="w-3 h-3" />{customer.clientEmail}</span>}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded hover:bg-slate-700 text-slate-400 hover:text-white">
+          <button onClick={onClose} className="p-2 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* 3 columns */}
-        <div className="flex-1 overflow-hidden grid grid-cols-3 divide-x divide-slate-700">
+        <div className="flex-1 overflow-hidden grid grid-cols-3 divide-x divide-border">
           {/* Col 1 — Parcelas */}
           <div className="flex flex-col overflow-hidden">
-            <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-700 shrink-0">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <div className="px-4 py-3 bg-card/50 border-b border-border shrink-0">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <ClipboardList className="w-4 h-4 text-red-400" /> Parcelas em Atraso
               </h3>
             </div>
@@ -445,12 +445,12 @@ function NegotiationModal({
                 return (
                   <div key={r.id} className="p-2 space-y-1">
                     <div className="text-sm font-medium text-white leading-tight">{r.description}</div>
-                    <div className="text-xs text-slate-500">Vence {formatDate(r.dueDate)} · {days}d em atraso</div>
+                    <div className="text-xs text-muted-foreground">Vence {formatDate(r.dueDate)} · {days}d em atraso</div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-red-400">{formatCurrency(pending)}</span>
                       <button
                         onClick={() => onOpenRenegotiate(r)}
-                        className="text-xs px-2 py-1 rounded bg-emerald-900/30 text-emerald-300 hover:bg-emerald-700 hover:text-white transition-colors"
+                        className="text-xs px-2 py-1 rounded bg-emerald-900/30 text-emerald-300 hover:bg-emerald-700 hover:text-foreground transition-colors"
                       >
                         Negociar
                       </button>
@@ -459,21 +459,21 @@ function NegotiationModal({
                 );
               })}
               {customer.receivables.length === 0 && (
-                <p className="text-sm text-slate-500 p-4 text-center">Sem parcelas</p>
+                <p className="text-sm text-muted-foreground p-4 text-center">Sem parcelas</p>
               )}
             </div>
           </div>
 
           {/* Col 2 — Ocorrências */}
           <div className="flex flex-col overflow-hidden">
-            <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-700 shrink-0">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <div className="px-4 py-3 bg-card/50 border-b border-border shrink-0">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <History className="w-4 h-4 text-blue-400" /> Ocorrências
               </h3>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-slate-800 p-2">
               {negotiations.length === 0 ? (
-                <p className="text-sm text-slate-500 p-4 text-center">Sem ocorrências</p>
+                <p className="text-sm text-muted-foreground p-4 text-center">Sem ocorrências</p>
               ) : (
                 negotiations.map((n) => {
                   const statusColors: Record<string, string> = {
@@ -482,18 +482,18 @@ function NegotiationModal({
                     cancelado: 'bg-yellow-900/30 text-yellow-300',
                     perdido: 'bg-red-900/30 text-red-300',
                   };
-                  const cls = statusColors[n.status] || 'bg-slate-700 text-slate-300';
+                  const cls = statusColors[n.status] || 'bg-muted text-foreground';
                   return (
                     <div key={n.id} className="p-2 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>{n.status}</span>
-                        <span className="text-xs text-slate-500">{formatDate(n.createdAt)}</span>
+                        <span className="text-xs text-muted-foreground">{formatDate(n.createdAt)}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-white">{formatCurrency(n.newAmount)}</span>
-                        <span className="text-xs text-slate-500">{n.installments}x · {formatDate(n.newDueDate)}</span>
+                        <span className="text-sm font-semibold text-foreground">{formatCurrency(n.newAmount)}</span>
+                        <span className="text-xs text-muted-foreground">{n.installments}x · {formatDate(n.newDueDate)}</span>
                       </div>
-                      {n.notes && <p className="text-xs text-slate-400 bg-slate-800 rounded p-1.5 leading-relaxed">{n.notes}</p>}
+                      {n.notes && <p className="text-xs text-muted-foreground bg-card rounded p-1.5 leading-relaxed">{n.notes}</p>}
                       {n.nextContact && (
                         <p className="text-xs text-blue-400 flex items-center gap-1">
                           <Calendar className="w-3 h-3" /> Próx. contato: {formatDate(n.nextContact)}
@@ -508,72 +508,72 @@ function NegotiationModal({
 
           {/* Col 3 — Ações / Contatos */}
           <div className="flex flex-col overflow-hidden">
-            <div className="px-4 py-3 bg-slate-800/50 border-b border-slate-700 shrink-0">
-              <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+            <div className="px-4 py-3 bg-card/50 border-b border-border shrink-0">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Users className="w-4 h-4 text-purple-400" /> Ações
               </h3>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               <button
                 onClick={() => onOpenRenegotiate()}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-900/20 border border-emerald-700/40 text-emerald-300 hover:bg-emerald-700 hover:text-white text-sm font-medium transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-900/20 border border-emerald-700/40 text-emerald-300 hover:bg-emerald-700 hover:text-foreground text-sm font-medium transition-colors"
               >
                 <Handshake className="w-4 h-4" /> Renegociar (geral)
               </button>
               <button
                 onClick={handleScheduleCall}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-900/20 border border-blue-700/40 text-blue-300 hover:bg-blue-700 hover:text-white text-sm font-medium transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-blue-900/20 border border-blue-700/40 text-blue-300 hover:bg-blue-700 hover:text-foreground text-sm font-medium transition-colors"
               >
                 <PhoneCall className="w-4 h-4" /> Agendar Ligação
               </button>
               <button
                 onClick={onOpenEmail}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-purple-900/20 border border-purple-700/40 text-purple-300 hover:bg-purple-700 hover:text-white text-sm font-medium transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-purple-900/20 border border-purple-700/40 text-purple-300 hover:bg-purple-700 hover:text-foreground text-sm font-medium transition-colors"
               >
                 <Send className="w-4 h-4" /> Enviar Email de Cobrança
               </button>
               <button
                 onClick={handleMarkLost}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-900/20 border border-red-700/40 text-red-400 hover:bg-red-700 hover:text-white text-sm font-medium transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-red-900/20 border border-red-700/40 text-red-400 hover:bg-red-700 hover:text-foreground text-sm font-medium transition-colors"
               >
                 <Ban className="w-4 h-4" /> Marcar como Perdido
               </button>
 
               {/* Contact info */}
               {(customer.clientPhone || customer.clientEmail) && (
-                <div className="mt-3 pt-3 border-t border-slate-700 space-y-2">
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Contato direto</p>
+                <div className="mt-3 pt-3 border-t border-border space-y-2">
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Contato direto</p>
                   {customer.clientPhone && (
-                    <div className="flex items-center gap-2 text-sm text-slate-300">
-                      <Phone className="w-4 h-4 text-slate-500" /> {customer.clientPhone}
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <Phone className="w-4 h-4 text-muted-foreground" /> {customer.clientPhone}
                     </div>
                   )}
                   {customer.clientEmail && (
-                    <div className="flex items-center gap-2 text-sm text-slate-300">
-                      <Mail className="w-4 h-4 text-slate-500" /> {customer.clientEmail}
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <Mail className="w-4 h-4 text-muted-foreground" /> {customer.clientEmail}
                     </div>
                   )}
                 </div>
               )}
 
               {/* Summary */}
-              <div className="mt-3 pt-3 border-t border-slate-700 space-y-1.5">
-                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Resumo</p>
+              <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Resumo</p>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Negociações</span>
-                  <span className="text-white">{customer.negotiationCount}</span>
+                  <span className="text-muted-foreground">Negociações</span>
+                  <span className="text-foreground">{customer.negotiationCount}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Perdidos</span>
+                  <span className="text-muted-foreground">Perdidos</span>
                   <span className="text-red-400">{customer.lostCount}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Títulos em atraso</span>
-                  <span className="text-white">{customer.receivables.length}</span>
+                  <span className="text-muted-foreground">Títulos em atraso</span>
+                  <span className="text-foreground">{customer.receivables.length}</span>
                 </div>
                 {customer.nextContact && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Próx. contato</span>
+                    <span className="text-muted-foreground">Próx. contato</span>
                     <span className="text-blue-300">{formatDate(customer.nextContact)}</span>
                   </div>
                 )}
@@ -792,7 +792,7 @@ export default function InadimplenciaPage() {
                           {formatCurrency(c.totalOverdue)}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Button size="sm" onClick={() => openModal(c)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                          <Button size="sm" onClick={() => openModal(c)} className="bg-emerald-600 hover:bg-emerald-700 text-foreground">
                             <Handshake className="w-3.5 h-3.5 mr-1.5" />Negociar
                           </Button>
                         </td>

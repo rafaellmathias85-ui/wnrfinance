@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { EXPENSE_CATEGORIES, RECURRENCE_TYPES, formatDate, toInputDate } from '@/lib/format';
 import { usePJ } from '@/lib/pj-context';
@@ -251,7 +251,7 @@ export default function DespesasPage() {
         </div>
         <div className="flex items-center gap-2">
           <ExportButton type="expenses" startDate={getMonthRange(selectedYear, selectedMonth).startDate} endDate={getMonthRange(selectedYear, selectedMonth).endDate} />
-          <Button onClick={() => { setEditingId(null); setForm({ ...emptyForm }); setDialogOpen(true); }} className="bg-blue-500 hover:bg-blue-600 text-white">
+          <Button onClick={() => { setEditingId(null); setForm({ ...emptyForm }); setDialogOpen(true); }} className="bg-blue-500 hover:bg-blue-600 text-foreground">
             <Plus className="w-4 h-4 mr-1" /> Nova Despesa
           </Button>
         </div>
@@ -379,7 +379,7 @@ export default function DespesasPage() {
                               </span>
                             )}
                             {expense.paymentMethod && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-card text-gray-600 dark:text-muted-foreground">
                                 {PAYMENT_METHODS.find(p => p.value === expense.paymentMethod)?.label || expense.paymentMethod}
                               </span>
                             )}
@@ -582,7 +582,7 @@ export default function DespesasPage() {
 
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} className="flex-1">Cancelar</Button>
-              <Button type="submit" loading={saving} className="flex-1 bg-blue-500 hover:bg-blue-600 text-white">{editingId ? 'Salvar' : 'Criar'}</Button>
+              <Button type="submit" loading={saving} className="flex-1 bg-blue-500 hover:bg-blue-600 text-foreground">{editingId ? 'Salvar' : 'Criar'}</Button>
             </div>
           </form>
         </DialogContent>

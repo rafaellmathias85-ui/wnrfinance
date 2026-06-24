@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -746,7 +746,7 @@ export default function EmpresaPage() {
                 <div className="flex items-end gap-4">
                   <div>
                     <Label>Preview</Label>
-                    <div className={`mt-1 w-10 h-10 rounded-full ${corObj.tw} flex items-center justify-center text-white font-bold text-lg select-none`}>
+                    <div className={`mt-1 w-10 h-10 rounded-full ${corObj.tw} flex items-center justify-center font-bold text-lg select-none`}>
                       {avatarChar}
                     </div>
                   </div>

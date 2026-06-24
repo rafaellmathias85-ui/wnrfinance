@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useState } from 'react';
 import { Ban, Check, Eye, Loader2, Lock, Pencil, Save, Shield, Unlock, Users } from 'lucide-react';
@@ -186,7 +186,7 @@ export default function PermissoesPage() {
                   <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
                     ['admin', 'master'].includes(u.role)
                       ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                      : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground'
+                      : 'bg-gray-100 dark:bg-card text-muted-foreground'
                   }`}>
                     {meta?.roles.find(r => r.id === u.role)?.label || u.role}
                   </span>
@@ -308,7 +308,7 @@ export default function PermissoesPage() {
                                   className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                                     viewOn
                                       ? 'border-emerald-500 bg-emerald-500 text-white'
-                                      : 'border-gray-300 dark:border-gray-600 text-transparent hover:border-gray-400'
+                                      : 'border-gray-300 dark:border-border text-transparent hover:border-gray-400'
                                   }`}
                                   title="Visualizar"
                                 >
@@ -320,7 +320,7 @@ export default function PermissoesPage() {
                                   className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                                     editOn
                                       ? 'border-emerald-500 bg-emerald-500 text-white'
-                                      : 'border-gray-300 dark:border-gray-600 text-transparent hover:border-gray-400'
+                                      : 'border-gray-300 dark:border-border text-transparent hover:border-gray-400'
                                   }`}
                                   title="Editar"
                                 >
@@ -332,7 +332,7 @@ export default function PermissoesPage() {
                                   className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                                     deleteOn
                                       ? 'border-emerald-500 bg-emerald-500 text-white'
-                                      : 'border-gray-300 dark:border-gray-600 text-transparent hover:border-gray-400'
+                                      : 'border-gray-300 dark:border-border text-transparent hover:border-gray-400'
                                   }`}
                                   title="Excluir"
                                 >

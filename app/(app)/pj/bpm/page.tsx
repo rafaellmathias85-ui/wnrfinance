@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -9,8 +9,8 @@ import dynamic from 'next/dynamic';
 const FlowEditor = dynamic(() => import('@/components/pj/BPMFlowEditor'), {
   ssr: false,
   loading: () => (
-    <div className="flex-1 flex items-center justify-center bg-slate-900/50 rounded-xl">
-      <p className="text-slate-500 text-sm">Carregando editor...</p>
+    <div className="flex-1 flex items-center justify-center bg-muted/50 rounded-xl">
+      <p className="text-muted-foreground text-sm">Carregando editor...</p>
     </div>
   ),
 });
@@ -85,15 +85,15 @@ export default function BPMPage() {
   if (editingFlow) {
     return (
       <div className="flex flex-col h-[calc(100vh-4rem)]">
-        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-700 flex-shrink-0 bg-slate-800">
+        <div className="flex items-center justify-between px-6 py-3 border-b border-border flex-shrink-0 bg-card">
           <div className="flex items-center gap-3">
             <button onClick={() => setEditingFlow(null)}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <h2 className="text-white font-medium">{editingFlow.name}</h2>
-              {editingFlow.description && <p className="text-slate-400 text-xs">{editingFlow.description}</p>}
+              <h2 className="text-foreground font-medium">{editingFlow.name}</h2>
+              {editingFlow.description && <p className="text-muted-foreground text-xs">{editingFlow.description}</p>}
             </div>
           </div>
           <button
@@ -121,8 +121,8 @@ export default function BPMPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Fluxos BPM</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Modelagem de processos de negócio com editor visual</p>
+          <h1 className="text-2xl font-bold">Fluxos BPM</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Modelagem de processos de negócio com editor visual</p>
         </div>
         <button onClick={() => setShowNewForm(true)}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -131,12 +131,12 @@ export default function BPMPage() {
       </div>
 
       {loading ? (
-        <div className="text-slate-500 text-sm">Carregando...</div>
+        <div className="text-muted-foreground text-sm">Carregando...</div>
       ) : flows.length === 0 ? (
-        <div className="bg-slate-800 border border-slate-700 rounded-xl p-12 text-center">
+        <div className="bg-card border border-border rounded-xl p-12 text-center">
           <GitBranch className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 font-medium">Nenhum fluxo criado</p>
-          <p className="text-slate-500 text-sm mt-1">Crie fluxos visuais para modelar seus processos</p>
+          <p className="text-muted-foreground font-medium">Nenhum fluxo criado</p>
+          <p className="text-muted-foreground text-sm mt-1">Crie fluxos visuais para modelar seus processos</p>
           <button onClick={() => setShowNewForm(true)}
             className="mt-4 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm">
             Criar primeiro fluxo
@@ -146,7 +146,7 @@ export default function BPMPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {flows.map((flow) => (
             <div key={flow.id}
-              className="bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-xl p-4 cursor-pointer transition-colors"
+              className="bg-card border border-border hover:border-border rounded-xl p-4 cursor-pointer transition-colors"
               onClick={() => openFlow(flow.id)}
             >
               <div className="flex items-start justify-between">
@@ -155,15 +155,15 @@ export default function BPMPage() {
                     <GitBranch className="w-4 h-4 text-blue-400" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-white font-medium truncate">{flow.name}</p>
-                    {flow.description && <p className="text-slate-400 text-xs mt-0.5 truncate">{flow.description}</p>}
-                    <p className="text-slate-500 text-xs mt-1">
+                    <p className="text-foreground font-medium truncate">{flow.name}</p>
+                    {flow.description && <p className="text-muted-foreground text-xs mt-0.5 truncate">{flow.description}</p>}
+                    <p className="text-muted-foreground text-xs mt-1">
                       Atualizado {new Date(flow.updatedAt).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); deleteFlow(flow.id); }}
-                  className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded ml-2">
+                  className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-900/20 rounded ml-2">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -174,29 +174,29 @@ export default function BPMPage() {
 
       {showNewForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-bold">Novo Fluxo BPM</h3>
-              <button onClick={() => setShowNewForm(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowNewForm(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Nome *</label>
+                <label className="text-xs text-muted-foreground block mb-1">Nome *</label>
                 <input value={newName} onChange={(e) => setNewName(e.target.value)}
                   placeholder="ex: Processo de Onboarding"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Descrição</label>
+                <label className="text-xs text-muted-foreground block mb-1">Descrição</label>
                 <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowNewForm(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+                className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">
                 Cancelar
               </button>
               <button onClick={createFlow}

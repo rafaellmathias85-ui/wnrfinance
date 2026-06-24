@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
@@ -229,7 +229,7 @@ export default function PJConfiguracoesPage() {
                 className={`flex items-center gap-2 px-4 py-3 rounded-lg border-2 transition-all text-sm font-medium ${
                   theme === t.key
                     ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-border dark:text-muted-foreground'
                 }`}
               >
                 <t.icon className="w-4 h-4" /> {t.label}
@@ -274,7 +274,7 @@ export default function PJConfiguracoesPage() {
           ) : !mfaSetupData ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">Proteção extra com aplicativo autenticador (Google Authenticator, Authy).</p>
-              <Button onClick={handleMfaSetup} disabled={mfaLoading} className="bg-blue-500 hover:bg-blue-600 text-white">
+              <Button onClick={handleMfaSetup} disabled={mfaLoading} className="bg-blue-500 hover:bg-blue-600 text-foreground">
                 <Shield className="w-4 h-4 mr-2" /> {mfaLoading ? 'Configurando...' : 'Ativar MFA'}
               </Button>
             </div>
@@ -288,7 +288,7 @@ export default function PJConfiguracoesPage() {
               <p className="text-sm text-muted-foreground"><strong>2.</strong> Digite o código de 6 dígitos:</p>
               <div className="flex gap-2">
                 <Input value={mfaCode} onChange={e => setMfaCode(e.target.value)} placeholder="000000" maxLength={6} className="w-36 text-center text-lg tracking-widest" />
-                <Button onClick={handleMfaVerify} disabled={mfaLoading || mfaCode.length < 6} className="bg-blue-500 hover:bg-blue-600 text-white">
+                <Button onClick={handleMfaVerify} disabled={mfaLoading || mfaCode.length < 6} className="bg-blue-500 hover:bg-blue-600 text-foreground">
                   {mfaLoading ? 'Verificando...' : 'Verificar'}
                 </Button>
               </div>
@@ -297,7 +297,7 @@ export default function PJConfiguracoesPage() {
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-300">⚠️ Códigos de backup — salve em local seguro!</p>
                   <div className="grid grid-cols-2 gap-1">
                     {mfaSetupData.backupCodes.map((c, i) => (
-                      <code key={i} className="text-sm font-mono bg-white dark:bg-gray-800 px-2 py-1 rounded border">{c}</code>
+                      <code key={i} className="text-sm font-mono bg-white dark:bg-card px-2 py-1 rounded border">{c}</code>
                     ))}
                   </div>
                 </div>
@@ -367,7 +367,7 @@ export default function PJConfiguracoesPage() {
             <Input value={disableCode} onChange={e => setDisableCode(e.target.value)} placeholder="Código TOTP ou backup" className="text-center" />
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setShowDisableDialog(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={handleMfaDisable} disabled={!disableCode.trim() || mfaLoading} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+              <Button onClick={handleMfaDisable} disabled={!disableCode.trim() || mfaLoading} className="flex-1 bg-red-600 hover:bg-red-700 text-foreground">
                 {mfaLoading ? 'Desativando...' : 'Desativar'}
               </Button>
             </div>

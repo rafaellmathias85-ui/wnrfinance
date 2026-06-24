@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/fetch';
@@ -119,15 +119,15 @@ export default function NFsRecebidasPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">NF-e Recebidas</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Notas fiscais de fornecedores — consulta SEFAZ</p>
+          <h1 className="text-2xl font-bold">NF-e Recebidas</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Notas fiscais de fornecedores — consulta SEFAZ</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={load} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+          <button onClick={load} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg">
             <RefreshCw className="w-4 h-4" />
           </button>
           <button onClick={() => setShowXmlUpload(true)}
-            className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-sm">
+            className="flex items-center gap-2 bg-muted hover:bg-muted text-foreground px-3 py-2 rounded-lg text-sm">
             <Upload className="w-4 h-4" /> Importar XML
           </button>
           <button onClick={() => setShowForm(true)}
@@ -143,7 +143,7 @@ export default function NFsRecebidasPage() {
           <FileText className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-blue-300 text-sm font-medium">Consulta Automática SEFAZ</p>
-            <p className="text-slate-400 text-xs mt-0.5">
+            <p className="text-muted-foreground text-xs mt-0.5">
               Para consulta automática das NF-e direcionadas ao seu CNPJ, configure o certificado digital A1 em{' '}
               <span className="text-blue-400">Configurações → Certificado Digital</span>.
               Enquanto isso, importe os XMLs manualmente ou registre pela chave de acesso.
@@ -155,58 +155,58 @@ export default function NFsRecebidasPage() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm">
+          className="bg-card border border-border text-foreground rounded-lg px-3 py-2 text-sm">
           <option value="">Todos os status</option>
           {Object.entries(STATUS_CONFIG).map(([k, { label }]) => <option key={k} value={k}>{label}</option>)}
         </select>
-        <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
-          <Search className="w-4 h-4 text-slate-400" />
+        <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
+          <Search className="w-4 h-4 text-muted-foreground" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="CNPJ do fornecedor"
             className="bg-transparent text-white text-sm outline-none w-40" />
         </div>
-        <span className="text-slate-400 text-sm">{total} nota(s)</span>
+        <span className="text-muted-foreground text-sm">{total} nota(s)</span>
       </div>
 
       {/* Table */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-900/60">
+          <thead className="bg-muted/60">
             <tr>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Chave / Número</th>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Fornecedor</th>
-              <th className="text-right px-4 py-3 text-slate-400 font-medium">Valor</th>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Emissão</th>
-              <th className="text-left px-4 py-3 text-slate-400 font-medium">Status</th>
-              <th className="text-center px-4 py-3 text-slate-400 font-medium">Ações</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Chave / Número</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Fornecedor</th>
+              <th className="text-right px-4 py-3 text-muted-foreground font-medium">Valor</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Emissão</th>
+              <th className="text-left px-4 py-3 text-muted-foreground font-medium">Status</th>
+              <th className="text-center px-4 py-3 text-muted-foreground font-medium">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-700/50">
+          <tbody className="divide-y divide-border/50">
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Carregando...</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Carregando...</td></tr>
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center">
                   <FileText className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-                  <p className="text-slate-400">Nenhuma NF-e recebida</p>
-                  <p className="text-slate-500 text-xs mt-1">Importe um XML ou registre manualmente</p>
+                  <p className="text-muted-foreground">Nenhuma NF-e recebida</p>
+                  <p className="text-muted-foreground text-xs mt-1">Importe um XML ou registre manualmente</p>
                 </td>
               </tr>
             ) : items.map((item) => {
               const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.valida;
               return (
-                <tr key={item.id} className="hover:bg-slate-700/20 cursor-pointer" onClick={() => setSelectedItem(item)}>
+                <tr key={item.id} className="hover:bg-muted/20 cursor-pointer" onClick={() => setSelectedItem(item)}>
                   <td className="px-4 py-3">
                     <div className="text-white font-mono text-xs">{maskKey(item.accessKey)}</div>
-                    {item.number && <div className="text-slate-400 text-xs">Nº {item.number}{item.series ? ` Série ${item.series}` : ''}</div>}
+                    {item.number && <div className="text-muted-foreground text-xs">Nº {item.number}{item.series ? ` Série ${item.series}` : ''}</div>}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-white text-sm">{item.supplierName || <span className="text-slate-500 italic">—</span>}</div>
-                    {item.supplierCnpj && <div className="text-slate-400 text-xs">{item.supplierCnpj}</div>}
+                    <div className="text-white text-sm">{item.supplierName || <span className="text-muted-foreground italic">—</span>}</div>
+                    {item.supplierCnpj && <div className="text-muted-foreground text-xs">{item.supplierCnpj}</div>}
                   </td>
-                  <td className="px-4 py-3 text-right text-white font-medium">
-                    {item.totalValue ? fmt(item.totalValue) : <span className="text-slate-500">—</span>}
+                  <td className="px-4 py-3 text-right text-foreground font-medium">
+                    {item.totalValue ? fmt(item.totalValue) : <span className="text-muted-foreground">—</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-400 text-xs">
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
                     {item.issueDate ? fmtDate(item.issueDate) : fmtDate(item.createdAt)}
                   </td>
                   <td className="px-4 py-3">
@@ -217,7 +217,7 @@ export default function NFsRecebidasPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
-                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded">
+                        className="p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-900/20 rounded">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -233,12 +233,12 @@ export default function NFsRecebidasPage() {
       {totalPages > 1 && (
         <div className="flex justify-center gap-2">
           <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-            className="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-sm disabled:opacity-40">
+            className="px-3 py-1.5 bg-muted text-white rounded-lg text-sm disabled:opacity-40">
             Anterior
           </button>
-          <span className="px-3 py-1.5 text-slate-400 text-sm">Pág. {page} / {totalPages}</span>
+          <span className="px-3 py-1.5 text-muted-foreground text-sm">Pág. {page} / {totalPages}</span>
           <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}
-            className="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-sm disabled:opacity-40">
+            className="px-3 py-1.5 bg-muted text-white rounded-lg text-sm disabled:opacity-40">
             Próxima
           </button>
         </div>
@@ -247,16 +247,16 @@ export default function NFsRecebidasPage() {
       {/* XML upload modal */}
       {showXmlUpload && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-bold">Importar XML NF-e</h3>
-              <button onClick={() => setShowXmlUpload(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowXmlUpload(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div
               className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
-                dragging ? 'border-blue-500 bg-blue-500/10' : 'border-slate-600 hover:border-slate-500'
+                dragging ? 'border-blue-500 bg-blue-500/10' : 'border-border hover:border-border'
               }`}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
@@ -267,13 +267,13 @@ export default function NFsRecebidasPage() {
               }}
               onClick={() => xmlInputRef.current?.click()}
             >
-              <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-              <p className="text-slate-300 text-sm font-medium">Arraste o arquivo XML aqui</p>
-              <p className="text-slate-500 text-xs mt-1">ou clique para selecionar</p>
+              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-foreground text-sm font-medium">Arraste o arquivo XML aqui</p>
+              <p className="text-muted-foreground text-xs mt-1">ou clique para selecionar</p>
               <input ref={xmlInputRef} type="file" accept=".xml" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleXmlUpload(f); }} />
             </div>
-            {uploading && <p className="text-slate-400 text-sm text-center">Importando...</p>}
+            {uploading && <p className="text-muted-foreground text-sm text-center">Importando...</p>}
           </div>
         </div>
       )}
@@ -281,64 +281,64 @@ export default function NFsRecebidasPage() {
       {/* Manual form modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-lg space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-bold">Registrar NF-e Manualmente</h3>
-              <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="text-xs text-slate-400 block mb-1">Chave de Acesso (44 dígitos) *</label>
+                <label className="text-xs text-muted-foreground block mb-1">Chave de Acesso (44 dígitos) *</label>
                 <input value={manualForm.accessKey} onChange={(e) => setManualForm((p) => ({ ...p, accessKey: e.target.value.replace(/\D/g, '') }))}
                   maxLength={44} placeholder="44 dígitos da chave"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm font-mono" />
-                <p className="text-slate-500 text-xs mt-0.5">{manualForm.accessKey.length}/44 dígitos</p>
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm font-mono" />
+                <p className="text-muted-foreground text-xs mt-0.5">{manualForm.accessKey.length}/44 dígitos</p>
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Número da NF</label>
+                <label className="text-xs text-muted-foreground block mb-1">Número da NF</label>
                 <input value={manualForm.number} onChange={(e) => setManualForm((p) => ({ ...p, number: e.target.value }))}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Série</label>
+                <label className="text-xs text-muted-foreground block mb-1">Série</label>
                 <input value={manualForm.series} onChange={(e) => setManualForm((p) => ({ ...p, series: e.target.value }))}
                   placeholder="1"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Fornecedor</label>
+                <label className="text-xs text-muted-foreground block mb-1">Fornecedor</label>
                 <input value={manualForm.supplierName} onChange={(e) => setManualForm((p) => ({ ...p, supplierName: e.target.value }))}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">CNPJ do Fornecedor</label>
+                <label className="text-xs text-muted-foreground block mb-1">CNPJ do Fornecedor</label>
                 <input value={manualForm.supplierCnpj} onChange={(e) => setManualForm((p) => ({ ...p, supplierCnpj: e.target.value }))}
                   placeholder="00.000.000/0001-00"
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Data de Emissão</label>
+                <label className="text-xs text-muted-foreground block mb-1">Data de Emissão</label>
                 <input type="date" value={manualForm.issueDate} onChange={(e) => setManualForm((p) => ({ ...p, issueDate: e.target.value }))}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="text-xs text-slate-400 block mb-1">Valor Total (R$)</label>
+                <label className="text-xs text-muted-foreground block mb-1">Valor Total (R$)</label>
                 <input type="number" min="0" step="0.01" value={manualForm.totalValue}
                   onChange={(e) => setManualForm((p) => ({ ...p, totalValue: e.target.value }))}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
               <div className="col-span-2">
-                <label className="text-xs text-slate-400 block mb-1">Observações</label>
+                <label className="text-xs text-muted-foreground block mb-1">Observações</label>
                 <textarea value={manualForm.notes} onChange={(e) => setManualForm((p) => ({ ...p, notes: e.target.value }))}
                   rows={2}
-                  className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg px-3 py-2 text-sm" />
+                  className="w-full bg-muted border border-border text-foreground rounded-lg px-3 py-2 text-sm" />
               </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowForm(false)}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+                className="flex-1 bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">
                 Cancelar
               </button>
               <button onClick={handleManualSave}
@@ -353,46 +353,46 @@ export default function NFsRecebidasPage() {
       {/* Detail panel */}
       {selectedItem && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-lg space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-bold">Detalhes da NF-e</h3>
-              <button onClick={() => setSelectedItem(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setSelectedItem(null)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-400">Chave</span>
+                <span className="text-muted-foreground">Chave</span>
                 <span className="text-white font-mono text-xs">{selectedItem.accessKey}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Número / Série</span>
-                <span className="text-white">{selectedItem.number || '—'} / {selectedItem.series || '—'}</span>
+                <span className="text-muted-foreground">Número / Série</span>
+                <span className="text-foreground">{selectedItem.number || '—'} / {selectedItem.series || '—'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Fornecedor</span>
-                <span className="text-white">{selectedItem.supplierName || '—'}</span>
+                <span className="text-muted-foreground">Fornecedor</span>
+                <span className="text-foreground">{selectedItem.supplierName || '—'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">CNPJ</span>
-                <span className="text-white">{selectedItem.supplierCnpj || '—'}</span>
+                <span className="text-muted-foreground">CNPJ</span>
+                <span className="text-foreground">{selectedItem.supplierCnpj || '—'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Emissão</span>
-                <span className="text-white">{selectedItem.issueDate ? fmtDate(selectedItem.issueDate) : '—'}</span>
+                <span className="text-muted-foreground">Emissão</span>
+                <span className="text-foreground">{selectedItem.issueDate ? fmtDate(selectedItem.issueDate) : '—'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Total</span>
+                <span className="text-muted-foreground">Total</span>
                 <span className="text-white font-bold">{selectedItem.totalValue ? fmt(selectedItem.totalValue) : '—'}</span>
               </div>
             </div>
             {selectedItem.items && Array.isArray(selectedItem.items) && selectedItem.items.length > 0 && (
               <div>
-                <p className="text-slate-400 text-xs mb-2">Itens ({selectedItem.items.length})</p>
+                <p className="text-muted-foreground text-xs mb-2">Itens ({selectedItem.items.length})</p>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
                   {selectedItem.items.map((it: any, i: number) => (
                     <div key={i} className="flex justify-between text-xs">
-                      <span className="text-slate-300 truncate max-w-[250px]">{it.descricao}</span>
+                      <span className="text-foreground truncate max-w-[250px]">{it.descricao}</span>
                       <span className="text-white ml-2">{it.valorTotal ? fmt(it.valorTotal) : '—'}</span>
                     </div>
                   ))}
@@ -400,7 +400,7 @@ export default function NFsRecebidasPage() {
               </div>
             )}
             <button onClick={() => setSelectedItem(null)}
-              className="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg text-sm">
+              className="w-full bg-muted hover:bg-muted text-foreground py-2 rounded-lg text-sm">
               Fechar
             </button>
           </div>

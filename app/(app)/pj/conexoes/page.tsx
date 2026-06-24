@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { apiFetch } from '@/lib/fetch';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   ok: { label: 'Ativo', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', icon: CheckCircle2 },
   atencao: { label: 'Atencao', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: AlertTriangle },
   erro: { label: 'Erro', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
-  pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', icon: Clock },
+  pendente: { label: 'Pendente', color: 'bg-gray-100 text-gray-600 dark:bg-card dark:text-muted-foreground', icon: Clock },
 };
 
 const OPERATION_PREREQS: Record<string, { title: string; items: string[] }> = {
@@ -519,7 +519,7 @@ export default function ConexoesPage() {
 
       {/* Activity Logs */}
       {showLogs && logs.length > 0 && (
-        <Card className="border-slate-200 dark:border-slate-700">
+        <Card className="border-slate-200 dark:border-border">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2"><Activity className="w-4 h-4" /> Log de Atividades</div>
@@ -786,7 +786,7 @@ export default function ConexoesPage() {
             )}
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => setShowAdd(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={handleAddConnection} disabled={!newConn.providerKey} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">Adicionar</Button>
+              <Button onClick={handleAddConnection} disabled={!newConn.providerKey} className="flex-1 bg-blue-600 hover:bg-blue-700 text-foreground">Adicionar</Button>
             </div>
           </div>
         </DialogContent>
