@@ -129,7 +129,7 @@ function MegaMenuTab({
     >
       <button
         onClick={() => setActiveMega((prev: string | null) => prev === mod.id ? null : mod.id)}
-        className={`relative flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap ${
+        className={`relative flex items-center gap-1 px-2 py-1.5 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap ${
           active || megaOpen ? accentCls : inactiveCls
         }`}
         aria-expanded={megaOpen}
@@ -257,10 +257,10 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
           borderBottom: '1px solid hsl(var(--border) / 0.7)',
           boxShadow: '0 1px 3px rgb(0 0 0 / 0.04)',
         }}>
-        <div className="flex items-center h-full px-4 gap-1 w-full">
+        <div className="flex items-center h-full px-3 gap-0.5 w-full">
 
           {/* Logo */}
-          <Link href={activeEnv === 'pj' ? '/pj/dashboard' : '/dashboard'} className="flex items-center gap-2.5 mr-4 flex-shrink-0 group">
+          <Link href={activeEnv === 'pj' ? '/pj/dashboard' : '/dashboard'} className="flex items-center gap-2 mr-3 flex-shrink-0 group">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-all group-hover:scale-105"
               style={{ background: 'linear-gradient(135deg, hsl(221 83% 48%) 0%, hsl(240 80% 58%) 100%)' }}>
               <Wallet className="w-5 h-5 text-white" />
@@ -276,7 +276,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
           <div className="hidden lg:block w-px h-6 bg-border/60 mx-2" />
 
           {/* Environment Switcher — always visible */}
-          <div className="flex items-center rounded-lg bg-muted p-0.5 mr-2 flex-shrink-0">
+          <div className="flex items-center rounded-lg bg-muted p-0.5 mr-1 flex-shrink-0">
             <button
               onClick={() => handleSwitchEnv('pf')}
               className={`flex items-center gap-1 py-1 px-2.5 rounded-md text-xs font-semibold transition-all ${
@@ -306,7 +306,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
 
           {/* Monitor fiscal (badge SEFAZ — paridade BomControle) */}
           {activeEnv === 'pj' && (
-            <div className="mr-1 flex-shrink-0 hidden md:block">
+            <div className="flex-shrink-0 hidden lg:block">
               <FiscalMonitorBadge />
             </div>
           )}
@@ -316,10 +316,11 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
             <div ref={companyRef} className="relative mr-2 flex-shrink-0 hidden md:block">
               <button
                 onClick={() => setCompanyOpen(!companyOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/60 bg-background text-sm hover:bg-muted transition-colors max-w-[200px]"
+                title={activeCompanyName}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border/60 bg-background hover:bg-muted transition-colors max-w-[160px]"
               >
                 <Building2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                <span className="truncate text-xs font-medium">{activeCompanyName}</span>
+                <span className="hidden min-[2000px]:inline truncate text-xs font-medium max-w-[110px]">{activeCompanyName}</span>
                 <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform flex-shrink-0 ${companyOpen ? 'rotate-180' : ''}`} />
               </button>
               {companyOpen && (
@@ -347,7 +348,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
           {/* ======== Module Tabs (Desktop) ======== */}
           <nav className="hidden lg:flex items-center flex-1 min-w-0 overflow-x-auto scrollbar-hide" role="navigation" aria-label="Menu principal"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <div className="flex items-center gap-0.5 flex-nowrap">
+            <div className="flex items-center gap-px flex-nowrap">
             {[...visibleModules, ...(isAdmin ? [{ ...adminMod, _isAdmin: true } as ModuleTab & { _isAdmin?: boolean }] : [])].map((mod) => {
               const _isAdmin = (mod as any)._isAdmin;
               const active = _isAdmin ? pathname?.startsWith('/admin') : isModuleActive(mod);
@@ -363,7 +364,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
                   <Link
                     key={mod.id}
                     href={mod.singleLink!}
-                    className={`relative flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                    className={`relative flex items-center gap-1 px-2 py-1.5 rounded-lg text-[12px] font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                       active ? accentCls : inactiveCls
                     }`}
                   >
@@ -434,7 +435,7 @@ export default function AppSidebar({ children }: { children: React.ReactNode }) 
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 text-white flex items-center justify-center text-xs font-bold">
                   {session?.user?.name?.[0]?.toUpperCase?.() ?? 'U'}
                 </div>
-                <div className="hidden xl:block text-left">
+                <div className="hidden min-[2000px]:block text-left">
                   <p className="text-xs font-medium text-foreground truncate max-w-[120px] leading-tight">{session?.user?.name ?? 'Usuário'}</p>
                   <p className="text-[10px] text-muted-foreground leading-tight">{isAdmin ? 'Administrador' : 'Usuário'}</p>
                 </div>
