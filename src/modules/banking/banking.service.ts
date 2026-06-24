@@ -261,6 +261,24 @@ export class BankingService {
       };
     } catch (error: any) {
       const message = error?.message || 'Erro de conexão bancária';
+
+      // Cria um lote vazio para que o erro fique visível na tela de conciliação.
+      // Sem isso, falhas na API não geram nenhum registro na UI (syncError ficaria só no banco).
+      try {
+        const { importBatchService } = await import('@/src/modules/reconciliation/import-batch.service');
+        await importBatchService.createBatch({
+          userId: connection.userId,
+          companyId: connection.companyId || null,
+          bankConnectionId: connection.id,
+          source: `API_${connection.bankCode || connection.provider || 'BANK'}`.toUpperCase(),
+          type: options?.automatic ? 'AUTOMATICO' : 'MANUAL',
+          periodStart: startDate,
+          periodEnd: endDate,
+        });
+      } catch {
+        // criação do lote de erro é não-crítica
+      }
+
       await prisma.bankConnection.update({
         where: { id: connection.id },
         data: { status: 'ERROR', syncError: message },
