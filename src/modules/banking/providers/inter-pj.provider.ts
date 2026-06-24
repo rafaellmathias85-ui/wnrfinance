@@ -424,6 +424,7 @@ export class InterPJProvider implements BankProvider {
       headers?: Record<string, string>;
       body?: string;
     },
+    _retries = 3,
   ): Promise<T> {
     const timeout = Number(process.env.BANK_REQUEST_TIMEOUT_MS || 30000);
     const target = new URL(url);
@@ -445,6 +446,18 @@ export class InterPJProvider implements BankProvider {
           res.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
           res.on('end', () => {
             const text = Buffer.concat(chunks).toString('utf8');
+
+            if (res.statusCode === 429 && _retries > 0) {
+              const retryAfterRaw = res.headers['retry-after'];
+              const retryAfterSec = retryAfterRaw ? parseInt(String(retryAfterRaw), 10) : 65;
+              const waitMs = Math.min(Number.isNaN(retryAfterSec) ? 65_000 : retryAfterSec * 1000, 120_000);
+              console.warn(`[InterPJ] HTTP 429 — aguardando ${waitMs / 1000}s antes de tentar novamente (${_retries} restante(s)).`);
+              setTimeout(() => {
+                this.requestJson<T>(url, options, _retries - 1).then(resolve, reject);
+              }, waitMs);
+              return;
+            }
+
             if ((res.statusCode || 500) >= 400) {
               reject(new Error(`Banco Inter PJ retornou HTTP ${res.statusCode}: ${text.slice(0, 200)}`));
               return;

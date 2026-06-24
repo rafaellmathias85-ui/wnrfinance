@@ -115,7 +115,10 @@ export class ItauPJProvider implements BankProvider {
           hasMore = events.length > 0 && page < totalPages;
           page++;
         } catch (e: any) {
-          console.warn(`[ItauPJ] Account Statement erro p${page}: ${e?.message}`);
+          const msg = `[ItauPJ] Account Statement erro p${page} (${startDateStr}→${endDateStr}): ${e?.message}`;
+          console.error(msg);
+          // First-page failure = config/auth problem — surface it so the UI shows the real error
+          if (page === 1) throw new Error(msg);
           hasMore = false;
         }
       }
@@ -291,7 +294,7 @@ export class ItauPJProvider implements BankProvider {
     const ag = (this.connection.agency || '').padStart(4, '0');
     const ct = (this.connection.accountNumber || '').padStart(5, '0');
     const dac = this.connection.accountDigit || '';
-    if (!ag.replace(/0/g, '') && !ct.replace(/0/g, '') || !dac) return '';
+    if (!ag.replace(/0/g, '') || !ct.replace(/0/g, '') || !dac) return '';
     return `${ag}00${ct}${dac}`;
   }
 
